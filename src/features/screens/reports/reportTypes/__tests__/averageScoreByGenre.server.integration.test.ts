@@ -78,6 +78,54 @@ describe("exclusions", () => {
 		expect(result).toHaveLength(0);
 	});
 
+	it("items with a cleared (zero) rating are excluded", async () => {
+		// The instance editor stores a cleared rating as 0, not NULL.
+		const genreId = await insertGenre({ userId: USER, name: "Fiction" });
+		const itemId = await insertMediaItem({
+			type: MediaItemType.BOOK,
+			userId: USER,
+			genreId,
+		});
+		await insertInstance({
+			mediaItemId: itemId,
+			completedAt: "2024-03-10",
+			rating: "0",
+		});
+
+		const result = await fetchAverageScoreByGenre(USER, START, END);
+
+		expect(result).toHaveLength(0);
+	});
+
+	it("a zero-rated instance doesn't drag down a genre's average", async () => {
+		const genreId = await insertGenre({ userId: USER, name: "Fiction" });
+		const ratedItemId = await insertMediaItem({
+			type: MediaItemType.BOOK,
+			userId: USER,
+			genreId,
+		});
+		const unratedItemId = await insertMediaItem({
+			type: MediaItemType.BOOK,
+			userId: USER,
+			genreId,
+		});
+		await insertInstance({
+			mediaItemId: ratedItemId,
+			completedAt: "2024-03-05",
+			rating: "9",
+		});
+		await insertInstance({
+			mediaItemId: unratedItemId,
+			completedAt: "2024-03-10",
+			rating: "0",
+		});
+
+		const result = await fetchAverageScoreByGenre(USER, START, END);
+		const genre = result.find((row) => row.genre === "Fiction");
+
+		expect(genre?.value).toBe(9);
+	});
+
 	it("items with a null completedAt are excluded", async () => {
 		const genreId = await insertGenre({ userId: USER, name: "Fiction" });
 		const itemId = await insertMediaItem({

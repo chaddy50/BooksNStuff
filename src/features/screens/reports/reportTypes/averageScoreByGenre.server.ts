@@ -24,7 +24,9 @@ export async function fetchAverageScoreByGenre(
 		.where(
 			and(
 				eq(mediaItems.userId, userId),
-				isNotNull(mediaItemInstances.rating),
+				// A cleared rating is stored as 0 (not NULL) by the instance editor,
+				// so it must be excluded here too or it drags the average toward zero.
+				sql`${mediaItemInstances.rating} > 0`,
 				isNotNull(mediaItemInstances.completedAt),
 				sql`${mediaItemInstances.completedAt} >= ${startDate}`,
 				sql`${mediaItemInstances.completedAt} <= ${endDate}`,
