@@ -250,14 +250,15 @@ export async function syncSeriesStatus(seriesId: number, userId: string) {
 					eq(mediaItems.seriesId, seriesId),
 					eq(mediaItems.userId, userId),
 					isNotNull(mediaItemInstances.completedAt),
-					isNotNull(mediaItemInstances.rating),
 				),
 			)
 			.orderBy(mediaItemInstances.mediaItemId, desc(mediaItemInstances.id));
 
+		// A cleared rating is stored as 0 (not NULL) by the instance editor, so it
+		// must be excluded here too or it drags the average toward zero.
 		const ratings = latestRatings
 			.map((r) => parseFloat(r.rating ?? ""))
-			.filter((r) => !Number.isNaN(r));
+			.filter((r) => !Number.isNaN(r) && r > 0);
 		if (ratings.length > 0) {
 			const average = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
 			newRating = average.toFixed(1);
