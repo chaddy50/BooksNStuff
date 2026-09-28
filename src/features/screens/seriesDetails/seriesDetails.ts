@@ -1,11 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "#/database/index";
 import {
 	creators,
-	mediaItemInstances,
 	mediaItemStatusEnum,
 	mediaItems,
 	mediaTypeEnum,
@@ -16,6 +15,7 @@ import { getLoggedInUser } from "#/features/screens/auth/session";
 import { getMissingSeriesItems as getMissingSeriesItemsForUser } from "#/features/screens/seriesDetails/missingSeriesItems.server";
 import { updateSeriesMetadata as updateSeriesMetadataForUser } from "#/features/screens/seriesDetails/seriesDetails.server";
 import { MediaItemStatus, NextItemStatus } from "#/lib/enums";
+import { fetchLatestRatingsByMediaItemId } from "#/lib/queries/ratingsQuery.server";
 
 export const getSeriesListByType = createServerFn({ method: "GET" })
 	.inputValidator(z.object({ type: z.enum(mediaTypeEnum.enumValues) }))
@@ -72,35 +72,15 @@ export const getSeriesDetails = createServerFn({ method: "GET" })
 		}
 
 		const itemIds = items.map((item) => item.id);
-		const latestRatings = await db
-			.selectDistinctOn([mediaItemInstances.mediaItemId], {
-				mediaItemId: mediaItemInstances.mediaItemId,
-				rating: mediaItemInstances.rating,
-				completedAt: mediaItemInstances.completedAt,
-			})
-			.from(mediaItemInstances)
-			.where(
-				and(
-					inArray(mediaItemInstances.mediaItemId, itemIds),
-					isNotNull(mediaItemInstances.completedAt),
-				),
-			)
-			.orderBy(mediaItemInstances.mediaItemId, desc(mediaItemInstances.id));
-
-		const ratingMap = new Map(
-			latestRatings.map((r) => [r.mediaItemId, r.rating]),
-		);
-		const completedAtMap = new Map(
-			latestRatings.map((r) => [r.mediaItemId, r.completedAt]),
-		);
+		const latestRatings = await fetchLatestRatingsByMediaItemId(itemIds);
 
 		return {
 			...row,
 			rating: parseFloat(row.rating ?? "") || 0,
 			items: items.map((item) => ({
 				...item,
-				rating: parseFloat(ratingMap.get(item.id) ?? "") || 0,
-				completedAt: completedAtMap.get(item.id) ?? null,
+				rating: latestRatings.get(item.id)?.rating ?? 0,
+				completedAt: latestRatings.get(item.id)?.completedAt ?? null,
 			})),
 		};
 	});

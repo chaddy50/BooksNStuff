@@ -1,11 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, asc, desc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "#/database/index";
-import { creators, mediaItemInstances, mediaItems } from "#/database/schema";
+import { creators, mediaItems } from "#/database/schema";
 import { getLoggedInUser } from "#/features/screens/auth/session";
 import { updateCreatorMetadata as updateCreatorMetadataForUser } from "#/features/screens/creatorDetails/creatorDetails.server";
+import { fetchLatestRatingsByMediaItemId } from "#/lib/queries/ratingsQuery.server";
 
 // ---------------------------------------------------------------------------
 // Server functions
@@ -56,34 +57,14 @@ export const getCreatorDetails = createServerFn({ method: "GET" })
 		}
 
 		const itemIds = items.map((item) => item.id);
-		const latestRatings = await db
-			.selectDistinctOn([mediaItemInstances.mediaItemId], {
-				mediaItemId: mediaItemInstances.mediaItemId,
-				rating: mediaItemInstances.rating,
-				completedAt: mediaItemInstances.completedAt,
-			})
-			.from(mediaItemInstances)
-			.where(
-				and(
-					inArray(mediaItemInstances.mediaItemId, itemIds),
-					isNotNull(mediaItemInstances.completedAt),
-				),
-			)
-			.orderBy(mediaItemInstances.mediaItemId, desc(mediaItemInstances.id));
-
-		const ratingMap = new Map(
-			latestRatings.map((r) => [r.mediaItemId, r.rating]),
-		);
-		const completedAtMap = new Map(
-			latestRatings.map((r) => [r.mediaItemId, r.completedAt]),
-		);
+		const latestRatings = await fetchLatestRatingsByMediaItemId(itemIds);
 
 		return {
 			...row,
 			items: items.map((item) => ({
 				...item,
-				rating: parseFloat(ratingMap.get(item.id) ?? "") || 0,
-				completedAt: completedAtMap.get(item.id) ?? null,
+				rating: latestRatings.get(item.id)?.rating ?? 0,
+				completedAt: latestRatings.get(item.id)?.completedAt ?? null,
 			})),
 		};
 	});
