@@ -17,7 +17,6 @@ describe("fetchLatestRatingsByMediaItemId", () => {
 	it("returns an empty map without querying when given no media item ids", async () => {
 		const { db } = await import("#/database/index");
 		const selectDistinctOnFn = vi.fn();
-		// @ts-expect-error — assigning to mocked module
 		db.selectDistinctOn = selectDistinctOnFn;
 
 		const result = await fetchLatestRatingsByMediaItemId([]);
