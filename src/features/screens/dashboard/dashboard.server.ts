@@ -13,6 +13,7 @@ import {
 import { db } from "#/database/index";
 import { mediaItemInstances, mediaItems, series } from "#/database/schema";
 import { MediaItemStatus } from "#/lib/enums";
+import { fetchLatestRatingsByMediaItemId } from "#/lib/queries/ratingsQuery.server";
 
 export async function fetchInProgressItems(userId: string) {
 	return db
@@ -230,27 +231,11 @@ async function attachRatings<T extends { id: number }>(
 	}
 
 	const itemIds = items.map((item) => item.id);
-	const latestRatings = await db
-		.selectDistinctOn([mediaItemInstances.mediaItemId], {
-			mediaItemId: mediaItemInstances.mediaItemId,
-			rating: mediaItemInstances.rating,
-		})
-		.from(mediaItemInstances)
-		.where(
-			and(
-				inArray(mediaItemInstances.mediaItemId, itemIds),
-				isNotNull(mediaItemInstances.completedAt),
-			),
-		)
-		.orderBy(mediaItemInstances.mediaItemId, desc(mediaItemInstances.id));
-
-	const ratingMap = new Map(
-		latestRatings.map((r) => [r.mediaItemId, r.rating]),
-	);
+	const latestRatings = await fetchLatestRatingsByMediaItemId(itemIds);
 
 	return items.map((item) => ({
 		...item,
-		rating: parseFloat(ratingMap.get(item.id) ?? "") || 0,
+		rating: latestRatings.get(item.id)?.rating ?? 0,
 	}));
 }
 

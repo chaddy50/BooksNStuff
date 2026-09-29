@@ -1,12 +1,8 @@
-import { and, asc, count, desc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, count, eq } from "drizzle-orm";
 
 import { db } from "#/database/index";
-import {
-	type Genre,
-	genres,
-	mediaItemInstances,
-	mediaItems,
-} from "#/database/schema";
+import { type Genre, genres, mediaItems } from "#/database/schema";
+import { fetchLatestRatingsByMediaItemId } from "#/lib/queries/ratingsQuery.server";
 import type { TaxonomyEntry, TaxonomyMutationResult } from "#/lib/taxonomy";
 import {
 	isDuplicateNameError,
@@ -71,34 +67,14 @@ export async function fetchGenreDetails(genreId: number, userId: string) {
 	}
 
 	const itemIds = items.map((item) => item.id);
-	const latestRatings = await db
-		.selectDistinctOn([mediaItemInstances.mediaItemId], {
-			mediaItemId: mediaItemInstances.mediaItemId,
-			rating: mediaItemInstances.rating,
-			completedAt: mediaItemInstances.completedAt,
-		})
-		.from(mediaItemInstances)
-		.where(
-			and(
-				inArray(mediaItemInstances.mediaItemId, itemIds),
-				isNotNull(mediaItemInstances.completedAt),
-			),
-		)
-		.orderBy(mediaItemInstances.mediaItemId, desc(mediaItemInstances.id));
-
-	const ratingMap = new Map(
-		latestRatings.map((r) => [r.mediaItemId, r.rating]),
-	);
-	const completedAtMap = new Map(
-		latestRatings.map((r) => [r.mediaItemId, r.completedAt]),
-	);
+	const latestRatings = await fetchLatestRatingsByMediaItemId(itemIds);
 
 	return {
 		...row,
 		items: items.map((item) => ({
 			...item,
-			rating: parseFloat(ratingMap.get(item.id) ?? "") || 0,
-			completedAt: completedAtMap.get(item.id) ?? null,
+			rating: latestRatings.get(item.id)?.rating ?? 0,
+			completedAt: latestRatings.get(item.id)?.completedAt ?? null,
 		})),
 	};
 }
