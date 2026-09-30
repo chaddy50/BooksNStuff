@@ -13,6 +13,7 @@ import {
 import { RatingStars } from "#/features/screens/mediaItemDetails/components/history/components/instance/rating/ratingStars/RatingStars";
 import {
 	type SeriesDetails,
+	type SeriesItem,
 	updateNextItemStatus,
 	updateSeriesStatus,
 } from "#/features/screens/seriesDetails/seriesDetails";
@@ -22,6 +23,19 @@ import { EditSeriesDialog } from "./EditSeriesDialog";
 
 interface SeriesInfoProps {
 	seriesDetails: SeriesDetails;
+}
+
+/**
+ * Items are ordered by book/release number, not by when the user finished
+ * them, so the series's completion date is the latest completedAt across all
+ * items rather than the last item in that order.
+ */
+function getMostRecentCompletedAt(items: SeriesItem[]) {
+	return items.reduce<string | null>((mostRecent, item) => {
+		if (!item.completedAt) return mostRecent;
+		if (!mostRecent || item.completedAt > mostRecent) return item.completedAt;
+		return mostRecent;
+	}, null);
 }
 
 export function SeriesInfo({ seriesDetails }: SeriesInfoProps) {
@@ -58,8 +72,7 @@ export function SeriesInfo({ seriesDetails }: SeriesInfoProps) {
 	const seriesCompletedAt =
 		allItemsCompleted &&
 		seriesDetails.status !== MediaItemStatus.WAITING_FOR_NEXT_RELEASE
-			? (seriesDetails.items[seriesDetails.items.length - 1].completedAt ??
-				null)
+			? getMostRecentCompletedAt(seriesDetails.items)
 			: null;
 
 	async function handleStatusChange(status: string) {

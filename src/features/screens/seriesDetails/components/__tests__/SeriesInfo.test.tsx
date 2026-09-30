@@ -68,4 +68,17 @@ describe("SeriesInfo", () => {
 
 		expect(screen.queryByTestId("rating-stars")).not.toBeInTheDocument();
 	});
+
+	it("shows the latest completedAt across items, not the last item in series order", () => {
+		renderSeriesInfo({
+			items: [
+				{ status: MediaItemStatus.COMPLETED, completedAt: "2026-06-01" },
+				{ status: MediaItemStatus.COMPLETED, completedAt: "2026-08-15" },
+				{ status: MediaItemStatus.COMPLETED, completedAt: "2026-01-10" },
+			] as SeriesDetails["items"],
+		});
+
+		expect(screen.getByText("mediaItemDetails.completed")).toBeInTheDocument();
+		expect(screen.getByText("Aug 15, 2026")).toBeInTheDocument();
+	});
 });
