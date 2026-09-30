@@ -896,6 +896,44 @@ describe("sort by releaseDate", () => {
 			"Later Entry",
 		]);
 	});
+
+	it("falls through to the title tiebreak when sorting by series and everything else ties", async () => {
+		const seriesId = await insertSeries({
+			userId: USER,
+			name: "Delta Series",
+			type: MediaItemType.BOOK,
+		});
+		await insertItem({
+			title: "Zeta Book",
+			seriesId,
+			metadata: { series: "Delta Series" },
+		});
+		await insertItem({
+			title: "Alpha Book",
+			seriesId,
+			metadata: { series: "Delta Series" },
+		});
+
+		const ascending = await runItemQuery(
+			{ sortBy: "series", sortDirection: "asc" },
+			USER,
+		);
+		const descending = await runItemQuery(
+			{ sortBy: "series", sortDirection: "desc" },
+			USER,
+		);
+
+		// Both items tie on series key, book number, release date, and
+		// firstPublishedAt, so the title tiebreak decides in both directions.
+		expect(ascending.items.map((item) => item.title)).toEqual([
+			"Alpha Book",
+			"Zeta Book",
+		]);
+		expect(descending.items.map((item) => item.title)).toEqual([
+			"Alpha Book",
+			"Zeta Book",
+		]);
+	});
 });
 
 // ---------------------------------------------------------------------------

@@ -267,17 +267,13 @@ function buildItemSortClauses(
 
 		case "series":
 			return sortDirection === "asc"
-				? [
-						sql`${seriesKey} ASC`,
-						sql`(NULLIF(${mediaItems.metadata}->>'seriesBookNumber', ''))::float ASC NULLS LAST`,
-						sql`CASE WHEN ${mediaItems.seriesId} IS NOT NULL THEN ${mediaItems.releaseDate} END ASC NULLS LAST`,
-						sql`CASE WHEN ${mediaItems.seriesId} IS NOT NULL THEN (${mediaItems.metadata}->>'firstPublishedAt')::timestamp END ASC NULLS LAST`,
-					]
+				? bySeriesThenTitle
 				: [
 						sql`${seriesKey} DESC`,
 						sql`(NULLIF(${mediaItems.metadata}->>'seriesBookNumber', ''))::float DESC NULLS LAST`,
 						sql`CASE WHEN ${mediaItems.seriesId} IS NOT NULL THEN ${mediaItems.releaseDate} END DESC NULLS LAST`,
 						sql`CASE WHEN ${mediaItems.seriesId} IS NOT NULL THEN (${mediaItems.metadata}->>'firstPublishedAt')::timestamp END DESC NULLS LAST`,
+						asc(mediaItems.sortTitle),
 					];
 
 		case "rating":
