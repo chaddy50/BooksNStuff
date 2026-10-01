@@ -13,6 +13,7 @@ import {
 import { RatingStars } from "#/features/screens/mediaItemDetails/components/history/components/instance/rating/ratingStars/RatingStars";
 import {
 	type SeriesDetails,
+	type SeriesItem,
 	updateNextItemStatus,
 	updateSeriesStatus,
 } from "#/features/screens/seriesDetails/seriesDetails";
@@ -22,6 +23,16 @@ import { EditSeriesDialog } from "./EditSeriesDialog";
 
 interface SeriesInfoProps {
 	seriesDetails: SeriesDetails;
+}
+
+function getMostRecentCompletedAt(items: SeriesItem[]) {
+	const completedAtDates = items
+		.map((item) => item.completedAt)
+		.filter((completedAt): completedAt is string => completedAt !== null);
+	if (completedAtDates.length === 0) return null;
+	return completedAtDates.reduce((mostRecent, completedAt) =>
+		completedAt > mostRecent ? completedAt : mostRecent,
+	);
 }
 
 export function SeriesInfo({ seriesDetails }: SeriesInfoProps) {
@@ -58,8 +69,7 @@ export function SeriesInfo({ seriesDetails }: SeriesInfoProps) {
 	const seriesCompletedAt =
 		allItemsCompleted &&
 		seriesDetails.status !== MediaItemStatus.WAITING_FOR_NEXT_RELEASE
-			? (seriesDetails.items[seriesDetails.items.length - 1].completedAt ??
-				null)
+			? getMostRecentCompletedAt(seriesDetails.items)
 			: null;
 
 	async function handleStatusChange(status: string) {

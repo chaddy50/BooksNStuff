@@ -2,7 +2,10 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "#/components/ui/tooltip";
 import { SeriesInfo } from "#/features/screens/seriesDetails/components/SeriesInfo";
-import type { SeriesDetails } from "#/features/screens/seriesDetails/seriesDetails";
+import type {
+	SeriesDetails,
+	SeriesItem,
+} from "#/features/screens/seriesDetails/seriesDetails";
 import { MediaItemStatus, MediaItemType } from "#/lib/enums";
 
 vi.mock("react-i18next", () => ({
@@ -67,5 +70,17 @@ describe("SeriesInfo", () => {
 		renderSeriesInfo({ status: MediaItemStatus.DROPPED });
 
 		expect(screen.queryByTestId("rating-stars")).not.toBeInTheDocument();
+	});
+
+	it("shows the most recently completed date even when items finished out of series order", () => {
+		renderSeriesInfo({
+			items: [
+				{ status: MediaItemStatus.COMPLETED, completedAt: "2024-03-01" },
+				{ status: MediaItemStatus.COMPLETED, completedAt: "2024-01-15" },
+				{ status: MediaItemStatus.COMPLETED, completedAt: "2024-02-10" },
+			] as SeriesItem[],
+		});
+
+		expect(screen.getByText("Mar 01, 2024")).toBeInTheDocument();
 	});
 });
