@@ -6,7 +6,6 @@ import {
 	exists,
 	ilike,
 	inArray,
-	isNotNull,
 	or,
 	sql,
 } from "drizzle-orm";
@@ -14,7 +13,6 @@ import {
 import { db } from "#/database/index";
 import {
 	type FilterAndSortOptions,
-	mediaItemInstances,
 	mediaItems,
 	type SeriesSortField,
 	series,
@@ -24,6 +22,7 @@ import {
 	type MediaItemType,
 	NextItemStatus,
 } from "#/lib/enums";
+import { fetchLatestRatingsByMediaItemId } from "#/lib/queries/ratingsQuery.server";
 import { inferSeriesStatus } from "#/lib/queries/seriesStatus";
 import { MAX_QUERY_LIMIT } from "#/lib/queries/types";
 
@@ -224,7 +223,7 @@ export async function getNextItemInSeries(
 
 export async function syncSeriesStatus(seriesId: number, userId: string) {
 	const items = await db
-		.select({ status: mediaItems.status })
+		.select({ id: mediaItems.id, status: mediaItems.status })
 		.from(mediaItems)
 		.where(
 			and(eq(mediaItems.seriesId, seriesId), eq(mediaItems.userId, userId)),
@@ -239,26 +238,14 @@ export async function syncSeriesStatus(seriesId: number, userId: string) {
 
 	let newRating: string | null = null;
 	if (newStatus === MediaItemStatus.COMPLETED) {
-		const latestRatings = await db
-			.selectDistinctOn([mediaItemInstances.mediaItemId], {
-				rating: mediaItemInstances.rating,
-			})
-			.from(mediaItemInstances)
-			.innerJoin(mediaItems, eq(mediaItemInstances.mediaItemId, mediaItems.id))
-			.where(
-				and(
-					eq(mediaItems.seriesId, seriesId),
-					eq(mediaItems.userId, userId),
-					isNotNull(mediaItemInstances.completedAt),
-				),
-			)
-			.orderBy(mediaItemInstances.mediaItemId, desc(mediaItemInstances.id));
+		const itemIds = items.map((item) => item.id);
+		const latestRatings = await fetchLatestRatingsByMediaItemId(itemIds);
 
 		// A cleared rating is stored as 0 (not NULL) by the instance editor, so it
 		// must be excluded here too or it drags the average toward zero.
-		const ratings = latestRatings
-			.map((r) => parseFloat(r.rating ?? ""))
-			.filter((r) => !Number.isNaN(r) && r > 0);
+		const ratings = Array.from(latestRatings.values())
+			.map((r) => r.rating)
+			.filter((r) => r > 0);
 		if (ratings.length > 0) {
 			const average = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
 			newRating = average.toFixed(1);
