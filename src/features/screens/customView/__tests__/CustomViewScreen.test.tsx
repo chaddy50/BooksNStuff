@@ -45,12 +45,7 @@ const EMPTY_STATS: ItemStats = {
 };
 
 let stats: ItemStats | null = EMPTY_STATS;
-let viewSearch: {
-	titleQuery?: string;
-	statuses?: MediaItemStatus[];
-	purchaseStatuses?: PurchaseStatus[];
-	filterOrder?: ("statuses" | "purchaseStatuses")[];
-} = {};
+let viewSearch: Omit<FilterAndSortOptions, "sortBy" | "sortDirection"> = {};
 let historyEntryKey = "entry-1";
 
 const routerInvalidate = vi.fn();
@@ -111,6 +106,24 @@ vi.mock("#/components/StatsBar", () => ({
 
 vi.mock("#/components/SeriesList", () => ({ SeriesList: () => null }));
 
+let capturedFilterButtonProps: Record<string, unknown> | undefined;
+vi.mock(
+	"#/features/filterAndSort/FilterAndSortButton",
+	async (importOriginal) => {
+		const actual =
+			await importOriginal<
+				typeof import("#/features/filterAndSort/FilterAndSortButton")
+			>();
+		return {
+			countActiveFilters: actual.countActiveFilters,
+			FilterAndSortButton: (props: Record<string, unknown>) => {
+				capturedFilterButtonProps = props;
+				return <div data-testid="filter-and-sort-button" />;
+			},
+		};
+	},
+);
+
 vi.mock("#/features/screens/customView/EditViewDialog", () => ({
 	EditViewDialog: () => null,
 }));
@@ -154,17 +167,12 @@ const reorderViewItems = vi.fn().mockResolvedValue(undefined);
 const getViewResults = vi
 	.fn()
 	.mockResolvedValue({ results: { items: [], hasMore: false } });
-vi.mock("#/features/screens/customView/view", async (importOriginal) => {
-	const actual =
-		await importOriginal<typeof import("#/features/screens/customView/view")>();
-	return {
-		applyViewFilterOverrides: actual.applyViewFilterOverrides,
-		getViewResults: (...args: unknown[]) => getViewResults(...args),
-		deleteView: vi.fn(),
-		reorderViewItems: (...args: unknown[]) => reorderViewItems(...args),
-		getViewOrderItems: (...args: unknown[]) => getViewOrderItems(...args),
-	};
-});
+vi.mock("#/features/screens/customView/view", () => ({
+	getViewResults: (...args: unknown[]) => getViewResults(...args),
+	deleteView: vi.fn(),
+	reorderViewItems: (...args: unknown[]) => reorderViewItems(...args),
+	getViewOrderItems: (...args: unknown[]) => getViewOrderItems(...args),
+}));
 
 // jsdom has no IntersectionObserver, which the real hook constructs on mount.
 // The options are captured because the cache key and the fetchMore closure this
@@ -208,6 +216,7 @@ beforeEach(() => {
 	capturedFilters = undefined;
 	capturedNavigateTo = undefined;
 	capturedParams = undefined;
+	capturedFilterButtonProps = undefined;
 	capturedShouldShowPurchaseStatus = undefined;
 	capturedShouldShowStatus = undefined;
 	wasMediaItemListRendered = false;
@@ -467,101 +476,106 @@ describe("ViewScreen title", () => {
 		expect(screen.getByText("Bookshelf")).toBeInTheDocument();
 	});
 
-	it("appends the active status override to the title", () => {
+	// The filter button's own badge is the sole indicator of an active overlay now.
+	it("keeps the plain view name even while a filter override is active", () => {
 		view = { id: 1, name: "Bookshelf", subject: "items" };
 		viewSearch = { statuses: [MediaItemStatus.COMPLETED] };
 
 		render(<ViewScreen />);
 
-		expect(screen.getByText("Bookshelf - stats.completed")).toBeInTheDocument();
+		expect(screen.getByText("Bookshelf")).toBeInTheDocument();
+		expect(screen.queryByText(/Bookshelf -/)).not.toBeInTheDocument();
+	});
+});
+
+describe("ViewScreen filter overlay button", () => {
+	it("renders the filter button for an item view", () => {
+		render(<ViewScreen />);
+
+		expect(screen.getByTestId("filter-and-sort-button")).toBeInTheDocument();
 	});
 
-	it("appends the active dropped override to the title", () => {
-		view = { id: 1, name: "Bookshelf", subject: "items" };
-		viewSearch = { statuses: [MediaItemStatus.DROPPED] };
+	it("renders the filter button for a series view", () => {
+		view = { id: 2, name: "Owned series", subject: "series" };
+		stats = null;
 
 		render(<ViewScreen />);
 
-		expect(screen.getByText("Bookshelf - stats.dropped")).toBeInTheDocument();
+		expect(screen.getByTestId("filter-and-sort-button")).toBeInTheDocument();
 	});
 
-	it("appends the active purchase-status override to the title", () => {
-		view = { id: 1, name: "Bookshelf", subject: "items" };
+	it("hides the filter button while reordering", async () => {
+		view.filters = { sortBy: "custom" };
+		render(<ViewScreen />);
+
+		fireEvent.click(screen.getByRole("button", { name: "views.reorder" }));
+
+		expect(await screen.findByTestId("reorderable-grid")).toBeInTheDocument();
+		expect(
+			screen.queryByTestId("filter-and-sort-button"),
+		).not.toBeInTheDocument();
+	});
+
+	it("points the button at this view", () => {
+		view = { id: 7, name: "Bookshelf", subject: "items" };
+
+		render(<ViewScreen />);
+
+		expect(capturedFilterButtonProps?.navigateTo).toBe("/views/$viewId");
+		expect(capturedFilterButtonProps?.params).toEqual({ viewId: "7" });
+	});
+
+	it("passes the view's subject to the button", () => {
+		view = { id: 2, name: "Owned series", subject: "series" };
+		stats = null;
+
+		render(<ViewScreen />);
+
+		expect(capturedFilterButtonProps?.subject).toBe("series");
+	});
+
+	// The bug this guards: without this, clearing a view's overlay kept
+	// whatever sort happened to be active instead of reverting to the view's
+	// own saved sort, and applying could drop the active title search.
+	it("marks the overlay as sitting on top of the view's saved filters", () => {
+		render(<ViewScreen />);
+
+		expect(capturedFilterButtonProps?.isOverlayOnSavedFilters).toBe(true);
+	});
+
+	// The dialog opens showing the view's real current state, including
+	// dimensions the saved view itself pins, not just the overlay.
+	it("seeds the dialog with the view's effective (saved + overlay) filters", () => {
+		view.filters = { genres: ["Philosophy"] };
 		viewSearch = { purchaseStatuses: [PurchaseStatus.PURCHASED] };
 
 		render(<ViewScreen />);
 
-		expect(screen.getByText("Bookshelf - stats.purchased")).toBeInTheDocument();
-	});
-
-	// Possible when a status stat was clicked, then a purchase stat was clicked
-	// too — each click only sets its own dimension, preserving the other. With
-	// no recorded click order this falls back to a stable default.
-	it("joins multiple active overrides", () => {
-		view = { id: 1, name: "Bookshelf", subject: "items" };
-		viewSearch = {
-			statuses: [MediaItemStatus.COMPLETED],
+		expect(capturedFilterButtonProps?.filterAndSortChoices).toMatchObject({
+			genres: ["Philosophy"],
 			purchaseStatuses: [PurchaseStatus.PURCHASED],
-		};
-
-		render(<ViewScreen />);
-
-		expect(
-			screen.getByText("Bookshelf - stats.completed, stats.purchased"),
-		).toBeInTheDocument();
+		});
 	});
 
-	it("lists the overrides in the order the user clicked them", () => {
-		view = { id: 1, name: "Bookshelf", subject: "items" };
-		viewSearch = {
-			statuses: [MediaItemStatus.COMPLETED],
-			purchaseStatuses: [PurchaseStatus.PURCHASED],
-			filterOrder: ["purchaseStatuses", "statuses"],
-		};
-
-		render(<ViewScreen />);
-
-		expect(
-			screen.getByText("Bookshelf - stats.purchased, stats.completed"),
-		).toBeInTheDocument();
-	});
-
-	it("honors the opposite click order too", () => {
-		view = { id: 1, name: "Bookshelf", subject: "items" };
-		viewSearch = {
-			statuses: [MediaItemStatus.COMPLETED],
-			purchaseStatuses: [PurchaseStatus.PURCHASED],
-			filterOrder: ["statuses", "purchaseStatuses"],
-		};
-
-		render(<ViewScreen />);
-
-		expect(
-			screen.getByText("Bookshelf - stats.completed, stats.purchased"),
-		).toBeInTheDocument();
-	});
-
-	// A filterOrder entry for a dimension that is no longer active (e.g. after
-	// editing the view) shouldn't produce a label with nothing behind it.
-	it("ignores a filterOrder entry for a dimension that is not active", () => {
-		view = { id: 1, name: "Bookshelf", subject: "items" };
-		viewSearch = {
-			statuses: [MediaItemStatus.COMPLETED],
-			filterOrder: ["purchaseStatuses", "statuses"],
-		};
-
-		render(<ViewScreen />);
-
-		expect(screen.getByText("Bookshelf - stats.completed")).toBeInTheDocument();
-	});
-
-	it("does not append anything for a view with no filters and empty search", () => {
-		view = { id: 1, name: "Bookshelf", subject: "items" };
+	// The badge (and whether "clear" even appears) must reflect only what's
+	// actually unsaved and clearable — not the view's own permanent filters —
+	// or clicking clear would look like it did nothing.
+	it("counts the badge from the overlay alone, not the view's saved filters", () => {
+		view.filters = { genres: ["Philosophy"] };
 		viewSearch = {};
 
 		render(<ViewScreen />);
 
-		expect(screen.queryByText(/Bookshelf -/)).not.toBeInTheDocument();
+		expect(capturedFilterButtonProps?.activeFilterCount).toBe(0);
+	});
+
+	it("counts an active overlay field in the badge", () => {
+		view.filters = { genres: ["Philosophy"] };
+		viewSearch = { purchaseStatuses: [PurchaseStatus.PURCHASED] };
+
+		render(<ViewScreen />);
+
+		expect(capturedFilterButtonProps?.activeFilterCount).toBe(1);
 	});
 });
 
@@ -904,9 +918,7 @@ describe("ViewScreen paging with an active filter override", () => {
 		expect(getViewResults).toHaveBeenCalledWith({
 			data: {
 				viewId: 3,
-				titleQuery: undefined,
 				statuses: [MediaItemStatus.COMPLETED],
-				purchaseStatuses: undefined,
 				offset: 0,
 				limit: 20,
 			},
@@ -923,9 +935,26 @@ describe("ViewScreen paging with an active filter override", () => {
 		expect(getViewResults).toHaveBeenCalledWith({
 			data: {
 				viewId: 3,
-				titleQuery: undefined,
-				statuses: undefined,
 				purchaseStatuses: [PurchaseStatus.PURCHASED],
+				offset: 0,
+				limit: 20,
+			},
+		});
+	});
+
+	// Proves paging forwards the whole overlay now, not just the old
+	// statuses/purchaseStatuses/titleQuery whitelist.
+	it("forwards a tags override to getViewResults when paging", async () => {
+		view = { id: 3, name: "Bookshelf", subject: "items" };
+		viewSearch = { tags: ["Fiction"] };
+
+		render(<ViewScreen />);
+		await capturedFetchMore?.(0, 20);
+
+		expect(getViewResults).toHaveBeenCalledWith({
+			data: {
+				viewId: 3,
+				tags: ["Fiction"],
 				offset: 0,
 				limit: 20,
 			},

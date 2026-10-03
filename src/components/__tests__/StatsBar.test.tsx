@@ -10,10 +10,9 @@ vi.mock("react-i18next", () => ({
 }));
 
 /**
- * Calls `search` against a few fixed `prev` fixtures so a test can tell a
- * merged override (the fixture's own field surviving alongside it) apart from
- * a replaced one, and can see how an existing `filterOrder` is handled without
- * each test having to reach into the link's `search` function itself.
+ * Calls `search` against a fixed `prev` fixture so a test can tell a merged
+ * override (the fixture's own field surviving alongside it) apart from a
+ * replaced one, without reaching into the link's `search` function itself.
  */
 vi.mock("@tanstack/react-router", () => ({
 	Link: ({
@@ -30,18 +29,6 @@ vi.mock("@tanstack/react-router", () => ({
 			className={className}
 			data-search={
 				search ? JSON.stringify(search({ titleQuery: "existing" })) : undefined
-			}
-			data-search-after-purchased-order={
-				search
-					? JSON.stringify(search({ filterOrder: ["purchaseStatuses"] }))
-					: undefined
-			}
-			data-search-after-statuses-then-purchased-order={
-				search
-					? JSON.stringify(
-							search({ filterOrder: ["statuses", "purchaseStatuses"] }),
-						)
-					: undefined
 			}
 		>
 			{children}
@@ -88,28 +75,6 @@ function readLinkSearch(labelKey: string): Record<string, unknown> | undefined {
 		.getByText(labelKey)
 		.closest("a")
 		?.getAttribute("data-search");
-	return raw ? JSON.parse(raw) : undefined;
-}
-
-/** What a stat's link would produce when `purchaseStatuses` was already the latest click. */
-function readLinkSearchAfterPurchasedOrder(
-	labelKey: string,
-): Record<string, unknown> | undefined {
-	const raw = screen
-		.getByText(labelKey)
-		.closest("a")
-		?.getAttribute("data-search-after-purchased-order");
-	return raw ? JSON.parse(raw) : undefined;
-}
-
-/** What a stat's link would produce when `statuses` was clicked before `purchaseStatuses`. */
-function readLinkSearchAfterStatusesThenPurchasedOrder(
-	labelKey: string,
-): Record<string, unknown> | undefined {
-	const raw = screen
-		.getByText(labelKey)
-		.closest("a")
-		?.getAttribute("data-search-after-statuses-then-purchased-order");
 	return raw ? JSON.parse(raw) : undefined;
 }
 
@@ -324,7 +289,6 @@ describe("StatsBar clickable stats", () => {
 		expect(readLinkSearch("stats.completed")).toEqual({
 			titleQuery: "existing",
 			statuses: [MediaItemStatus.COMPLETED],
-			filterOrder: ["statuses"],
 		});
 	});
 
@@ -334,7 +298,6 @@ describe("StatsBar clickable stats", () => {
 		expect(readLinkSearch("stats.dropped")).toEqual({
 			titleQuery: "existing",
 			statuses: [MediaItemStatus.DROPPED],
-			filterOrder: ["statuses"],
 		});
 	});
 
@@ -344,7 +307,6 @@ describe("StatsBar clickable stats", () => {
 		expect(readLinkSearch("stats.purchased")).toEqual({
 			titleQuery: "existing",
 			purchaseStatuses: [PurchaseStatus.PURCHASED],
-			filterOrder: ["purchaseStatuses"],
 		});
 	});
 
@@ -372,36 +334,6 @@ describe("StatsBar clickable stats", () => {
 		renderStatsBar({ averageRating: 4.2 });
 
 		expect(screen.getByTestId("stats-average-rating").closest("a")).toBeNull();
-	});
-});
-
-describe("StatsBar filter click order", () => {
-	// So the view's title can later list "Purchased, Completed" rather than
-	// always the same fixed field order regardless of which was clicked first.
-	it("appends the clicked dimension after one already in filterOrder", () => {
-		renderStatsBar();
-
-		expect(
-			readLinkSearchAfterPurchasedOrder("stats.completed")?.filterOrder,
-		).toEqual(["purchaseStatuses", "statuses"]);
-	});
-
-	it("moves a dimension to the end instead of duplicating it on re-click", () => {
-		renderStatsBar();
-
-		expect(
-			readLinkSearchAfterStatusesThenPurchasedOrder("stats.completed")
-				?.filterOrder,
-		).toEqual(["purchaseStatuses", "statuses"]);
-	});
-
-	it("leaves the other dimension's position alone when only one is reclicked", () => {
-		renderStatsBar();
-
-		expect(
-			readLinkSearchAfterStatusesThenPurchasedOrder("stats.purchased")
-				?.filterOrder,
-		).toEqual(["statuses", "purchaseStatuses"]);
 	});
 });
 
