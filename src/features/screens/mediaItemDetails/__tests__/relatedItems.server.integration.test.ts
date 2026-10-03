@@ -29,7 +29,7 @@ const USER_B = "user-b";
 
 beforeEach(() => truncateAll());
 
-async function insertItem(
+function insertItem(
 	userId: string,
 	title: string,
 	type: MediaItemType = MediaItemType.BOOK,

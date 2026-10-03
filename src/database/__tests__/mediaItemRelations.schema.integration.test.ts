@@ -30,7 +30,7 @@ beforeEach(() => truncateAll());
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function insertItem(title: string) {
+function insertItem(title: string) {
 	return insertMediaItem({ userId: USER, type: MediaItemType.BOOK, title });
 }
 

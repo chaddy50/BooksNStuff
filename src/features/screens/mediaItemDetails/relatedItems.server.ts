@@ -96,13 +96,13 @@ function alreadyRelatedCondition(excludeMediaItemId: number) {
 	);
 }
 
-export async function searchLibraryForRelatedItems(
+export function searchLibraryForRelatedItems(
 	query: string,
 	excludeMediaItemId: number,
 	userId: string,
 ): Promise<RelatedItemSearchResult[]> {
 	if (!query.trim()) {
-		return [];
+		return Promise.resolve([]);
 	}
 
 	return db

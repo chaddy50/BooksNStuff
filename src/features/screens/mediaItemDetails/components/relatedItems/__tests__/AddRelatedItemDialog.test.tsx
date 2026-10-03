@@ -22,7 +22,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 const searchRelatedItemCandidates = vi.fn();
-const addRelatedMediaItem = vi.fn().mockResolvedValue(undefined);
+const addRelatedMediaItem = vi.fn();
 vi.mock("#/features/screens/mediaItemDetails/relatedItems", () => ({
 	searchRelatedItemCandidates: (...args: unknown[]) =>
 		searchRelatedItemCandidates(...args),
@@ -41,7 +41,7 @@ function renderDialog() {
 				<AddRelatedItemDialog
 					mediaItemId={MEDIA_ITEM_ID}
 					isOpen
-					onOpenChange={() => {}}
+					onOpenChange={vi.fn()}
 				/>
 			</TooltipProvider>
 		</QueryClientProvider>,

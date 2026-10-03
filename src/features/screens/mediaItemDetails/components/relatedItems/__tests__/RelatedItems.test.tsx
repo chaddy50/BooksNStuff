@@ -16,10 +16,10 @@ vi.mock("react-i18next", () => ({
 const invalidate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
 	useRouter: () => ({ invalidate }),
-	Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+	Link: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-const removeRelatedMediaItem = vi.fn().mockResolvedValue(undefined);
+const removeRelatedMediaItem = vi.fn();
 vi.mock("#/features/screens/mediaItemDetails/relatedItems", () => ({
 	removeRelatedMediaItem: (...args: unknown[]) =>
 		removeRelatedMediaItem(...args),
