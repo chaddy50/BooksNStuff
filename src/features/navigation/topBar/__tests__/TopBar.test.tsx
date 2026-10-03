@@ -88,30 +88,20 @@ describe("TopBar", () => {
 		expect(header).toHaveClass("md:sticky", "md:translate-y-0");
 	});
 
-	it("reserves the header's rendered height as a mobile-only spacer when fully visible", () => {
-		hiddenHeight = 0;
+	it("reserves the header's full rendered height as a mobile-only spacer, constant regardless of scroll", () => {
 		Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
 			configurable: true,
 			value: 112,
 		});
 
-		render(<TopBar title="Library" />);
-
+		hiddenHeight = 0;
+		const { rerender } = render(<TopBar title="Library" />);
 		const spacer = screen.getByTestId("top-bar-spacer");
 		expect(spacer).toHaveClass("md:hidden");
 		expect(spacer).toHaveStyle({ height: "112px" });
-	});
 
-	it("shrinks the spacer 1:1 with the hidden amount, so content fills the freed space immediately", () => {
-		hiddenHeight = 40;
-		Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
-			configurable: true,
-			value: 112,
-		});
-
-		render(<TopBar title="Library" />);
-
-		const spacer = screen.getByTestId("top-bar-spacer");
-		expect(spacer).toHaveStyle({ height: "72px" });
+		hiddenHeight = 80;
+		rerender(<TopBar title="Library" />);
+		expect(spacer).toHaveStyle({ height: "112px" });
 	});
 });

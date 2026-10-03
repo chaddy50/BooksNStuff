@@ -106,7 +106,7 @@ export function TopBar({
 			</header>
 			<div
 				data-testid="top-bar-spacer"
-				style={{ height: headerHeight - hiddenHeight }}
+				style={{ height: headerHeight }}
 				className="md:hidden"
 				aria-hidden="true"
 			/>
