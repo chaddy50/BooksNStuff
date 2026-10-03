@@ -2,6 +2,7 @@ import { and, count, eq, sql } from "drizzle-orm";
 
 import { db } from "#/database/index";
 import { creators, mediaItems, series } from "#/database/schema";
+import { creatorMetadataKey } from "#/lib/creator";
 import type { MediaItemType } from "#/lib/enums";
 import { syncSeriesStatus } from "#/lib/queries/seriesQuery.server";
 
@@ -17,14 +18,6 @@ import { syncSeriesStatus } from "#/lib/queries/seriesQuery.server";
  * imported by client-side code. Import it only from server function handler
  * bodies or other server-only modules.
  */
-
-/** JSONB key holding the creator's name, which differs per media type. */
-function creatorMetadataKey(type: MediaItemType): string {
-	if (type === "book") return "author";
-	if (type === "movie") return "director";
-	if (type === "video_game") return "developer";
-	return "creator"; // tv_show and podcast
-}
 
 export type UpdateMediaItemMetadataInput = {
 	mediaItemId: number;
