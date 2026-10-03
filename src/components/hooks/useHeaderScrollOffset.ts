@@ -63,7 +63,9 @@ export function useHeaderScrollOffset(
 		}
 
 		scrollable.addEventListener("scroll", handleScroll, { passive: true });
-		return () => scrollable.removeEventListener("scroll", handleScroll);
+		return () => {
+			scrollable.removeEventListener("scroll", handleScroll);
+		};
 	}, [elementRef, headerHeight]);
 
 	return hiddenHeight;

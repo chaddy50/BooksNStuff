@@ -40,7 +40,9 @@ export function TopBar({
 			setHeaderHeight(header.offsetHeight),
 		);
 		observer.observe(header);
-		return () => observer.disconnect();
+		return () => {
+			observer.disconnect();
+		};
 	}, []);
 
 	return (
