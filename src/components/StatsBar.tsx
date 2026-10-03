@@ -181,17 +181,17 @@ function getStatLink({
 }: Pick<StatProps, "value" | "navigateTo" | "filterOverride">):
 	| StatLink
 	| undefined {
+	if (value === 0 || !navigateTo || !filterOverride) {
+		return undefined;
+	}
+
 	// Single-key by construction — one call site per stat, each narrowing
 	// exactly one filter dimension. Doubles as the `filterOrder` entry below, so
 	// the title can later list filters in the order they were clicked rather
 	// than in a fixed field order.
-	const filterOverrideKey = filterOverride
-		? (Object.keys(filterOverride)[0] as keyof FilterAndSortOptions)
-		: undefined;
-
-	if (value === 0 || !navigateTo || !filterOverride || !filterOverrideKey) {
-		return undefined;
-	}
+	const filterOverrideKey = Object.keys(
+		filterOverride,
+	)[0] as keyof FilterAndSortOptions;
 
 	return { navigateTo, filterOverride, filterOverrideKey };
 }
