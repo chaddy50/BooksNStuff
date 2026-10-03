@@ -43,7 +43,7 @@ beforeEach(() => truncateAll());
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function insertItem(
+function insertItem(
 	title: string,
 	userId: string = USER_A,
 	overrides: {
