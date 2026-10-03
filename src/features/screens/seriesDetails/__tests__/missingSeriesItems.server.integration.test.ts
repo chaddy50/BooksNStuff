@@ -26,6 +26,7 @@ import * as tmdb from "#/features/mediaItemSearch/api/tmdb";
 import type { ExternalSearchResult } from "#/features/mediaItemSearch/api/types";
 import { MediaItemType } from "#/lib/enums";
 import {
+	insertCreator,
 	insertMediaItem,
 	insertSeries,
 	truncateAll,
@@ -87,8 +88,33 @@ describe("getMissingSeriesItems", () => {
 
 		const result = await getMissingSeriesItems(seriesId, USER_A);
 
-		expect(fetchSeriesBooksMock).toHaveBeenCalledExactlyOnceWith(SERIES_NAME);
+		expect(fetchSeriesBooksMock).toHaveBeenCalledExactlyOnceWith(
+			SERIES_NAME,
+			[],
+		);
 		expect(result).toEqual([candidate]);
+	});
+
+	it("passes the series' known author to the Hardcover client", async () => {
+		const creatorId = await insertCreator({
+			userId: USER_A,
+			name: "Signe Pike",
+		});
+		const seriesId = await seedBookSeries([buildCandidate()]);
+		await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			seriesId,
+			creatorId,
+			externalId: "100",
+			externalSource: "hardcover",
+		});
+
+		await getMissingSeriesItems(seriesId, USER_A);
+
+		expect(fetchSeriesBooksMock).toHaveBeenCalledExactlyOnceWith(SERIES_NAME, [
+			"Signe Pike",
+		]);
 	});
 
 	it("resolves a movie series through the TMDB client", async () => {
@@ -272,6 +298,56 @@ describe("getMissingSeriesItems", () => {
 		const result = await getMissingSeriesItems(seriesId, USER_A);
 
 		expect(result.map((item) => item.externalId)).toEqual(["1", "2", "10"]);
+	});
+
+	it("drops a candidate whose author doesn't match the series' known author", async () => {
+		const creatorId = await insertCreator({
+			userId: USER_A,
+			name: "Isabelle Schuler",
+		});
+		const seriesId = await seedBookSeries([
+			buildCandidate({
+				externalId: "101",
+				metadata: { author: "Isabelle Schuler" },
+			}),
+			buildCandidate({
+				externalId: "999",
+				title: "An Unrelated Lost Queen",
+				metadata: { author: "Isobelle Carmody" },
+			}),
+		]);
+		await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			seriesId,
+			creatorId,
+			externalId: "100",
+			externalSource: "hardcover",
+		});
+
+		const result = await getMissingSeriesItems(seriesId, USER_A);
+
+		expect(result.map((item) => item.externalId)).toEqual(["101"]);
+	});
+
+	it("keeps every candidate when the series has no known author yet", async () => {
+		const seriesId = await seedBookSeries([
+			buildCandidate({
+				externalId: "101",
+				metadata: { author: "Isabelle Schuler" },
+			}),
+			buildCandidate({
+				externalId: "999",
+				metadata: { author: "Isobelle Carmody" },
+			}),
+		]);
+
+		const result = await getMissingSeriesItems(seriesId, USER_A);
+
+		expect(result.map((item) => item.externalId).sort()).toEqual([
+			"101",
+			"999",
+		]);
 	});
 
 	it("de-duplicates a candidate the provider returned twice", async () => {

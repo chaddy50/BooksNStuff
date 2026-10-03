@@ -72,37 +72,74 @@ const CREATOR_BIO_QUERY = `
 `;
 
 // Step 5: fetch every book in a series, in reading order.
-// Hardcover holds duplicate series rows under one name — "The Unselected
-// Journals of Emma M. Lion" exists twice, once as an empty stub — so order by
-// books_count to land on the populated row rather than whichever comes first.
-const SERIES_BOOKS_QUERY = `
-  query SeriesBooks($name: String!) {
-    series(
-      where: { name: { _eq: $name } }
-      order_by: { books_count: desc }
-      limit: 1
-    ) {
-      book_series(order_by: { position: asc }) {
-        position
-        book {
-          id
-          title
-          description
-          pages
-          release_year
-          image {
-            url
-          }
-          contributions {
-            author {
-              name
-            }
-          }
-        }
-      }
-    }
-  }
+//
+// Hardcover sometimes holds two entirely unrelated series under the identical
+// name, each with its own books_count — "The Lost Queen" is both a 2-book
+// series by Signe Pike and an unrelated 3-book series by Jessica Thorne.
+// `order_by: books_count desc, limit: 1` alone can land on the wrong one, and
+// since the whole roster then comes from a stranger's series, no per-book
+// filter downstream can recover the right one. When the caller already knows
+// at least one author in the series (from books the user owns), that author
+// is pushed into the series-selection `where` itself so the right row is
+// chosen in the first place; the SERIES_INFO_QUERY and SERIES_BOOKS_QUERY
+// books_count tiebreak otherwise only exists to skip Hardcover's empty stub
+// duplicates.
+//
+// book_series excludes only editions explicitly tagged in a language other
+// than English. A book with no default physical edition on file, or one
+// whose language was never tagged, is kept rather than excluded — Hardcover
+// leaves language blank on plenty of legitimately-English editions, and
+// losing a real missing book is worse than occasionally keeping an
+// unlabeled foreign one.
+const BOOK_LANGUAGE_WHERE = `
+	        _or: [
+	          { default_physical_edition_id: { _is_null: true } }
+	          { default_physical_edition: { language_id: { _is_null: true } } }
+	          { default_physical_edition: { language_id: { _eq: 1 } } }
+	        ]
 `;
+
+function buildSeriesBooksQuery(hasKnownAuthors: boolean): string {
+	const seriesWhere = hasKnownAuthors
+		? `{ name: { _eq: $name }, book_series: { book: { contributions: { author: { name: { _in: $authors } } } } } }`
+		: `{ name: { _eq: $name } }`;
+	const authorsVariable = hasKnownAuthors ? ", $authors: [String!]!" : "";
+
+	return `
+	  query SeriesBooks($name: String!${authorsVariable}) {
+	    series(
+	      where: ${seriesWhere}
+	      order_by: { books_count: desc }
+	      limit: 1
+	    ) {
+	      book_series(
+	        where: { book: {${BOOK_LANGUAGE_WHERE}} }
+	        order_by: { position: asc }
+	      ) {
+	        position
+	        book {
+	          id
+	          title
+	          description
+	          pages
+	          release_year
+	          image {
+	            url
+	          }
+	          contributions {
+	            author {
+	              name
+	            }
+	          }
+	          default_physical_edition {
+	            language_id
+	          }
+	        }
+	      }
+	    }
+	  }
+	`;
+}
 
 type SeriesInfoResult = {
 	description: string | null;
@@ -119,8 +156,49 @@ type SeriesBookEntry = {
 		release_year?: number | null;
 		image?: { url: string } | null;
 		contributions?: Array<{ author?: { name: string } | null }> | null;
+		default_physical_edition?: { language_id: number | null } | null;
 	} | null;
 };
+
+const ENGLISH_LANGUAGE_ID = 1;
+
+/**
+ * Hardcover often lists a book under several editions at once — a boxed set,
+ * a translation, a duplicate placeholder — all sharing the series' same
+ * position. When at least one of them is confirmed English, only that one is
+ * the book the user is actually missing; the rest are the same book, not
+ * different ones. A position with no confirmed-English candidate at all is
+ * left untouched, since there's nothing to prefer it over.
+ */
+function preferConfirmedEnglishPerPosition(
+	candidates: Array<{
+		result: ExternalSearchResult;
+		languageId: number | null;
+	}>,
+): ExternalSearchResult[] {
+	const positionGroups = new Map<
+		string | symbol,
+		Array<{ result: ExternalSearchResult; languageId: number | null }>
+	>();
+
+	for (const candidate of candidates) {
+		const position = candidate.result.metadata.seriesBookNumber;
+		// A book with no recorded position gets its own group — two unrelated
+		// unpositioned books should never be compared against each other.
+		const key: string | symbol = position === undefined ? Symbol() : position;
+		const group = positionGroups.get(key) ?? [];
+		group.push(candidate);
+		positionGroups.set(key, group);
+	}
+
+	return [...positionGroups.values()].flatMap((group) => {
+		const confirmedEnglish = group.filter(
+			(candidate) => candidate.languageId === ENGLISH_LANGUAGE_ID,
+		);
+		const survivors = confirmedEnglish.length > 0 ? confirmedEnglish : group;
+		return survivors.map((candidate) => candidate.result);
+	});
+}
 
 type CreatorBioResult = {
 	bio: string | null;
@@ -202,14 +280,21 @@ export async function fetchSeriesInfo(
  */
 export async function fetchSeriesBooks(
 	name: string,
+	knownAuthorNames: string[] = [],
 ): Promise<ExternalSearchResult[]> {
 	if (!API_KEY) return [];
+
+	const query = buildSeriesBooksQuery(knownAuthorNames.length > 0);
+	const variables =
+		knownAuthorNames.length > 0
+			? { name, authors: knownAuthorNames }
+			: { name };
 
 	let data: { series: Array<{ book_series: SeriesBookEntry[] }> } | null = null;
 	try {
 		data = await gql<{ series: Array<{ book_series: SeriesBookEntry[] }> }>(
-			SERIES_BOOKS_QUERY,
-			{ name },
+			query,
+			variables,
 		);
 	} catch {
 		// gql throws RateLimitError on a 429; every other failure returns null.
@@ -219,32 +304,37 @@ export async function fetchSeriesBooks(
 	const entries = data?.series[0]?.book_series;
 	if (!entries) return [];
 
-	return entries.flatMap((entry) => {
+	const candidates = entries.flatMap((entry) => {
 		const { book } = entry;
 		if (!book) return [];
 
 		return [
 			{
-				externalId: String(book.id),
-				externalSource: "hardcover",
-				type: MediaItemType.BOOK,
-				title: book.title,
-				description: book.description ?? undefined,
-				coverImageUrl: toAbsoluteImageUrl(book.image?.url),
-				releaseDate: releaseYearToDate(book.release_year),
-				metadata: {
-					// handleAddToLibrary reads metadata.series to file the added item
-					// under this series — without it the item would never appear in the
-					// series' library grid.
-					series: name,
-					seriesBookNumber:
-						entry.position === null ? undefined : String(entry.position),
-					author: book.contributions?.[0]?.author?.name,
-					pageCount: book.pages ?? undefined,
+				languageId: book.default_physical_edition?.language_id ?? null,
+				result: {
+					externalId: String(book.id),
+					externalSource: "hardcover",
+					type: MediaItemType.BOOK,
+					title: book.title,
+					description: book.description ?? undefined,
+					coverImageUrl: toAbsoluteImageUrl(book.image?.url),
+					releaseDate: releaseYearToDate(book.release_year),
+					metadata: {
+						// handleAddToLibrary reads metadata.series to file the added item
+						// under this series — without it the item would never appear in the
+						// series' library grid.
+						series: name,
+						seriesBookNumber:
+							entry.position === null ? undefined : String(entry.position),
+						author: book.contributions?.[0]?.author?.name,
+						pageCount: book.pages ?? undefined,
+					},
 				},
 			},
 		];
 	});
+
+	return preferConfirmedEnglishPerPosition(candidates);
 }
 
 export async function fetchCreatorBio(
