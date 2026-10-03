@@ -49,11 +49,11 @@ export function MediaItemDetailsScreen() {
 				className="px-4 md:px-6 py-8 max-w-5xl mx-auto"
 			>
 				<Metadata mediaItemDetails={mediaItemDetails} />
-				<RelatedItems mediaItemDetails={mediaItemDetails} />
 				<History
 					mediaItemDetails={mediaItemDetails}
 					isUnsavedChangesGuardEnabled={() => !isDeleting}
 				/>
+				<RelatedItems mediaItemDetails={mediaItemDetails} />
 			</div>
 		</div>
 	);

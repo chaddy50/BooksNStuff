@@ -29,7 +29,7 @@ vi.mock(
 vi.mock(
 	"#/features/screens/mediaItemDetails/components/relatedItems/RelatedItems",
 	() => ({
-		RelatedItems: () => null,
+		RelatedItems: () => <div data-testid="related-items" />,
 	}),
 );
 
@@ -42,7 +42,7 @@ vi.mock(
 	() => ({
 		History: (props: { isUnsavedChangesGuardEnabled?: () => boolean }) => {
 			isUnsavedChangesGuardEnabled = props.isUnsavedChangesGuardEnabled;
-			return null;
+			return <div data-testid="history" />;
 		},
 	}),
 );
@@ -72,6 +72,18 @@ beforeEach(() => {
 });
 
 describe("MediaItemDetailsScreen", () => {
+	it("renders history above related items", () => {
+		render(<MediaItemDetailsScreen />);
+
+		const history = screen.getByTestId("history");
+		const relatedItems = screen.getByTestId("related-items");
+
+		expect(
+			history.compareDocumentPosition(relatedItems) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
+	});
+
 	it("leaves the guard enabled while the user is just viewing the item", () => {
 		render(<MediaItemDetailsScreen />);
 
