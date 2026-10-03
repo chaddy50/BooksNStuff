@@ -45,7 +45,12 @@ const EMPTY_STATS: ItemStats = {
 };
 
 let stats: ItemStats | null = EMPTY_STATS;
-let viewSearch: { titleQuery?: string } = {};
+let viewSearch: {
+	titleQuery?: string;
+	statuses?: MediaItemStatus[];
+	purchaseStatuses?: PurchaseStatus[];
+	filterOrder?: ("statuses" | "purchaseStatuses")[];
+} = {};
 let historyEntryKey = "entry-1";
 
 const routerInvalidate = vi.fn();
@@ -86,14 +91,20 @@ vi.mock("#/components/MediaItemList", () => ({
 // the screen's decision to show it at all matter.
 let capturedStats: ItemStats | undefined;
 let capturedFilters: FilterAndSortOptions | null | undefined;
+let capturedNavigateTo: string | undefined;
+let capturedParams: Record<string, string> | undefined;
 
 vi.mock("#/components/StatsBar", () => ({
 	StatsBar: (props: {
 		stats: ItemStats;
 		filters?: FilterAndSortOptions | null;
+		navigateTo?: string;
+		params?: Record<string, string>;
 	}) => {
 		capturedStats = props.stats;
 		capturedFilters = props.filters;
+		capturedNavigateTo = props.navigateTo;
+		capturedParams = props.params;
 		return <div data-testid="stats-bar" />;
 	},
 }));
@@ -106,13 +117,16 @@ vi.mock("#/features/screens/customView/EditViewDialog", () => ({
 // Renders the action slot so the reorder toggle is reachable.
 vi.mock("#/features/navigation/topBar/TopBar", () => ({
 	TopBar: ({
+		title,
 		right,
 		below,
 	}: {
+		title?: string;
 		right?: React.ReactNode;
 		below?: React.ReactNode;
 	}) => (
 		<div>
+			<h1>{title}</h1>
 			{right}
 			<div data-testid="top-bar-below">{below}</div>
 		</div>
@@ -137,21 +151,43 @@ vi.mock("#/features/screens/customView/components/ReorderableItemGrid", () => ({
 // Keeps the server fns (and their drizzle client) out of the unit test.
 const getViewOrderItems = vi.fn().mockResolvedValue([]);
 const reorderViewItems = vi.fn().mockResolvedValue(undefined);
-vi.mock("#/features/screens/customView/view", () => ({
-	getViewResults: vi.fn(),
-	deleteView: vi.fn(),
-	reorderViewItems: (...args: unknown[]) => reorderViewItems(...args),
-	getViewOrderItems: (...args: unknown[]) => getViewOrderItems(...args),
-}));
+const getViewResults = vi
+	.fn()
+	.mockResolvedValue({ results: { items: [], hasMore: false } });
+vi.mock("#/features/screens/customView/view", async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import("#/features/screens/customView/view")>();
+	return {
+		applyViewFilterOverrides: actual.applyViewFilterOverrides,
+		getViewResults: (...args: unknown[]) => getViewResults(...args),
+		deleteView: vi.fn(),
+		reorderViewItems: (...args: unknown[]) => reorderViewItems(...args),
+		getViewOrderItems: (...args: unknown[]) => getViewOrderItems(...args),
+	};
+});
 
 // jsdom has no IntersectionObserver, which the real hook constructs on mount.
-// The options are captured because the cache key this screen derives is the screen's
-// responsibility; the hook's own behaviour is covered by its suite.
+// The options are captured because the cache key and the fetchMore closure this
+// screen builds are the screen's own responsibility; the hook's own behaviour
+// is covered by its suite.
 let capturedCacheKey: string | undefined;
+let capturedFetchMore:
+	| ((
+			offset: number,
+			limit?: number,
+	  ) => Promise<{ items: unknown[]; hasMore: boolean }>)
+	| undefined;
 
 vi.mock("#/components/hooks/useInfiniteScroll", () => ({
-	useInfiniteScroll: (options: { cacheKey: string }) => {
+	useInfiniteScroll: (options: {
+		cacheKey: string;
+		fetchMore: (
+			offset: number,
+			limit?: number,
+		) => Promise<{ items: unknown[]; hasMore: boolean }>;
+	}) => {
 		capturedCacheKey = options.cacheKey;
+		capturedFetchMore = options.fetchMore;
 		return {
 			allItems: [],
 			isLoadingMore: false,
@@ -167,8 +203,11 @@ beforeEach(() => {
 	viewSearch = {};
 	historyEntryKey = "entry-1";
 	capturedCacheKey = undefined;
+	capturedFetchMore = undefined;
 	capturedStats = undefined;
 	capturedFilters = undefined;
+	capturedNavigateTo = undefined;
+	capturedParams = undefined;
 	capturedShouldShowPurchaseStatus = undefined;
 	capturedShouldShowStatus = undefined;
 	wasMediaItemListRendered = false;
@@ -183,6 +222,8 @@ beforeEach(() => {
 	capturedOnReorder = null;
 	reorderViewItems.mockClear();
 	reorderViewItems.mockResolvedValue(undefined);
+	getViewResults.mockClear();
+	getViewResults.mockResolvedValue({ results: { items: [], hasMore: false } });
 });
 
 describe("ViewScreen purchase badge visibility", () => {
@@ -278,6 +319,27 @@ describe("ViewScreen status badge visibility", () => {
 		expect(capturedShouldShowStatus).toBe(false);
 		expect(capturedShouldShowPurchaseStatus).toBe(true);
 	});
+
+	// Clicking a stat narrows the view the same way the view's own saved status
+	// filter would, so the per-card badge it would otherwise suppress has to
+	// disappear too.
+	it("hides the badge once a URL status override pins a single status", () => {
+		view.filters = undefined;
+		viewSearch = { statuses: [MediaItemStatus.COMPLETED] };
+
+		render(<ViewScreen />);
+
+		expect(capturedShouldShowStatus).toBe(false);
+	});
+
+	it("hides the purchase badge once a URL purchase-status override pins a single value", () => {
+		view.filters = undefined;
+		viewSearch = { purchaseStatuses: [PurchaseStatus.PURCHASED] };
+
+		render(<ViewScreen />);
+
+		expect(capturedShouldShowPurchaseStatus).toBe(false);
+	});
 });
 
 describe("ViewScreen stats bar", () => {
@@ -357,6 +419,149 @@ describe("ViewScreen stats bar", () => {
 		render(<ViewScreen />);
 
 		expect(capturedStats).toBe(loaderStats);
+	});
+
+	// So a clicked stat lands back on the same view, not the library.
+	it("points the bar's stat links at this view", () => {
+		view = { id: 7, name: "Owned books", subject: "items" };
+
+		render(<ViewScreen />);
+
+		expect(capturedNavigateTo).toBe("/views/$viewId");
+		expect(capturedParams).toEqual({ viewId: "7" });
+	});
+
+	// A click narrows the view through the URL rather than the saved filters,
+	// so the bar (and its own show/hide rules) need the narrowed view, not the
+	// view's unfiltered saved definition.
+	it("merges a status override from the URL into the filters handed to the bar", () => {
+		view.filters = { mediaTypes: [MediaItemType.BOOK] };
+		viewSearch = { statuses: [MediaItemStatus.COMPLETED] };
+
+		render(<ViewScreen />);
+
+		expect(capturedFilters).toMatchObject({
+			mediaTypes: [MediaItemType.BOOK],
+			statuses: [MediaItemStatus.COMPLETED],
+		});
+	});
+
+	it("lets a URL status override replace the view's own saved status filter", () => {
+		view.filters = { statuses: [MediaItemStatus.IN_PROGRESS] };
+		viewSearch = { statuses: [MediaItemStatus.COMPLETED] };
+
+		render(<ViewScreen />);
+
+		expect(capturedFilters).toMatchObject({
+			statuses: [MediaItemStatus.COMPLETED],
+		});
+	});
+});
+
+describe("ViewScreen title", () => {
+	it("shows the plain view name when no filter override is active", () => {
+		view = { id: 1, name: "Bookshelf", subject: "items" };
+
+		render(<ViewScreen />);
+
+		expect(screen.getByText("Bookshelf")).toBeInTheDocument();
+	});
+
+	it("appends the active status override to the title", () => {
+		view = { id: 1, name: "Bookshelf", subject: "items" };
+		viewSearch = { statuses: [MediaItemStatus.COMPLETED] };
+
+		render(<ViewScreen />);
+
+		expect(screen.getByText("Bookshelf - stats.completed")).toBeInTheDocument();
+	});
+
+	it("appends the active dropped override to the title", () => {
+		view = { id: 1, name: "Bookshelf", subject: "items" };
+		viewSearch = { statuses: [MediaItemStatus.DROPPED] };
+
+		render(<ViewScreen />);
+
+		expect(screen.getByText("Bookshelf - stats.dropped")).toBeInTheDocument();
+	});
+
+	it("appends the active purchase-status override to the title", () => {
+		view = { id: 1, name: "Bookshelf", subject: "items" };
+		viewSearch = { purchaseStatuses: [PurchaseStatus.PURCHASED] };
+
+		render(<ViewScreen />);
+
+		expect(screen.getByText("Bookshelf - stats.purchased")).toBeInTheDocument();
+	});
+
+	// Possible when a status stat was clicked, then a purchase stat was clicked
+	// too — each click only sets its own dimension, preserving the other. With
+	// no recorded click order this falls back to a stable default.
+	it("joins multiple active overrides", () => {
+		view = { id: 1, name: "Bookshelf", subject: "items" };
+		viewSearch = {
+			statuses: [MediaItemStatus.COMPLETED],
+			purchaseStatuses: [PurchaseStatus.PURCHASED],
+		};
+
+		render(<ViewScreen />);
+
+		expect(
+			screen.getByText("Bookshelf - stats.completed, stats.purchased"),
+		).toBeInTheDocument();
+	});
+
+	it("lists the overrides in the order the user clicked them", () => {
+		view = { id: 1, name: "Bookshelf", subject: "items" };
+		viewSearch = {
+			statuses: [MediaItemStatus.COMPLETED],
+			purchaseStatuses: [PurchaseStatus.PURCHASED],
+			filterOrder: ["purchaseStatuses", "statuses"],
+		};
+
+		render(<ViewScreen />);
+
+		expect(
+			screen.getByText("Bookshelf - stats.purchased, stats.completed"),
+		).toBeInTheDocument();
+	});
+
+	it("honors the opposite click order too", () => {
+		view = { id: 1, name: "Bookshelf", subject: "items" };
+		viewSearch = {
+			statuses: [MediaItemStatus.COMPLETED],
+			purchaseStatuses: [PurchaseStatus.PURCHASED],
+			filterOrder: ["statuses", "purchaseStatuses"],
+		};
+
+		render(<ViewScreen />);
+
+		expect(
+			screen.getByText("Bookshelf - stats.completed, stats.purchased"),
+		).toBeInTheDocument();
+	});
+
+	// A filterOrder entry for a dimension that is no longer active (e.g. after
+	// editing the view) shouldn't produce a label with nothing behind it.
+	it("ignores a filterOrder entry for a dimension that is not active", () => {
+		view = { id: 1, name: "Bookshelf", subject: "items" };
+		viewSearch = {
+			statuses: [MediaItemStatus.COMPLETED],
+			filterOrder: ["purchaseStatuses", "statuses"],
+		};
+
+		render(<ViewScreen />);
+
+		expect(screen.getByText("Bookshelf - stats.completed")).toBeInTheDocument();
+	});
+
+	it("does not append anything for a view with no filters and empty search", () => {
+		view = { id: 1, name: "Bookshelf", subject: "items" };
+		viewSearch = {};
+
+		render(<ViewScreen />);
+
+		expect(screen.queryByText(/Bookshelf -/)).not.toBeInTheDocument();
 	});
 });
 
@@ -658,5 +863,72 @@ describe("ViewScreen infinite scroll cache key", () => {
 
 		expect(capturedCacheKey).not.toBe(unsearchedKey);
 		expect(capturedCacheKey).toContain("dune");
+	});
+
+	// Without this, clicking a stat changes the loader data but the infinite
+	// scroll hook sees the same key, treats it as the same list, and refreshes
+	// using the stale (unfiltered) query instead of resetting to the new one.
+	it("changes the key when a status override is added", () => {
+		viewSearch = {};
+		render(<ViewScreen />);
+		const unfilteredKey = capturedCacheKey;
+
+		cleanup();
+		viewSearch = { statuses: [MediaItemStatus.COMPLETED] };
+		render(<ViewScreen />);
+
+		expect(capturedCacheKey).not.toBe(unfilteredKey);
+	});
+
+	it("changes the key when a purchase-status override is added", () => {
+		viewSearch = {};
+		render(<ViewScreen />);
+		const unfilteredKey = capturedCacheKey;
+
+		cleanup();
+		viewSearch = { purchaseStatuses: [PurchaseStatus.PURCHASED] };
+		render(<ViewScreen />);
+
+		expect(capturedCacheKey).not.toBe(unfilteredKey);
+	});
+});
+
+describe("ViewScreen paging with an active filter override", () => {
+	it("forwards the status override to getViewResults when paging", async () => {
+		view = { id: 3, name: "Bookshelf", subject: "items" };
+		viewSearch = { statuses: [MediaItemStatus.COMPLETED] };
+
+		render(<ViewScreen />);
+		await capturedFetchMore?.(0, 20);
+
+		expect(getViewResults).toHaveBeenCalledWith({
+			data: {
+				viewId: 3,
+				titleQuery: undefined,
+				statuses: [MediaItemStatus.COMPLETED],
+				purchaseStatuses: undefined,
+				offset: 0,
+				limit: 20,
+			},
+		});
+	});
+
+	it("forwards the purchase-status override to getViewResults when paging", async () => {
+		view = { id: 3, name: "Bookshelf", subject: "items" };
+		viewSearch = { purchaseStatuses: [PurchaseStatus.PURCHASED] };
+
+		render(<ViewScreen />);
+		await capturedFetchMore?.(0, 20);
+
+		expect(getViewResults).toHaveBeenCalledWith({
+			data: {
+				viewId: 3,
+				titleQuery: undefined,
+				statuses: undefined,
+				purchaseStatuses: [PurchaseStatus.PURCHASED],
+				offset: 0,
+				limit: 20,
+			},
+		});
 	});
 });

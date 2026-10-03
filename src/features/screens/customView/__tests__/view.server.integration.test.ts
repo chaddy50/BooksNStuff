@@ -1,7 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MediaItemStatus, MediaItemType } from "#/lib/enums";
+import { MediaItemStatus, MediaItemType, PurchaseStatus } from "#/lib/enums";
 import { runItemQuery } from "#/lib/queries/itemQuery.server";
 
 // Redirect all db calls to the test database.
@@ -46,13 +46,18 @@ beforeEach(() => truncateAll());
 async function insertItem(
 	title: string,
 	userId: string = USER_A,
-	overrides: { type?: MediaItemType; status?: MediaItemStatus } = {},
+	overrides: {
+		type?: MediaItemType;
+		status?: MediaItemStatus;
+		purchaseStatus?: PurchaseStatus;
+	} = {},
 ) {
 	return insertMediaItem({
 		userId,
 		type: overrides.type ?? MediaItemType.BOOK,
 		title,
 		status: overrides.status,
+		purchaseStatus: overrides.purchaseStatus,
 	});
 }
 
@@ -395,6 +400,100 @@ describe("handleGetViewStats", () => {
 		const stats = await handleGetViewStats(viewId, USER_A, undefined);
 
 		expect(stats?.totalCount).toBe(1);
+	});
+
+	it("narrows the counts by a status override", async () => {
+		const viewId = await insertView({ userId: USER_A });
+		await insertItem("Done", USER_A, { status: MediaItemStatus.COMPLETED });
+		await insertItem("Queued", USER_A, { status: MediaItemStatus.BACKLOG });
+
+		const stats = await handleGetViewStats(viewId, USER_A, undefined, [
+			MediaItemStatus.COMPLETED,
+		]);
+
+		expect(stats?.totalCount).toBe(1);
+	});
+
+	it("narrows the counts by a purchase-status override", async () => {
+		const viewId = await insertView({ userId: USER_A });
+		await insertItem("Owned", USER_A, {
+			purchaseStatus: PurchaseStatus.PURCHASED,
+		});
+		await insertItem("Wishlisted", USER_A, {
+			purchaseStatus: PurchaseStatus.WANT_TO_BUY,
+		});
+
+		const stats = await handleGetViewStats(
+			viewId,
+			USER_A,
+			undefined,
+			undefined,
+			[PurchaseStatus.PURCHASED],
+		);
+
+		expect(stats?.totalCount).toBe(1);
+	});
+
+	it("applies a status override on top of, not instead of, the view's other saved filters", async () => {
+		const viewId = await insertView({
+			userId: USER_A,
+			filters: { mediaTypes: [MediaItemType.BOOK] },
+		});
+		await insertItem("Dune", USER_A, {
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.COMPLETED,
+		});
+		await insertItem("Foundation", USER_A, {
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.BACKLOG,
+		});
+		await insertItem("Arrival", USER_A, {
+			type: MediaItemType.MOVIE,
+			status: MediaItemStatus.COMPLETED,
+		});
+
+		const stats = await handleGetViewStats(viewId, USER_A, undefined, [
+			MediaItemStatus.COMPLETED,
+		]);
+
+		expect(stats?.totalCount).toBe(1);
+	});
+
+	it("overrides the view's own saved status filter rather than combining with it", async () => {
+		const viewId = await insertView({
+			userId: USER_A,
+			filters: { statuses: [MediaItemStatus.IN_PROGRESS] },
+		});
+		await insertItem("Done One", USER_A, {
+			status: MediaItemStatus.COMPLETED,
+		});
+		await insertItem("Done Two", USER_A, {
+			status: MediaItemStatus.COMPLETED,
+		});
+		await insertItem("Reading", USER_A, {
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+
+		const stats = await handleGetViewStats(viewId, USER_A, undefined, [
+			MediaItemStatus.COMPLETED,
+		]);
+
+		expect(stats?.totalCount).toBe(2);
+	});
+
+	it("does not persist a status override into the view's saved filters", async () => {
+		const viewId = await insertView({ userId: USER_A });
+		await insertItem("Done", USER_A, { status: MediaItemStatus.COMPLETED });
+
+		await handleGetViewStats(viewId, USER_A, undefined, [
+			MediaItemStatus.COMPLETED,
+		]);
+
+		const [row] = await testDb
+			.select({ filters: views.filters })
+			.from(views)
+			.where(eq(views.id, viewId));
+		expect(row.filters).toEqual({});
 	});
 });
 

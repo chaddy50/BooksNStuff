@@ -44,7 +44,13 @@ export function LibraryScreen() {
 		<div className="min-h-screen bg-background text-foreground">
 			<TopBar
 				title={t("library.title")}
-				below={<StatsBar stats={loaderData.stats} filters={effectiveSearch} />}
+				below={
+					<StatsBar
+						stats={loaderData.stats}
+						filters={effectiveSearch}
+						navigateTo="/library"
+					/>
+				}
 				right={
 					<>
 						<SearchInput

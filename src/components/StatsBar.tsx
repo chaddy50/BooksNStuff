@@ -1,6 +1,8 @@
+import { Link } from "@tanstack/react-router";
 import { Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { FilterAndSortOptions } from "#/database/schema";
+import { MediaItemStatus, PurchaseStatus } from "#/lib/enums";
 import {
 	isFilteredToCompletedOnly,
 	shouldShowCompletedCount,
@@ -17,9 +19,17 @@ interface StatsBarProps {
 	 * user could have predicted.
 	 */
 	filters?: FilterAndSortOptions | null;
+	/** Where a clickable stat navigates to, narrowed to that one value. */
+	navigateTo: string;
+	params?: Record<string, string>;
 }
 
-export function StatsBar({ stats, filters }: StatsBarProps) {
+export function StatsBar({
+	stats,
+	filters,
+	navigateTo,
+	params,
+}: StatsBarProps) {
 	const { t } = useTranslation();
 
 	// An empty result set has nothing worth summarizing, and a row of zeros would
@@ -53,7 +63,13 @@ export function StatsBar({ stats, filters }: StatsBarProps) {
 			{isPurchasedShown && (
 				<>
 					<Divider />
-					<Stat label={t("stats.purchased")} value={stats.purchasedCount} />
+					<Stat
+						label={t("stats.purchased")}
+						value={stats.purchasedCount}
+						navigateTo={navigateTo}
+						params={params}
+						filterOverride={{ purchaseStatuses: [PurchaseStatus.PURCHASED] }}
+					/>
 				</>
 			)}
 			{isCompletedShown && (
@@ -61,13 +77,25 @@ export function StatsBar({ stats, filters }: StatsBarProps) {
 					<Divider />
 					{/* The uncompleted count is left off deliberately: with the total
 					    right there, it is what the completed count already tells you. */}
-					<Stat label={t("stats.completed")} value={stats.completedCount} />
+					<Stat
+						label={t("stats.completed")}
+						value={stats.completedCount}
+						navigateTo={navigateTo}
+						params={params}
+						filterOverride={{ statuses: [MediaItemStatus.COMPLETED] }}
+					/>
 				</>
 			)}
 			{isDroppedShown && (
 				<>
 					<Divider />
-					<Stat label={t("stats.dropped")} value={stats.droppedCount} />
+					<Stat
+						label={t("stats.dropped")}
+						value={stats.droppedCount}
+						navigateTo={navigateTo}
+						params={params}
+						filterOverride={{ statuses: [MediaItemStatus.DROPPED] }}
+					/>
 				</>
 			)}
 			{isAverageRatingShown && (
@@ -90,6 +118,10 @@ export function StatsBar({ stats, filters }: StatsBarProps) {
 interface StatProps {
 	label: string;
 	value: number;
+	navigateTo?: string;
+	params?: Record<string, string>;
+	/** Present only for a stat with a single-value filter to narrow to; makes it a link. */
+	filterOverride?: Partial<FilterAndSortOptions>;
 }
 
 /** Decorative, so it is hidden from assistive tech rather than announced. */
@@ -103,13 +135,45 @@ function Divider() {
 	);
 }
 
-function Stat({ label, value }: StatProps) {
-	return (
-		<div className="flex items-baseline gap-1.5">
+function Stat({ label, value, navigateTo, params, filterOverride }: StatProps) {
+	const content = (
+		<>
 			{/* Tabular figures so the numbers hold their place as counts change. */}
 			<span className="text-lg font-semibold tabular-nums">{value}</span>
 			<span className="text-sm text-muted-foreground">{label}</span>
-		</div>
+		</>
+	);
+
+	// Single-key by construction — one call site per stat, each narrowing
+	// exactly one filter dimension. Doubles as the `filterOrder` entry below, so
+	// the title can later list filters in the order they were clicked rather
+	// than in a fixed field order.
+	const filterOverrideKey = filterOverride
+		? (Object.keys(filterOverride)[0] as keyof FilterAndSortOptions)
+		: undefined;
+
+	if (!filterOverride || !navigateTo || !filterOverrideKey) {
+		return <div className="flex items-baseline gap-1.5">{content}</div>;
+	}
+
+	return (
+		<Link
+			to={navigateTo}
+			params={params as never}
+			search={(prev: Record<string, unknown>) => {
+				const previousOrder = Array.isArray(prev.filterOrder)
+					? prev.filterOrder.filter((key) => key !== filterOverrideKey)
+					: [];
+				return {
+					...prev,
+					...filterOverride,
+					filterOrder: [...previousOrder, filterOverrideKey],
+				};
+			}}
+			className="flex items-baseline gap-1.5"
+		>
+			{content}
+		</Link>
 	);
 }
 

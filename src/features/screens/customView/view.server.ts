@@ -6,6 +6,7 @@ import {
 	viewItemOrder,
 	views,
 } from "#/database/schema";
+import type { MediaItemStatus, PurchaseStatus } from "#/lib/enums";
 import {
 	runItemStatsQuery,
 	runOrderableItemQuery,
@@ -44,6 +45,8 @@ export async function handleGetViewStats(
 	viewId: number,
 	userId: string,
 	titleQuery: string | undefined,
+	statuses?: MediaItemStatus[],
+	purchaseStatuses?: PurchaseStatus[],
 ): Promise<ItemStats | null> {
 	const view = await findOwnedView(viewId, userId);
 	if (view.subject !== "items") {
@@ -53,6 +56,8 @@ export async function handleGetViewStats(
 	const filters = {
 		...(view.filters ?? {}),
 		titleQuery,
+		...(statuses !== undefined ? { statuses } : {}),
+		...(purchaseStatuses !== undefined ? { purchaseStatuses } : {}),
 	} as FilterAndSortOptions;
 
 	return runItemStatsQuery(filters, userId);
