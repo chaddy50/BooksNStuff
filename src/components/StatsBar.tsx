@@ -152,7 +152,7 @@ function Stat({ label, value, navigateTo, params, filterOverride }: StatProps) {
 		? (Object.keys(filterOverride)[0] as keyof FilterAndSortOptions)
 		: undefined;
 
-	if (!filterOverride || !navigateTo || !filterOverrideKey) {
+	if (!filterOverride || !navigateTo || !filterOverrideKey || value === 0) {
 		return <div className="flex items-baseline gap-1.5">{content}</div>;
 	}
 

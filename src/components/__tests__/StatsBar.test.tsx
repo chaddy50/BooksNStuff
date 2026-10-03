@@ -354,6 +354,20 @@ describe("StatsBar clickable stats", () => {
 		expect(screen.getByText("stats.items").closest("a")).toBeNull();
 	});
 
+	// Following the link would land on a view that is guaranteed to show nothing,
+	// since the count the user clicked was already zero.
+	it("keeps a zero completed count as plain, non-link text", () => {
+		renderStatsBar({ totalCount: 5, completedCount: 0 });
+
+		expect(screen.getByText("stats.completed").closest("a")).toBeNull();
+	});
+
+	it("keeps a zero purchased count as plain, non-link text", () => {
+		renderStatsBar({ purchasedCount: 0 });
+
+		expect(screen.getByText("stats.purchased").closest("a")).toBeNull();
+	});
+
 	it("keeps the average rating as plain, non-link text", () => {
 		renderStatsBar({ averageRating: 4.2 });
 
