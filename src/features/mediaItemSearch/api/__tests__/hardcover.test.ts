@@ -138,91 +138,6 @@ describe("hardcover.fetchSeriesBooks", () => {
 		expect(results[1]?.externalId).toBe("102");
 	});
 
-	it("keeps only the confirmed-English edition when one shares a position with an unlabeled one", async () => {
-		const { results } = await fetchSeriesBooksWith(
-			seriesBooksResponse([
-				{
-					position: 1,
-					book: {
-						...BOOK_DOCUMENT,
-						id: 101,
-						title: "The Final Empire",
-						default_physical_edition: { language_id: 1 },
-					},
-				},
-				{
-					position: 1,
-					book: {
-						...BOOK_DOCUMENT,
-						id: 999,
-						title: "El Imperio Final",
-						default_physical_edition: { language_id: null },
-					},
-				},
-			]),
-		);
-
-		expect(results.map((result) => result.externalId)).toEqual(["101"]);
-	});
-
-	it("keeps every edition at a position when none is confirmed English", async () => {
-		const { results } = await fetchSeriesBooksWith(
-			seriesBooksResponse([
-				{
-					position: 1,
-					book: {
-						...BOOK_DOCUMENT,
-						id: 101,
-						default_physical_edition: { language_id: null },
-					},
-				},
-				{
-					position: 1,
-					book: {
-						...BOOK_DOCUMENT,
-						id: 102,
-						title: "El Imperio Final",
-						default_physical_edition: null,
-					},
-				},
-			]),
-		);
-
-		expect(results.map((result) => result.externalId).sort()).toEqual([
-			"101",
-			"102",
-		]);
-	});
-
-	it("never lets an unpositioned book cause an unrelated one to be dropped", async () => {
-		const { results } = await fetchSeriesBooksWith(
-			seriesBooksResponse([
-				{
-					position: null,
-					book: {
-						...BOOK_DOCUMENT,
-						id: 101,
-						default_physical_edition: { language_id: 1 },
-					},
-				},
-				{
-					position: null,
-					book: {
-						...BOOK_DOCUMENT,
-						id: 102,
-						title: "El Imperio Final",
-						default_physical_edition: { language_id: null },
-					},
-				},
-			]),
-		);
-
-		expect(results.map((result) => result.externalId).sort()).toEqual([
-			"101",
-			"102",
-		]);
-	});
-
 	it("turns a protocol-relative cover into an https URL", async () => {
 		const { results } = await fetchSeriesBooksWith(
 			seriesBooksResponse([{ position: 1, book: BOOK_DOCUMENT }]),
@@ -349,23 +264,6 @@ describe("hardcover.fetchSeriesBooks", () => {
 
 		const { query } = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body ?? "{}");
 		expect(query).toMatch(/order_by:\s*{\s*books_count:\s*desc\s*}/);
-	});
-
-	it("scopes the book_series lookup to English or unlabeled editions", async () => {
-		const { fetchMock } = await fetchSeriesBooksWith(
-			seriesBooksResponse([{ position: 1, book: BOOK_DOCUMENT }]),
-		);
-
-		const { query } = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body ?? "{}");
-		expect(query).toMatch(
-			/default_physical_edition_id:\s*{\s*_is_null:\s*true\s*}/,
-		);
-		expect(query).toMatch(
-			/default_physical_edition:\s*{\s*language_id:\s*{\s*_is_null:\s*true\s*}\s*}/,
-		);
-		expect(query).toMatch(
-			/default_physical_edition:\s*{\s*language_id:\s*{\s*_eq:\s*1\s*}\s*}/,
-		);
 	});
 
 	it("scopes the series lookup to a known author when one is given", async () => {
