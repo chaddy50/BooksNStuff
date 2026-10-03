@@ -101,8 +101,8 @@ const BOOK_LANGUAGE_WHERE = `
 
 function buildSeriesBooksQuery(hasKnownAuthors: boolean): string {
 	const seriesWhere = hasKnownAuthors
-		? `{ name: { _eq: $name }, book_series: { book: { contributions: { author: { name: { _in: $authors } } } } } }`
-		: `{ name: { _eq: $name } }`;
+		? "{ name: { _eq: $name }, book_series: { book: { contributions: { author: { name: { _in: $authors } } } } } }"
+		: "{ name: { _eq: $name } }";
 	const authorsVariable = hasKnownAuthors ? ", $authors: [String!]!" : "";
 
 	return `
@@ -162,6 +162,11 @@ type SeriesBookEntry = {
 
 const ENGLISH_LANGUAGE_ID = 1;
 
+type SeriesBookCandidate = {
+	result: ExternalSearchResult;
+	languageId: number | null;
+};
+
 /**
  * Hardcover often lists a book under several editions at once — a boxed set,
  * a translation, a duplicate placeholder — all sharing the series' same
@@ -171,21 +176,16 @@ const ENGLISH_LANGUAGE_ID = 1;
  * left untouched, since there's nothing to prefer it over.
  */
 function preferConfirmedEnglishPerPosition(
-	candidates: Array<{
-		result: ExternalSearchResult;
-		languageId: number | null;
-	}>,
+	candidates: SeriesBookCandidate[],
 ): ExternalSearchResult[] {
-	const positionGroups = new Map<
-		string | symbol,
-		Array<{ result: ExternalSearchResult; languageId: number | null }>
-	>();
+	const positionGroups = new Map<string | symbol, SeriesBookCandidate[]>();
 
 	for (const candidate of candidates) {
 		const position = candidate.result.metadata.seriesBookNumber;
 		// A book with no recorded position gets its own group — two unrelated
 		// unpositioned books should never be compared against each other.
-		const key: string | symbol = position === undefined ? Symbol() : position;
+		const key: string | symbol =
+			position === undefined ? Symbol("no-position") : position;
 		const group = positionGroups.get(key) ?? [];
 		group.push(candidate);
 		positionGroups.set(key, group);
@@ -271,6 +271,37 @@ export async function fetchSeriesInfo(
 	};
 }
 
+function toSeriesBookCandidate(
+	entry: SeriesBookEntry,
+	seriesName: string,
+): SeriesBookCandidate | null {
+	const { book } = entry;
+	if (!book) return null;
+
+	return {
+		languageId: book.default_physical_edition?.language_id ?? null,
+		result: {
+			externalId: String(book.id),
+			externalSource: "hardcover",
+			type: MediaItemType.BOOK,
+			title: book.title,
+			description: book.description ?? undefined,
+			coverImageUrl: toAbsoluteImageUrl(book.image?.url),
+			releaseDate: releaseYearToDate(book.release_year),
+			metadata: {
+				// handleAddToLibrary reads metadata.series to file the added item
+				// under this series — without it the item would never appear in the
+				// series' library grid.
+				series: seriesName,
+				seriesBookNumber:
+					entry.position === null ? undefined : String(entry.position),
+				author: book.contributions?.[0]?.author?.name,
+				pageCount: book.pages ?? undefined,
+			},
+		},
+	};
+}
+
 /**
  * Every book Hardcover lists for a series, in reading order.
  *
@@ -305,33 +336,8 @@ export async function fetchSeriesBooks(
 	if (!entries) return [];
 
 	const candidates = entries.flatMap((entry) => {
-		const { book } = entry;
-		if (!book) return [];
-
-		return [
-			{
-				languageId: book.default_physical_edition?.language_id ?? null,
-				result: {
-					externalId: String(book.id),
-					externalSource: "hardcover",
-					type: MediaItemType.BOOK,
-					title: book.title,
-					description: book.description ?? undefined,
-					coverImageUrl: toAbsoluteImageUrl(book.image?.url),
-					releaseDate: releaseYearToDate(book.release_year),
-					metadata: {
-						// handleAddToLibrary reads metadata.series to file the added item
-						// under this series — without it the item would never appear in the
-						// series' library grid.
-						series: name,
-						seriesBookNumber:
-							entry.position === null ? undefined : String(entry.position),
-						author: book.contributions?.[0]?.author?.name,
-						pageCount: book.pages ?? undefined,
-					},
-				},
-			},
-		];
+		const candidate = toSeriesBookCandidate(entry, name);
+		return candidate ? [candidate] : [];
 	});
 
 	return preferConfirmedEnglishPerPosition(candidates);
