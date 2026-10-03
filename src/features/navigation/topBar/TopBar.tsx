@@ -31,7 +31,7 @@ export function TopBar({
 	useLayoutEffect(() => {
 		const header = headerRef.current;
 		if (!header) {
-			return;
+			return undefined;
 		}
 
 		setHeaderHeight(header.offsetHeight);
