@@ -8,6 +8,7 @@ import {
 	genres,
 	type ItemSortField,
 	mediaItemInstances,
+	mediaItemRelations,
 	mediaItems,
 	mediaItemTags,
 	type SeasonReview,
@@ -45,11 +46,12 @@ import { testDb } from "./db";
  * Call this in beforeEach so each test starts with a clean slate.
  *
  * Note: `series`, `creators`, `genres`, `tags`, `media_items`,
- * `media_item_instances`, `media_item_tags`, `views`, and `view_groups` all use
- * plain-text userId (no FK to `user`), so those need no auth rows.
- * `view_item_order` needs none either — it inherits ownership from the view it
- * points at. `custom_reports` and `user_settings` are the exceptions — both
- * reference `user.id`, so seed a row with `insertUser` before touching them.
+ * `media_item_instances`, `media_item_tags`, `media_item_relations`, `views`,
+ * and `view_groups` all use plain-text userId (no FK to `user`), so those need
+ * no auth rows. `view_item_order` needs none either — it inherits ownership
+ * from the view it points at. `custom_reports` and `user_settings` are the
+ * exceptions — both reference `user.id`, so seed a row with `insertUser`
+ * before touching them.
  */
 export async function truncateAll() {
 	// `user` is a reserved word and must stay quoted. Truncating it cascades to
@@ -60,6 +62,7 @@ export async function truncateAll() {
 			custom_reports,
 			media_item_instances,
 			media_item_tags,
+			media_item_relations,
 			view_item_order,
 			media_items,
 			series,
@@ -332,6 +335,21 @@ export async function insertViewItemOrder(
 		viewId: options.viewId,
 		mediaItemId: options.mediaItemId,
 		position: options.position,
+	});
+}
+
+type InsertMediaItemRelationOptions = {
+	mediaItemIdA: number;
+	mediaItemIdB: number;
+};
+
+/** Links two media items as related. Does not normalize column order. */
+export async function insertMediaItemRelation(
+	options: InsertMediaItemRelationOptions,
+): Promise<void> {
+	await testDb.insert(mediaItemRelations).values({
+		mediaItemIdA: options.mediaItemIdA,
+		mediaItemIdB: options.mediaItemIdB,
 	});
 }
 

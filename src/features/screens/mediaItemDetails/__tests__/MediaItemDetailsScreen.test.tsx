@@ -26,6 +26,13 @@ vi.mock(
 	}),
 );
 
+vi.mock(
+	"#/features/screens/mediaItemDetails/components/relatedItems/RelatedItems",
+	() => ({
+		RelatedItems: () => null,
+	}),
+);
+
 // Captures the contract the screen hands the guard, which is the unit under test
 // here — History's own behavior is covered by its suite.
 let isUnsavedChangesGuardEnabled: (() => boolean) | undefined;

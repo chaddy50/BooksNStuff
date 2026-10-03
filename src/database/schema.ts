@@ -507,6 +507,32 @@ export const mediaItemTags = pgTable(
 );
 
 /**
+ * Symmetric "related item" links between two media items (e.g. a book and its
+ * movie adaptation). One row covers both directions — `mediaItemIdA` is always
+ * the smaller id, enforced in the server layer (not the database) before every
+ * insert/delete, so the pair can only ever be stored once regardless of which
+ * item the user started from.
+ */
+export const mediaItemRelations = pgTable(
+	"media_item_relations",
+	{
+		mediaItemIdA: integer("media_item_id_a")
+			.notNull()
+			.references(() => mediaItems.id, { onDelete: "cascade" }),
+		mediaItemIdB: integer("media_item_id_b")
+			.notNull()
+			.references(() => mediaItems.id, { onDelete: "cascade" }),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+	},
+	(table) => [
+		primaryKey({ columns: [table.mediaItemIdA, table.mediaItemIdB] }),
+		// The primary key covers lookups where the viewed item is the lower id;
+		// this covers the other direction.
+		index("media_item_relations_mediaItemIdB_idx").on(table.mediaItemIdB),
+	],
+);
+
+/**
  * User-created custom dashboard reports.
  */
 export const customReports = pgTable("custom_reports", {
