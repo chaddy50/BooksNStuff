@@ -29,7 +29,7 @@ export function History(props: HistoryProps) {
 	}
 
 	return (
-		<div>
+		<div className="mb-10">
 			<TopBar idBeingEdited={idBeingEdited} startEditing={startEditing} />
 
 			<InstanceList
