@@ -84,21 +84,6 @@ const CREATOR_BIO_QUERY = `
 // chosen in the first place; the SERIES_INFO_QUERY and SERIES_BOOKS_QUERY
 // books_count tiebreak otherwise only exists to skip Hardcover's empty stub
 // duplicates.
-//
-// book_series excludes only editions explicitly tagged in a language other
-// than English. A book with no default physical edition on file, or one
-// whose language was never tagged, is kept rather than excluded — Hardcover
-// leaves language blank on plenty of legitimately-English editions, and
-// losing a real missing book is worse than occasionally keeping an
-// unlabeled foreign one.
-const BOOK_LANGUAGE_WHERE = `
-	        _or: [
-	          { default_physical_edition_id: { _is_null: true } }
-	          { default_physical_edition: { language_id: { _is_null: true } } }
-	          { default_physical_edition: { language_id: { _eq: 1 } } }
-	        ]
-`;
-
 function buildSeriesBooksQuery(hasKnownAuthors: boolean): string {
 	const seriesWhere = hasKnownAuthors
 		? "{ name: { _eq: $name }, book_series: { book: { contributions: { author: { name: { _in: $authors } } } } } }"
@@ -112,10 +97,7 @@ function buildSeriesBooksQuery(hasKnownAuthors: boolean): string {
 	      order_by: { books_count: desc }
 	      limit: 1
 	    ) {
-	      book_series(
-	        where: { book: {${BOOK_LANGUAGE_WHERE}} }
-	        order_by: { position: asc }
-	      ) {
+	      book_series(order_by: { position: asc }) {
 	        position
 	        book {
 	          id
@@ -130,9 +112,6 @@ function buildSeriesBooksQuery(hasKnownAuthors: boolean): string {
 	            author {
 	              name
 	            }
-	          }
-	          default_physical_edition {
-	            language_id
 	          }
 	        }
 	      }
@@ -154,53 +133,12 @@ type SeriesBookDocument = {
 	release_year?: number | null;
 	image?: { url: string } | null;
 	contributions?: Array<{ author?: { name: string } | null }> | null;
-	default_physical_edition?: { language_id: number | null } | null;
 };
 
 type SeriesBookEntry = {
 	position: number | null;
 	book: SeriesBookDocument | null;
 };
-
-const ENGLISH_LANGUAGE_ID = 1;
-
-type SeriesBookCandidate = {
-	result: ExternalSearchResult;
-	languageId: number | null;
-};
-
-/**
- * Hardcover often lists a book under several editions at once — a boxed set,
- * a translation, a duplicate placeholder — all sharing the series' same
- * position. When at least one of them is confirmed English, only that one is
- * the book the user is actually missing; the rest are the same book, not
- * different ones. A position with no confirmed-English candidate at all is
- * left untouched, since there's nothing to prefer it over.
- */
-function preferConfirmedEnglishPerPosition(
-	candidates: SeriesBookCandidate[],
-): ExternalSearchResult[] {
-	const positionGroups = new Map<string | symbol, SeriesBookCandidate[]>();
-
-	for (const candidate of candidates) {
-		const position = candidate.result.metadata.seriesBookNumber;
-		// A book with no recorded position gets its own group — two unrelated
-		// unpositioned books should never be compared against each other.
-		const key: string | symbol =
-			position === undefined ? Symbol("no-position") : position;
-		const group = positionGroups.get(key) ?? [];
-		group.push(candidate);
-		positionGroups.set(key, group);
-	}
-
-	return [...positionGroups.values()].flatMap((group) => {
-		const confirmedEnglish = group.filter(
-			(candidate) => candidate.languageId === ENGLISH_LANGUAGE_ID,
-		);
-		const survivors = confirmedEnglish.length > 0 ? confirmedEnglish : group;
-		return survivors.map((candidate) => candidate.result);
-	});
-}
 
 type CreatorBioResult = {
 	bio: string | null;
@@ -296,22 +234,19 @@ function toSeriesBookMetadata(
 function toSeriesBookCandidate(
 	entry: SeriesBookEntry,
 	seriesName: string,
-): SeriesBookCandidate | null {
+): ExternalSearchResult | null {
 	const { book } = entry;
 	if (!book) return null;
 
 	return {
-		languageId: book.default_physical_edition?.language_id ?? null,
-		result: {
-			externalId: String(book.id),
-			externalSource: "hardcover",
-			type: MediaItemType.BOOK,
-			title: book.title,
-			description: book.description ?? undefined,
-			coverImageUrl: toAbsoluteImageUrl(book.image?.url),
-			releaseDate: releaseYearToDate(book.release_year),
-			metadata: toSeriesBookMetadata(entry.position, book, seriesName),
-		},
+		externalId: String(book.id),
+		externalSource: "hardcover",
+		type: MediaItemType.BOOK,
+		title: book.title,
+		description: book.description ?? undefined,
+		coverImageUrl: toAbsoluteImageUrl(book.image?.url),
+		releaseDate: releaseYearToDate(book.release_year),
+		metadata: toSeriesBookMetadata(entry.position, book, seriesName),
 	};
 }
 
@@ -348,12 +283,10 @@ export async function fetchSeriesBooks(
 	const entries = data?.series[0]?.book_series;
 	if (!entries) return [];
 
-	const candidates = entries.flatMap((entry) => {
+	return entries.flatMap((entry) => {
 		const candidate = toSeriesBookCandidate(entry, name);
 		return candidate ? [candidate] : [];
 	});
-
-	return preferConfirmedEnglishPerPosition(candidates);
 }
 
 export async function fetchCreatorBio(
