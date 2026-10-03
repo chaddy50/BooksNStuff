@@ -124,6 +124,26 @@ export function sortMissingItems(
 }
 
 /**
+ * Calls the provider and falls back to an empty roster on any failure —
+ * an upstream outage or rate limit should leave the "missing" section
+ * empty rather than break the series page.
+ */
+async function fetchSeriesCandidates(
+	fetchSeriesItems: (
+		seriesName: string,
+		knownCreatorNames: string[],
+	) => Promise<ExternalSearchResult[]>,
+	seriesName: string,
+	knownCreatorNames: string[],
+): Promise<ExternalSearchResult[]> {
+	try {
+		return await fetchSeriesItems(seriesName, knownCreatorNames);
+	} catch {
+		return [];
+	}
+}
+
+/**
  * The items in a series that the user has not added to their library yet.
  *
  * Returns [] rather than throwing for a missing series, another user's series,
@@ -155,20 +175,12 @@ export async function getMissingSeriesItems(
 			and(eq(mediaItems.userId, userId), eq(mediaItems.seriesId, seriesId)),
 		);
 
-	let candidates: ExternalSearchResult[] = [];
-	try {
-		candidates = await fetchSeriesItems(
+	const candidates = filterByKnownCreator(
+		await fetchSeriesCandidates(
+			fetchSeriesItems,
 			seriesRow.name,
 			ownedCreators.map((creator) => creator.name),
-		);
-	} catch {
-		return [];
-	}
-
-	if (candidates.length === 0) return [];
-
-	candidates = filterByKnownCreator(
-		candidates,
+		),
 		seriesRow.type,
 		toKnownCreatorNames(ownedCreators),
 	);
