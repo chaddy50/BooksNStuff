@@ -64,7 +64,7 @@ export function SearchInput({ value, navigateTo, params }: SearchInputProps) {
 	return (
 		<Tooltip open={isHovered && !isFocused}>
 			<TooltipTrigger asChild>
-				<div className="relative">
+				<div className="relative flex-1 md:flex-initial">
 					<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
 					<Input
 						ref={inputRef}
@@ -76,7 +76,7 @@ export function SearchInput({ value, navigateTo, params }: SearchInputProps) {
 						onBlur={() => setIsFocused(false)}
 						onMouseEnter={() => setIsHovered(true)}
 						onMouseLeave={() => setIsHovered(false)}
-						className="pl-8 w-32 sm:w-48"
+						className="pl-8 w-full md:w-48 max-md:h-11"
 					/>
 				</div>
 			</TooltipTrigger>

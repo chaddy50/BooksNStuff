@@ -484,3 +484,29 @@ describe("StatsBar average rating", () => {
 		).toHaveAttribute("aria-hidden", "true");
 	});
 });
+
+describe("StatsBar responsive layout", () => {
+	it("lays out as a fixed 2-column grid below md, and the existing flex row at md and up", () => {
+		renderStatsBar();
+
+		expect(screen.getByTestId("stats-bar")).toHaveClass(
+			"grid",
+			"grid-cols-2",
+			"gap-x-4",
+			"gap-y-2",
+			"md:flex",
+			"md:flex-wrap",
+			"md:items-center",
+			"md:gap-x-5",
+			"md:gap-y-1",
+		);
+	});
+
+	it("hides the dividers below md, where they'd otherwise desync the 2-column grid", () => {
+		renderStatsBar();
+
+		for (const divider of screen.getAllByTestId("stats-divider")) {
+			expect(divider).toHaveClass("hidden", "md:block");
+		}
+	});
+});

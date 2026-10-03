@@ -1,5 +1,23 @@
-import { describe, expect, it } from "vitest";
-import { countActiveFilters } from "#/features/filterAndSort/FilterAndSortButton";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+	countActiveFilters,
+	FilterAndSortButton,
+} from "#/features/filterAndSort/FilterAndSortButton";
+
+vi.mock("react-i18next", () => ({
+	useTranslation: () => ({ t: (key: string) => key }),
+}));
+
+vi.mock("@tanstack/react-router", () => ({
+	useNavigate: () => vi.fn(),
+}));
+
+vi.mock("#/features/filterAndSort/FilterAndSortDialog", () => ({
+	FilterAndSortDialog: () => null,
+}));
+
+afterEach(cleanup);
 
 describe("countActiveFilters", () => {
 	it("returns 0 when no filters are set", () => {
@@ -78,5 +96,38 @@ describe("countActiveFilters", () => {
 				sortDirection: "desc",
 			}),
 		).toBe(5);
+	});
+});
+
+describe("FilterAndSortButton", () => {
+	function renderButton(filterAndSortChoices = {}) {
+		render(
+			<FilterAndSortButton
+				filterAndSortChoices={filterAndSortChoices}
+				isFilterAndSortPopupOpen={false}
+				setIsFilterAndSortPopupOpen={vi.fn()}
+				navigateTo="/library"
+			/>,
+		);
+	}
+
+	it("grows the standalone filter button's tap target below md", () => {
+		renderButton();
+
+		expect(
+			screen.getByText("library.filterAndSort").closest("button"),
+		).toHaveClass("max-sm:size-11", "max-md:h-11");
+	});
+
+	it("grows the combined filter toggle and clear buttons' tap targets below md", () => {
+		renderButton({ mediaTypes: ["book"] });
+
+		const toggleButton = screen
+			.getByText("library.filterAndSort")
+			.closest("button");
+		const clearButton = screen.getByLabelText("library.clearFilters");
+
+		expect(toggleButton).toHaveClass("max-sm:size-11", "max-md:h-11");
+		expect(clearButton).toHaveClass("max-md:size-11");
 	});
 });

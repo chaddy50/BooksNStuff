@@ -57,7 +57,7 @@ export function StatsBar({
 	return (
 		<div
 			data-testid="stats-bar"
-			className="px-3 pb-2 md:px-6 md:pb-3 flex flex-wrap items-center gap-x-5 gap-y-1"
+			className="px-3 pb-2 md:px-6 md:pb-3 grid grid-cols-2 gap-x-4 gap-y-2 md:flex md:flex-wrap md:items-center md:gap-x-5 md:gap-y-1"
 		>
 			<Stat label={t("stats.items")} value={stats.totalCount} />
 			{isPurchasedShown && (
@@ -130,7 +130,7 @@ function Divider() {
 		<div
 			aria-hidden="true"
 			data-testid="stats-divider"
-			className="h-5 w-px shrink-0 bg-border"
+			className="hidden md:block h-5 w-px shrink-0 bg-border"
 		/>
 	);
 }

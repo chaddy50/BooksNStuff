@@ -13,7 +13,7 @@ export function AddMediaButton() {
 			<Button
 				variant="outline"
 				size="icon"
-				className="sm:w-auto sm:px-4"
+				className="max-sm:size-11 max-md:h-11 sm:w-auto sm:px-4"
 				onClick={() => setIsSearchOpen(true)}
 			>
 				<Plus className="size-4" />

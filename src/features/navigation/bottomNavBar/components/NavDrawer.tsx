@@ -124,7 +124,7 @@ export function NavDrawer({ isOpen, onClose }: NavDrawerProps) {
 							<SheetClose asChild>
 								<Link
 									to="/settings"
-									className="flex items-center gap-2 px-2 py-2 rounded-md text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+									className="flex items-center gap-2 px-2 py-3 rounded-md text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
 									activeProps={{
 										className: "bg-accent text-accent-foreground",
 									}}
@@ -157,7 +157,7 @@ function NavDrawerViewLink({
 			<Link
 				to="/views/$viewId"
 				params={{ viewId: String(view.id) }}
-				className={`flex items-center gap-2 px-2 py-2 rounded-md text-sm hover:bg-accent hover:text-accent-foreground transition-colors${
+				className={`flex items-center gap-2 px-2 py-3 rounded-md text-sm hover:bg-accent hover:text-accent-foreground transition-colors${
 					isNested ? " pl-6" : ""
 				}`}
 				activeProps={{
@@ -190,7 +190,7 @@ function NavDrawerGroup({
 					group.isCollapsed ? "viewGroups.expand" : "viewGroups.collapse",
 					{ name: group.name },
 				)}
-				className="flex items-center gap-1 px-2 py-2 rounded-md text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+				className="flex items-center gap-1 px-2 py-3 rounded-md text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
 			>
 				{group.isCollapsed ? (
 					<ChevronRight className="size-3.5 shrink-0" />

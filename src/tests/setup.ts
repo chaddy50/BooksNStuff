@@ -7,3 +7,12 @@ globalThis.ResizeObserver ??= class {
 	unobserve() {}
 	disconnect() {}
 } as unknown as typeof ResizeObserver;
+
+// jsdom ships no scrollIntoView either, and this setup file also runs for
+// suites using the plain "node" environment, where Element doesn't exist.
+if (typeof Element !== "undefined") {
+	// `??=` leaves a suite-local spy in place.
+	Element.prototype.scrollIntoView ??= () => {
+		// jsdom has no layout, so there is nothing to actually scroll.
+	};
+}
