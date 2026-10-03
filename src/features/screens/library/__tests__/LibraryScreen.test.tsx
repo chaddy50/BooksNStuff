@@ -53,14 +53,17 @@ vi.mock("#/components/MediaItemList", () => ({
 // by its suite; here only the hand-off matters.
 let capturedStats: ItemStats | undefined;
 let capturedFilters: FilterAndSortOptions | null | undefined;
+let capturedNavigateTo: string | undefined;
 
 vi.mock("#/components/StatsBar", () => ({
 	StatsBar: (props: {
 		stats: ItemStats;
 		filters?: FilterAndSortOptions | null;
+		navigateTo?: string;
 	}) => {
 		capturedStats = props.stats;
 		capturedFilters = props.filters;
+		capturedNavigateTo = props.navigateTo;
 		return <div data-testid="stats-bar" />;
 	},
 }));
@@ -108,6 +111,7 @@ beforeEach(() => {
 	capturedShouldShowStatus = undefined;
 	capturedStats = undefined;
 	capturedFilters = undefined;
+	capturedNavigateTo = undefined;
 	capturedCacheKey = undefined;
 });
 
@@ -177,6 +181,13 @@ describe("LibraryScreen stats bar", () => {
 
 		expect(screen.getByTestId("stats-bar")).toBeInTheDocument();
 		expect(capturedStats).toEqual(EMPTY_STATS);
+	});
+
+	// So a clicked stat (e.g. "Completed") lands back on the library.
+	it("points the bar's stat links at the library route", () => {
+		render(<LibraryScreen />);
+
+		expect(capturedNavigateTo).toBe("/library");
 	});
 });
 

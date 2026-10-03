@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, useRouter } from "@tanstack/react-router";
+import type { TFunction } from "i18next";
 import { ArrowUpDown, Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -15,6 +16,7 @@ import { TopBar } from "#/features/navigation/topBar/TopBar";
 import { EditViewDialog } from "#/features/screens/customView/EditViewDialog";
 import type { LibraryItem } from "#/features/screens/library/library";
 import type { SeriesListItem } from "#/features/screens/series/series";
+import { MediaItemStatus, PurchaseStatus } from "#/lib/enums";
 import {
 	isFilteredToSinglePurchaseStatus,
 	isFilteredToSingleStatus,
@@ -25,6 +27,7 @@ import {
 } from "#/lib/queries/types";
 import { ReorderableItemGrid } from "./components/ReorderableItemGrid";
 import {
+	applyViewFilterOverrides,
 	deleteView,
 	getViewOrderItems,
 	getViewResults,
@@ -58,14 +61,25 @@ export function ViewScreen() {
 	// Any item view can be arranged by hand; doing so is what switches it to
 	// custom order. Series views have no per-item order to write.
 	const isItemView = view.subject === "items";
+	// A stats-bar click narrows through the URL rather than the view's saved
+	// filters, so the badges and the bar both need the narrowed view.
+	const effectiveFilters = applyViewFilterOverrides(view.filters, search);
 	const shouldShowPurchaseStatus = !isFilteredToSinglePurchaseStatus(
-		view.filters?.purchaseStatuses,
+		effectiveFilters.purchaseStatuses,
 	);
-	const shouldShowStatus = !isFilteredToSingleStatus(view.filters?.statuses);
+	const shouldShowStatus = !isFilteredToSingleStatus(effectiveFilters.statuses);
+	// Narrowing through the URL leaves the view's own name on screen unchanged,
+	// so the title is the only thing that would otherwise tell the user they
+	// are looking at a subset rather than the whole view.
+	const activeFilterOverrideLabels = getActiveFilterOverrideLabels(search, t);
+	const title =
+		activeFilterOverrideLabels.length > 0
+			? `${view.name} - ${activeFilterOverrideLabels.join(", ")}`
+			: view.name;
 	const paginatedResults = results as
 		| PaginatedResult<LibraryItem>
 		| PaginatedResult<SeriesListItem>;
-	const cacheKey = useListCacheKey(`view:${view.id}`, search.titleQuery ?? "");
+	const cacheKey = useListCacheKey(`view:${view.id}`, search);
 
 	const { allItems, isLoadingMore, sentinelRef } = useInfiniteScroll<
 		LibraryItem | SeriesListItem
@@ -75,7 +89,14 @@ export function ViewScreen() {
 		initialHasMore: paginatedResults.hasMore,
 		fetchMore: (offset, limit) =>
 			getViewResults({
-				data: { viewId: view.id, titleQuery: search.titleQuery, offset, limit },
+				data: {
+					viewId: view.id,
+					titleQuery: search.titleQuery,
+					statuses: search.statuses,
+					purchaseStatuses: search.purchaseStatuses,
+					offset,
+					limit,
+				},
 			}).then(
 				(result) =>
 					result.results as PaginatedResult<LibraryItem | SeriesListItem>,
@@ -177,10 +198,15 @@ export function ViewScreen() {
 	return (
 		<div className="min-h-screen bg-background text-foreground">
 			<TopBar
-				title={view.name}
+				title={title}
 				below={
 					!isReordering && stats ? (
-						<StatsBar stats={stats} filters={view.filters} />
+						<StatsBar
+							stats={stats}
+							filters={effectiveFilters}
+							navigateTo="/views/$viewId"
+							params={{ viewId: String(view.id) }}
+						/>
 					) : null
 				}
 				right={
@@ -275,5 +301,49 @@ export function ViewScreen() {
 				onDelete={handleDelete}
 			/>
 		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Private helpers
+// ---------------------------------------------------------------------------
+
+/** The labels for whichever single-value status/purchase-status overrides a stats-bar click set. */
+type FilterOverrideDimension = "statuses" | "purchaseStatuses";
+
+function getActiveFilterOverrideLabels(
+	search: {
+		statuses?: MediaItemStatus[];
+		purchaseStatuses?: PurchaseStatus[];
+		filterOrder?: FilterOverrideDimension[];
+	},
+	t: TFunction,
+): string[] {
+	const labelByDimension: Partial<Record<FilterOverrideDimension, string>> = {};
+	if (search.statuses?.[0] === MediaItemStatus.COMPLETED) {
+		labelByDimension.statuses = t("stats.completed");
+	}
+	if (search.statuses?.[0] === MediaItemStatus.DROPPED) {
+		labelByDimension.statuses = t("stats.dropped");
+	}
+	if (search.purchaseStatuses?.[0] === PurchaseStatus.PURCHASED) {
+		labelByDimension.purchaseStatuses = t("stats.purchased");
+	}
+
+	const activeDimensions = Object.keys(
+		labelByDimension,
+	) as FilterOverrideDimension[];
+	// `filterOrder` only has entries for dimensions a stats-bar click actually
+	// set; a dimension missing from it (a shared link, say) falls back after
+	// the ones that do, in a stable default order.
+	const clickedDimensionsStillActive = (search.filterOrder ?? []).filter(
+		(dimension) => activeDimensions.includes(dimension),
+	);
+	const unclickedDimensions = activeDimensions.filter(
+		(dimension) => !clickedDimensionsStillActive.includes(dimension),
+	);
+
+	return [...clickedDimensionsStillActive, ...unclickedDimensions].map(
+		(dimension) => labelByDimension[dimension] as string,
 	);
 }

@@ -10,6 +10,46 @@ vi.mock("react-i18next", () => ({
 }));
 
 /**
+ * Calls `search` against a few fixed `prev` fixtures so a test can tell a
+ * merged override (the fixture's own field surviving alongside it) apart from
+ * a replaced one, and can see how an existing `filterOrder` is handled without
+ * each test having to reach into the link's `search` function itself.
+ */
+vi.mock("@tanstack/react-router", () => ({
+	Link: ({
+		children,
+		className,
+		search,
+	}: {
+		children: React.ReactNode;
+		className?: string;
+		search?: (prev: Record<string, unknown>) => unknown;
+	}) => (
+		<a
+			href="/library"
+			className={className}
+			data-search={
+				search ? JSON.stringify(search({ titleQuery: "existing" })) : undefined
+			}
+			data-search-after-purchased-order={
+				search
+					? JSON.stringify(search({ filterOrder: ["purchaseStatuses"] }))
+					: undefined
+			}
+			data-search-after-statuses-then-purchased-order={
+				search
+					? JSON.stringify(
+							search({ filterOrder: ["statuses", "purchaseStatuses"] }),
+						)
+					: undefined
+			}
+		>
+			{children}
+		</a>
+	),
+}));
+
+/**
  * Every field defaults to its own distinct non-zero number, so a count rendered
  * against the wrong label cannot pass by coincidence.
  */
@@ -28,12 +68,49 @@ function renderStatsBar(
 	overrides?: Partial<ItemStats>,
 	filters?: FilterAndSortOptions | null,
 ) {
-	return render(<StatsBar stats={makeStats(overrides)} filters={filters} />);
+	return render(
+		<StatsBar
+			stats={makeStats(overrides)}
+			filters={filters}
+			navigateTo="/library"
+		/>,
+	);
 }
 
 /** Reads the count rendered alongside a label, so pairings are checked as pairs. */
 function readStatValue(labelKey: string): string | null | undefined {
 	return screen.getByText(labelKey).previousElementSibling?.textContent;
+}
+
+/** The override a stat's link would merge onto the current search, or undefined if it isn't a link. */
+function readLinkSearch(labelKey: string): Record<string, unknown> | undefined {
+	const raw = screen
+		.getByText(labelKey)
+		.closest("a")
+		?.getAttribute("data-search");
+	return raw ? JSON.parse(raw) : undefined;
+}
+
+/** What a stat's link would produce when `purchaseStatuses` was already the latest click. */
+function readLinkSearchAfterPurchasedOrder(
+	labelKey: string,
+): Record<string, unknown> | undefined {
+	const raw = screen
+		.getByText(labelKey)
+		.closest("a")
+		?.getAttribute("data-search-after-purchased-order");
+	return raw ? JSON.parse(raw) : undefined;
+}
+
+/** What a stat's link would produce when `statuses` was clicked before `purchaseStatuses`. */
+function readLinkSearchAfterStatusesThenPurchasedOrder(
+	labelKey: string,
+): Record<string, unknown> | undefined {
+	const raw = screen
+		.getByText(labelKey)
+		.closest("a")
+		?.getAttribute("data-search-after-statuses-then-purchased-order");
+	return raw ? JSON.parse(raw) : undefined;
 }
 
 /**
@@ -237,6 +314,80 @@ describe("StatsBar", () => {
 			purchasedLabel.compareDocumentPosition(droppedLabel) &
 				Node.DOCUMENT_POSITION_FOLLOWING,
 		).toBeTruthy();
+	});
+});
+
+describe("StatsBar clickable stats", () => {
+	it("links the completed stat to a view narrowed to completed items", () => {
+		renderStatsBar();
+
+		expect(readLinkSearch("stats.completed")).toEqual({
+			titleQuery: "existing",
+			statuses: [MediaItemStatus.COMPLETED],
+			filterOrder: ["statuses"],
+		});
+	});
+
+	it("links the dropped stat to a view narrowed to dropped items", () => {
+		renderStatsBar({ droppedCount: 1 });
+
+		expect(readLinkSearch("stats.dropped")).toEqual({
+			titleQuery: "existing",
+			statuses: [MediaItemStatus.DROPPED],
+			filterOrder: ["statuses"],
+		});
+	});
+
+	it("links the purchased stat to a view narrowed to purchased items", () => {
+		renderStatsBar();
+
+		expect(readLinkSearch("stats.purchased")).toEqual({
+			titleQuery: "existing",
+			purchaseStatuses: [PurchaseStatus.PURCHASED],
+			filterOrder: ["purchaseStatuses"],
+		});
+	});
+
+	it("keeps the items stat as plain, non-link text", () => {
+		renderStatsBar();
+
+		expect(screen.getByText("stats.items").closest("a")).toBeNull();
+	});
+
+	it("keeps the average rating as plain, non-link text", () => {
+		renderStatsBar({ averageRating: 4.2 });
+
+		expect(screen.getByTestId("stats-average-rating").closest("a")).toBeNull();
+	});
+});
+
+describe("StatsBar filter click order", () => {
+	// So the view's title can later list "Purchased, Completed" rather than
+	// always the same fixed field order regardless of which was clicked first.
+	it("appends the clicked dimension after one already in filterOrder", () => {
+		renderStatsBar();
+
+		expect(
+			readLinkSearchAfterPurchasedOrder("stats.completed")?.filterOrder,
+		).toEqual(["purchaseStatuses", "statuses"]);
+	});
+
+	it("moves a dimension to the end instead of duplicating it on re-click", () => {
+		renderStatsBar();
+
+		expect(
+			readLinkSearchAfterStatusesThenPurchasedOrder("stats.completed")
+				?.filterOrder,
+		).toEqual(["purchaseStatuses", "statuses"]);
+	});
+
+	it("leaves the other dimension's position alone when only one is reclicked", () => {
+		renderStatsBar();
+
+		expect(
+			readLinkSearchAfterStatusesThenPurchasedOrder("stats.purchased")
+				?.filterOrder,
+		).toEqual(["statuses", "purchaseStatuses"]);
 	});
 });
 

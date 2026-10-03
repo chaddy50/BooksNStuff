@@ -5,15 +5,27 @@ import {
 	getViewResults,
 	getViewStats,
 } from "#/features/screens/customView/view";
+import { filterAndSortOptionsSchema } from "#/lib/filterAndSort";
 
 export const Route = createFileRoute("/_authenticated/_app/views/$viewId")({
-	validateSearch: z.object({ titleQuery: z.string().optional() }),
+	validateSearch: filterAndSortOptionsSchema
+		.pick({
+			titleQuery: true,
+			statuses: true,
+			purchaseStatuses: true,
+		})
+		.extend({
+			// Which of `statuses`/`purchaseStatuses` the user narrowed by, in click
+			// order, so the title can list them the way the user built them up
+			// rather than in a fixed field order.
+			filterOrder: z.array(z.enum(["statuses", "purchaseStatuses"])).optional(),
+		}),
 	loaderDeps: ({ search }) => search,
 	loader: async ({ params, deps }) => {
 		const viewId = parseInt(params.viewId, 10);
 		const [results, stats] = await Promise.all([
-			getViewResults({ data: { viewId, titleQuery: deps.titleQuery } }),
-			getViewStats({ data: { viewId, titleQuery: deps.titleQuery } }),
+			getViewResults({ data: { viewId, ...deps } }),
+			getViewStats({ data: { viewId, ...deps } }),
 		]);
 		return { ...results, stats };
 	},
