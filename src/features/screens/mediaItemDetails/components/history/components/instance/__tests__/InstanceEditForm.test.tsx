@@ -423,3 +423,26 @@ describe("InstanceEditForm unsaved changes", () => {
 		expect(handleRef.current?.hasUnsavedChanges()).toBe(false);
 	});
 });
+
+describe("InstanceEditForm scrolling into view", () => {
+	// jsdom doesn't implement scrollIntoView at all, so there's nothing to spy
+	// on — the test provides its own stub, same as it would in a real browser.
+	let scrollIntoView: ReturnType<typeof vi.fn>;
+
+	beforeEach(() => {
+		scrollIntoView = vi.fn();
+		HTMLElement.prototype.scrollIntoView = scrollIntoView;
+	});
+
+	it("scrolls itself into view on mount when creating a new entry", () => {
+		render(<InstanceEditForm {...baseProps} />);
+
+		expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
+	});
+
+	it("does not scroll on mount when editing an existing entry", () => {
+		render(<InstanceEditForm {...baseProps} instance={savedInstance} />);
+
+		expect(scrollIntoView).not.toHaveBeenCalled();
+	});
+});

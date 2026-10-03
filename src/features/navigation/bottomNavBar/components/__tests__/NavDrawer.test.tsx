@@ -38,12 +38,19 @@ vi.mock("@tanstack/react-router", () => ({
 		children,
 		to,
 		params,
+		className,
 	}: {
 		children: ReactNode;
 		to: string;
 		params?: Record<string, string>;
+		className?: string;
 	}) => (
-		<a href={params?.viewId ? `/views/${params.viewId}` : to}>{children}</a>
+		<a
+			href={params?.viewId ? `/views/${params.viewId}` : to}
+			className={className}
+		>
+			{children}
+		</a>
 	),
 }));
 
@@ -201,5 +208,24 @@ describe("NavDrawer", () => {
 
 		expect(await screen.findByText("nav.views")).toBeInTheDocument();
 		expect(screen.getByText("Currently reading")).toBeInTheDocument();
+	});
+
+	it("gives a view row a comfortable tap target", async () => {
+		renderDrawer();
+
+		expect(await screen.findByText("Fantasy books")).toHaveClass("py-3");
+	});
+
+	it("gives a group's toggle a comfortable tap target", async () => {
+		renderDrawer();
+
+		const groupName = await screen.findByText("Currently reading");
+		expect(groupName.closest("button")).toHaveClass("py-3");
+	});
+
+	it("gives the settings link a comfortable tap target", async () => {
+		renderDrawer();
+
+		expect(await screen.findByText("nav.settings")).toHaveClass("py-3");
 	});
 });

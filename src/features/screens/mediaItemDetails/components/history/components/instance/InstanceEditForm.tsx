@@ -95,6 +95,7 @@ export function InstanceEditForm({
 	const { t } = useTranslation();
 	const { data: settings } = useUserSettings();
 	const hasInitializedConsumption = useRef(false);
+	const formRootRef = useRef<HTMLDivElement | null>(null);
 	const [rating, setRating] = useState<number>(instance?.rating ?? 0);
 	const [fictionRating, setFictionRating] = useState<FictionRating | null>(
 		instance?.fictionRating ?? null,
@@ -124,6 +125,16 @@ export function InstanceEditForm({
 		seasonReviews,
 	};
 	const baselineRef = useRef(currentValues);
+
+	// Scrolling a newly-created entry's form into view only ever needs to
+	// happen once, on mount — not on every `instance` identity change.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: mount-only, see comment above
+	useEffect(() => {
+		if (instance) {
+			return;
+		}
+		formRootRef.current?.scrollIntoView({ block: "nearest" });
+	}, []);
 
 	useEffect(() => {
 		if (settings === undefined || hasInitializedConsumption.current) {
@@ -293,7 +304,10 @@ export function InstanceEditForm({
 	}
 
 	return (
-		<div className="p-4 rounded-lg border border-border bg-card flex flex-col gap-5">
+		<div
+			ref={formRootRef}
+			className="p-4 rounded-lg border border-border bg-card flex flex-col gap-5"
+		>
 			{/* Dates */}
 			<div className="grid grid-cols-2 gap-4 max-w-sm">
 				<div className="flex flex-col gap-1.5">

@@ -47,7 +47,7 @@ export function FilterAndSortButton({
 					<Button
 						variant="outline"
 						size="icon"
-						className="sm:w-auto sm:px-4 gap-2 w-auto px-2 rounded-r-none border-r-0"
+						className="max-sm:size-11 max-md:h-11 sm:w-auto sm:px-4 gap-2 w-auto px-2 rounded-r-none border-r-0"
 						onClick={() => setIsFilterAndSortPopupOpen(true)}
 					>
 						<SlidersHorizontal className="size-4 shrink-0" />
@@ -61,7 +61,7 @@ export function FilterAndSortButton({
 					<Button
 						variant="outline"
 						size="icon"
-						className="rounded-l-none px-2 w-auto"
+						className="max-md:size-11 rounded-l-none px-2 w-auto"
 						onClick={handleClearFilters}
 						aria-label={t("library.clearFilters")}
 					>
@@ -72,7 +72,7 @@ export function FilterAndSortButton({
 				<Button
 					variant="outline"
 					size="icon"
-					className="sm:w-auto sm:px-4 gap-2"
+					className="max-sm:size-11 max-md:h-11 sm:w-auto sm:px-4 gap-2"
 					onClick={() => setIsFilterAndSortPopupOpen(true)}
 				>
 					<SlidersHorizontal className="size-4 shrink-0" />
