@@ -1,11 +1,12 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "#/database/index";
-import { mediaItems, series } from "#/database/schema";
+import { creators, mediaItems, series } from "#/database/schema";
 import * as hardcover from "#/features/mediaItemSearch/api/hardcover";
 import * as igdb from "#/features/mediaItemSearch/api/igdb";
 import * as tmdb from "#/features/mediaItemSearch/api/tmdb";
 import type { ExternalSearchResult } from "#/features/mediaItemSearch/api/types";
+import { resolveCreatorName } from "#/lib/creator";
 import { MediaItemType } from "#/lib/enums";
 
 /**
@@ -25,11 +26,18 @@ import { MediaItemType } from "#/lib/enums";
  * the provider knows about.
  */
 const FETCH_SERIES_ITEMS_BY_TYPE: Partial<
-	Record<MediaItemType, (seriesName: string) => Promise<ExternalSearchResult[]>>
+	Record<
+		MediaItemType,
+		(
+			seriesName: string,
+			knownCreatorNames: string[],
+		) => Promise<ExternalSearchResult[]>
+	>
 > = {
 	[MediaItemType.BOOK]: hardcover.fetchSeriesBooks,
-	[MediaItemType.MOVIE]: tmdb.fetchCollectionMovies,
-	[MediaItemType.VIDEO_GAME]: igdb.fetchCollectionGames,
+	[MediaItemType.MOVIE]: (seriesName) => tmdb.fetchCollectionMovies(seriesName),
+	[MediaItemType.VIDEO_GAME]: (seriesName) =>
+		igdb.fetchCollectionGames(seriesName),
 };
 
 // Enough to cover even a long-running series without flooding the grid.
@@ -62,6 +70,31 @@ export function filterOutOwnedItems(
 	});
 }
 
+function toKnownCreatorNames(rows: { name: string }[]): Set<string> {
+	return new Set(rows.map((row) => row.name.toLowerCase()));
+}
+
+/**
+ * Drops candidates whose resolved creator doesn't match a creator the user
+ * already owns in this series. Keeps a candidate when no known creators exist
+ * yet, or when the candidate carries no resolvable creator name — there is no
+ * signal to filter on in either case, and hiding items on a guess is worse
+ * than showing one from the wrong series.
+ */
+export function filterByKnownCreator(
+	candidates: ExternalSearchResult[],
+	type: MediaItemType,
+	knownCreatorNames: Set<string>,
+): ExternalSearchResult[] {
+	if (knownCreatorNames.size === 0) return candidates;
+
+	return candidates.filter((candidate) => {
+		const creatorName = resolveCreatorName(type, candidate.metadata);
+		if (!creatorName) return true;
+		return knownCreatorNames.has(creatorName.toLowerCase());
+	});
+}
+
 function toSortableBookNumber(item: ExternalSearchResult): number {
 	const bookNumber = Number(item.metadata.seriesBookNumber);
 	// Unnumbered and non-numeric entries sort after every numbered one rather
@@ -91,6 +124,26 @@ export function sortMissingItems(
 }
 
 /**
+ * Calls the provider and falls back to an empty roster on any failure —
+ * an upstream outage or rate limit should leave the "missing" section
+ * empty rather than break the series page.
+ */
+async function fetchSeriesCandidates(
+	fetchSeriesItems: (
+		seriesName: string,
+		knownCreatorNames: string[],
+	) => Promise<ExternalSearchResult[]>,
+	seriesName: string,
+	knownCreatorNames: string[],
+): Promise<ExternalSearchResult[]> {
+	try {
+		return await fetchSeriesItems(seriesName, knownCreatorNames);
+	} catch {
+		return [];
+	}
+}
+
+/**
  * The items in a series that the user has not added to their library yet.
  *
  * Returns [] rather than throwing for a missing series, another user's series,
@@ -111,12 +164,26 @@ export async function getMissingSeriesItems(
 	const fetchSeriesItems = FETCH_SERIES_ITEMS_BY_TYPE[seriesRow.type];
 	if (!fetchSeriesItems) return [];
 
-	let candidates: ExternalSearchResult[] = [];
-	try {
-		candidates = await fetchSeriesItems(seriesRow.name);
-	} catch {
-		return [];
-	}
+	// Resolved before fetching: Hardcover can hold two entirely unrelated
+	// series under the identical name, so the known author needs to reach the
+	// series-selection query itself rather than only filtering its result.
+	const ownedCreators = await db
+		.select({ name: creators.name })
+		.from(mediaItems)
+		.innerJoin(creators, eq(mediaItems.creatorId, creators.id))
+		.where(
+			and(eq(mediaItems.userId, userId), eq(mediaItems.seriesId, seriesId)),
+		);
+
+	const candidates = filterByKnownCreator(
+		await fetchSeriesCandidates(
+			fetchSeriesItems,
+			seriesRow.name,
+			ownedCreators.map((creator) => creator.name),
+		),
+		seriesRow.type,
+		toKnownCreatorNames(ownedCreators),
+	);
 
 	if (candidates.length === 0) return [];
 

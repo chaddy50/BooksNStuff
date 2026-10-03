@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ExternalSearchResult } from "#/features/mediaItemSearch/api/types";
 import {
+	filterByKnownCreator,
 	filterOutOwnedItems,
 	sortMissingItems,
 } from "#/features/screens/seriesDetails/missingSeriesItems.server";
@@ -89,6 +90,82 @@ describe("filterOutOwnedItems", () => {
 
 	it("returns an empty list for no candidates", () => {
 		expect(filterOutOwnedItems([], new Set(["1:tmdb"]))).toEqual([]);
+	});
+});
+
+describe("filterByKnownCreator", () => {
+	it("drops a candidate whose resolved creator isn't in the known set", () => {
+		const wrongAuthor = buildCandidate({
+			type: MediaItemType.BOOK,
+			metadata: { author: "Isobelle Carmody" },
+		});
+
+		const result = filterByKnownCreator(
+			[wrongAuthor],
+			MediaItemType.BOOK,
+			new Set(["isabelle schuler"]),
+		);
+
+		expect(result).toEqual([]);
+	});
+
+	it("keeps a candidate whose resolved creator matches, case-insensitively", () => {
+		const matchingAuthor = buildCandidate({
+			type: MediaItemType.BOOK,
+			metadata: { author: "Isabelle Schuler" },
+		});
+
+		const result = filterByKnownCreator(
+			[matchingAuthor],
+			MediaItemType.BOOK,
+			new Set(["isabelle schuler"]),
+		);
+
+		expect(result).toEqual([matchingAuthor]);
+	});
+
+	it("returns every candidate unchanged when no creators are known yet", () => {
+		const candidates = [
+			buildCandidate({
+				type: MediaItemType.BOOK,
+				metadata: { author: "Anyone" },
+			}),
+		];
+
+		const result = filterByKnownCreator(
+			candidates,
+			MediaItemType.BOOK,
+			new Set(),
+		);
+
+		expect(result).toEqual(candidates);
+	});
+
+	it("keeps a candidate with no resolvable creator name", () => {
+		const noAuthor = buildCandidate({ type: MediaItemType.BOOK, metadata: {} });
+
+		const result = filterByKnownCreator(
+			[noAuthor],
+			MediaItemType.BOOK,
+			new Set(["isabelle schuler"]),
+		);
+
+		expect(result).toEqual([noAuthor]);
+	});
+
+	it("resolves the creator key per media type rather than always reading author", () => {
+		const wrongDirector = buildCandidate({
+			type: MediaItemType.MOVIE,
+			metadata: { director: "Someone Else" },
+		});
+
+		const result = filterByKnownCreator(
+			[wrongDirector],
+			MediaItemType.MOVIE,
+			new Set(["peter jackson"]),
+		);
+
+		expect(result).toEqual([]);
 	});
 });
 
