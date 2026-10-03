@@ -12,5 +12,7 @@ globalThis.ResizeObserver ??= class {
 // suites using the plain "node" environment, where Element doesn't exist.
 if (typeof Element !== "undefined") {
 	// `??=` leaves a suite-local spy in place.
-	Element.prototype.scrollIntoView ??= () => {};
+	Element.prototype.scrollIntoView ??= () => {
+		// jsdom has no layout, so there is nothing to actually scroll.
+	};
 }
