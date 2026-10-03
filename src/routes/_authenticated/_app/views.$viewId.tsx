@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
 import { ViewScreen } from "#/features/screens/customView/CustomViewScreen";
 import {
 	getViewResults,
@@ -8,18 +7,9 @@ import {
 import { filterAndSortOptionsSchema } from "#/lib/filterAndSort";
 
 export const Route = createFileRoute("/_authenticated/_app/views/$viewId")({
-	validateSearch: filterAndSortOptionsSchema
-		.pick({
-			titleQuery: true,
-			statuses: true,
-			purchaseStatuses: true,
-		})
-		.extend({
-			// Which of `statuses`/`purchaseStatuses` the user narrowed by, in click
-			// order, so the title can list them the way the user built them up
-			// rather than in a fixed field order.
-			filterOrder: z.array(z.enum(["statuses", "purchaseStatuses"])).optional(),
-		}),
+	// A view's temporary filter-and-sort overlay covers every filter dimension
+	// plus sort, so the view can be narrowed or resorted without saving either.
+	validateSearch: filterAndSortOptionsSchema,
 	loaderDeps: ({ search }) => search,
 	loader: async ({ params, deps }) => {
 		const viewId = parseInt(params.viewId, 10);

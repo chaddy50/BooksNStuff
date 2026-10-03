@@ -154,9 +154,10 @@ function Stat({ label, value, navigateTo, params, filterOverride }: StatProps) {
 		<Link
 			to={statLink.navigateTo}
 			params={params as never}
-			search={(prev: Record<string, unknown>) =>
-				buildFilterOverrideSearch(prev, statLink)
-			}
+			search={(prev: Record<string, unknown>) => ({
+				...prev,
+				...statLink.filterOverride,
+			})}
 			className="flex items-baseline gap-1.5"
 		>
 			{content}
@@ -167,7 +168,6 @@ function Stat({ label, value, navigateTo, params, filterOverride }: StatProps) {
 interface StatLink {
 	navigateTo: string;
 	filterOverride: Partial<FilterAndSortOptions>;
-	filterOverrideKey: keyof FilterAndSortOptions;
 }
 
 /**
@@ -185,29 +185,7 @@ function getStatLink({
 		return undefined;
 	}
 
-	// Single-key by construction — one call site per stat, each narrowing
-	// exactly one filter dimension. Doubles as the `filterOrder` entry below, so
-	// the title can later list filters in the order they were clicked rather
-	// than in a fixed field order.
-	const filterOverrideKey = Object.keys(
-		filterOverride,
-	)[0] as keyof FilterAndSortOptions;
-
-	return { navigateTo, filterOverride, filterOverrideKey };
-}
-
-function buildFilterOverrideSearch(
-	prev: Record<string, unknown>,
-	{ filterOverride, filterOverrideKey }: StatLink,
-) {
-	const previousOrder = Array.isArray(prev.filterOrder)
-		? prev.filterOrder.filter((key) => key !== filterOverrideKey)
-		: [];
-	return {
-		...prev,
-		...filterOverride,
-		filterOrder: [...previousOrder, filterOverrideKey],
-	};
+	return { navigateTo, filterOverride };
 }
 
 interface AverageRatingStatProps {

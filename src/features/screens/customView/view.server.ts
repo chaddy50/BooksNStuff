@@ -6,7 +6,10 @@ import {
 	viewItemOrder,
 	views,
 } from "#/database/schema";
-import type { MediaItemStatus, PurchaseStatus } from "#/lib/enums";
+import {
+	applyViewFilterOverrides,
+	type ViewFilterOverrides,
+} from "#/features/screens/customView/viewFilterOverrides";
 import {
 	runItemStatsQuery,
 	runOrderableItemQuery,
@@ -44,23 +47,17 @@ export async function handleGetViewOrderItems(
 export async function handleGetViewStats(
 	viewId: number,
 	userId: string,
-	titleQuery: string | undefined,
-	statuses?: MediaItemStatus[],
-	purchaseStatuses?: PurchaseStatus[],
+	overrides: ViewFilterOverrides,
 ): Promise<ItemStats | null> {
 	const view = await findOwnedView(viewId, userId);
 	if (view.subject !== "items") {
 		return null;
 	}
 
-	const filters = {
-		...(view.filters ?? {}),
-		titleQuery,
-		...(statuses !== undefined ? { statuses } : {}),
-		...(purchaseStatuses !== undefined ? { purchaseStatuses } : {}),
-	} as FilterAndSortOptions;
-
-	return runItemStatsQuery(filters, userId);
+	return runItemStatsQuery(
+		applyViewFilterOverrides(view.filters, overrides),
+		userId,
+	);
 }
 
 /**

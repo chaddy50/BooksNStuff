@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ZodObject } from "zod";
 
 // The route module pulls in the whole screen and the view server functions just
 // to build its options object; neither is under test here.
@@ -43,5 +44,45 @@ describe("views.$viewId route remounting", () => {
 	// steal focus mid-typing.
 	it("ignores the search params", () => {
 		expect(getRemountKey("7", "a")).toBe(getRemountKey("7", "ab"));
+	});
+});
+
+describe("views.$viewId route validateSearch", () => {
+	const validateSearch = Route.options.validateSearch as unknown as ZodObject<
+		Record<string, never>
+	>;
+
+	// Previously only titleQuery/statuses/purchaseStatuses/filterOrder parsed —
+	// the view's filter overlay now covers every filter dimension.
+	it("accepts a filter dimension beyond the old statuses/purchaseStatuses whitelist", () => {
+		const search = validateSearch.parse({
+			genres: ["Philosophy"],
+			purchaseStatuses: ["not_purchased"],
+		});
+
+		expect(search).toMatchObject({
+			genres: ["Philosophy"],
+			purchaseStatuses: ["not_purchased"],
+		});
+	});
+
+	// Its only producer (StatsBar) stops writing it once the title-suffix it fed
+	// is removed, so nothing reads it anymore.
+	it("drops a filterOrder param, which is no longer a recognized key", () => {
+		const search = validateSearch.parse({
+			filterOrder: ["statuses"],
+		});
+
+		expect(search).not.toHaveProperty("filterOrder");
+	});
+
+	// The overlay can temporarily resort a view too, without saving it.
+	it("accepts a sortBy and sortDirection override", () => {
+		const search = validateSearch.parse({
+			sortBy: "title",
+			sortDirection: "desc",
+		});
+
+		expect(search).toMatchObject({ sortBy: "title", sortDirection: "desc" });
 	});
 });

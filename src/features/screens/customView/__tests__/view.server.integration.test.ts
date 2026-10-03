@@ -317,7 +317,7 @@ describe("handleGetViewStats", () => {
 		});
 		await insertItem("Queued", USER_A, { status: MediaItemStatus.BACKLOG });
 
-		const stats = await handleGetViewStats(viewId, USER_A, undefined);
+		const stats = await handleGetViewStats(viewId, USER_A, {});
 
 		expect(stats).toMatchObject({
 			totalCount: 2,
@@ -328,23 +328,21 @@ describe("handleGetViewStats", () => {
 	it("returns null for a series-subject view", async () => {
 		const viewId = await insertView({ userId: USER_A, subject: "series" });
 
-		await expect(
-			handleGetViewStats(viewId, USER_A, undefined),
-		).resolves.toBeNull();
+		await expect(handleGetViewStats(viewId, USER_A, {})).resolves.toBeNull();
 	});
 
 	it("rejects a view owned by another user", async () => {
 		const viewId = await insertView({ userId: USER_B });
 
-		await expect(handleGetViewStats(viewId, USER_A, undefined)).rejects.toThrow(
+		await expect(handleGetViewStats(viewId, USER_A, {})).rejects.toThrow(
 			`View ${viewId} not found`,
 		);
 	});
 
 	it("rejects a view id that does not exist", async () => {
-		await expect(
-			handleGetViewStats(999_999, USER_A, undefined),
-		).rejects.toThrow("View 999999 not found");
+		await expect(handleGetViewStats(999_999, USER_A, {})).rejects.toThrow(
+			"View 999999 not found",
+		);
 	});
 
 	it("narrows the counts by the title query", async () => {
@@ -352,7 +350,9 @@ describe("handleGetViewStats", () => {
 		await insertItem("Dune");
 		await insertItem("Foundation");
 
-		const stats = await handleGetViewStats(viewId, USER_A, "dun");
+		const stats = await handleGetViewStats(viewId, USER_A, {
+			titleQuery: "dun",
+		});
 
 		expect(stats?.totalCount).toBe(1);
 	});
@@ -362,7 +362,7 @@ describe("handleGetViewStats", () => {
 		await insertItem("Dune");
 		await insertItem("Foundation");
 
-		const stats = await handleGetViewStats(viewId, USER_A, undefined);
+		const stats = await handleGetViewStats(viewId, USER_A, {});
 
 		expect(stats?.totalCount).toBe(2);
 	});
@@ -376,7 +376,9 @@ describe("handleGetViewStats", () => {
 		await insertItem("Dune", USER_A, { type: MediaItemType.BOOK });
 		await insertItem("Foundation", USER_A, { type: MediaItemType.BOOK });
 
-		const stats = await handleGetViewStats(viewId, USER_A, "dune");
+		const stats = await handleGetViewStats(viewId, USER_A, {
+			titleQuery: "dune",
+		});
 
 		expect(stats?.totalCount).toBe(1);
 	});
@@ -387,7 +389,7 @@ describe("handleGetViewStats", () => {
 			await insertItem(`Item ${String(itemIndex).padStart(3, "0")}`);
 		}
 
-		const stats = await handleGetViewStats(viewId, USER_A, undefined);
+		const stats = await handleGetViewStats(viewId, USER_A, {});
 
 		expect(stats?.totalCount).toBe(60);
 	});
@@ -397,7 +399,7 @@ describe("handleGetViewStats", () => {
 		await insertItem("Mine");
 		await insertItem("Theirs", USER_B);
 
-		const stats = await handleGetViewStats(viewId, USER_A, undefined);
+		const stats = await handleGetViewStats(viewId, USER_A, {});
 
 		expect(stats?.totalCount).toBe(1);
 	});
@@ -407,9 +409,9 @@ describe("handleGetViewStats", () => {
 		await insertItem("Done", USER_A, { status: MediaItemStatus.COMPLETED });
 		await insertItem("Queued", USER_A, { status: MediaItemStatus.BACKLOG });
 
-		const stats = await handleGetViewStats(viewId, USER_A, undefined, [
-			MediaItemStatus.COMPLETED,
-		]);
+		const stats = await handleGetViewStats(viewId, USER_A, {
+			statuses: [MediaItemStatus.COMPLETED],
+		});
 
 		expect(stats?.totalCount).toBe(1);
 	});
@@ -423,13 +425,23 @@ describe("handleGetViewStats", () => {
 			purchaseStatus: PurchaseStatus.WANT_TO_BUY,
 		});
 
-		const stats = await handleGetViewStats(
-			viewId,
-			USER_A,
-			undefined,
-			undefined,
-			[PurchaseStatus.PURCHASED],
-		);
+		const stats = await handleGetViewStats(viewId, USER_A, {
+			purchaseStatuses: [PurchaseStatus.PURCHASED],
+		});
+
+		expect(stats?.totalCount).toBe(1);
+	});
+
+	// Proves the override isn't limited to status/purchase-status anymore —
+	// any filter dimension merges on top of the view's saved filters.
+	it("narrows the counts by a media-type override", async () => {
+		const viewId = await insertView({ userId: USER_A });
+		await insertItem("Dune", USER_A, { type: MediaItemType.BOOK });
+		await insertItem("Arrival", USER_A, { type: MediaItemType.MOVIE });
+
+		const stats = await handleGetViewStats(viewId, USER_A, {
+			mediaTypes: [MediaItemType.BOOK],
+		});
 
 		expect(stats?.totalCount).toBe(1);
 	});
@@ -452,9 +464,9 @@ describe("handleGetViewStats", () => {
 			status: MediaItemStatus.COMPLETED,
 		});
 
-		const stats = await handleGetViewStats(viewId, USER_A, undefined, [
-			MediaItemStatus.COMPLETED,
-		]);
+		const stats = await handleGetViewStats(viewId, USER_A, {
+			statuses: [MediaItemStatus.COMPLETED],
+		});
 
 		expect(stats?.totalCount).toBe(1);
 	});
@@ -474,9 +486,9 @@ describe("handleGetViewStats", () => {
 			status: MediaItemStatus.IN_PROGRESS,
 		});
 
-		const stats = await handleGetViewStats(viewId, USER_A, undefined, [
-			MediaItemStatus.COMPLETED,
-		]);
+		const stats = await handleGetViewStats(viewId, USER_A, {
+			statuses: [MediaItemStatus.COMPLETED],
+		});
 
 		expect(stats?.totalCount).toBe(2);
 	});
@@ -485,9 +497,9 @@ describe("handleGetViewStats", () => {
 		const viewId = await insertView({ userId: USER_A });
 		await insertItem("Done", USER_A, { status: MediaItemStatus.COMPLETED });
 
-		await handleGetViewStats(viewId, USER_A, undefined, [
-			MediaItemStatus.COMPLETED,
-		]);
+		await handleGetViewStats(viewId, USER_A, {
+			statuses: [MediaItemStatus.COMPLETED],
+		});
 
 		const [row] = await testDb
 			.select({ filters: views.filters })

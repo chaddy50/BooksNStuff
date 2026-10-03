@@ -15,6 +15,7 @@ import {
 	handleGetViewStats,
 	handleReorderViewItems,
 } from "#/features/screens/customView/view.server";
+import { applyViewFilterOverrides } from "#/features/screens/customView/viewFilterOverrides";
 import { filterAndSortOptionsSchema } from "#/lib/filterAndSort";
 import { runItemQuery } from "#/lib/queries/itemQuery.server";
 import { runSeriesQuery } from "#/lib/queries/seriesQuery.server";
@@ -46,56 +47,22 @@ export const getViews = createServerFn({ method: "GET" }).handler(async () => {
 
 export type View = Awaited<ReturnType<typeof getViews>>[number];
 
-export type ViewFilterOverrides = Pick<
-	FilterAndSortOptions,
-	"titleQuery" | "statuses" | "purchaseStatuses"
->;
-
-/**
- * Merges a view's saved filters with transient overrides from the URL (title
- * search, or a stats-bar click narrowing to one status). `statuses` and
- * `purchaseStatuses` only replace the saved value when explicitly provided,
- * unlike `titleQuery`, which the view never has one of to begin with — this
- * never writes back to the view's own saved filters.
- */
-export function applyViewFilterOverrides(
-	baseFilters: FilterAndSortOptions | null,
-	overrides: ViewFilterOverrides,
-): FilterAndSortOptions {
-	return {
-		...(baseFilters ?? {}),
-		titleQuery: overrides.titleQuery,
-		...(overrides.statuses !== undefined
-			? { statuses: overrides.statuses }
-			: {}),
-		...(overrides.purchaseStatuses !== undefined
-			? { purchaseStatuses: overrides.purchaseStatuses }
-			: {}),
-	} as FilterAndSortOptions;
-}
-
 export const getViewResults = createServerFn({ method: "GET" })
 	.inputValidator(
-		z.object({
-			viewId: z.number(),
-			titleQuery: z.string().optional(),
-			statuses: filterAndSortOptionsSchema.shape.statuses,
-			purchaseStatuses: filterAndSortOptionsSchema.shape.purchaseStatuses,
-			offset: z.number().default(0),
-			limit: z.number().int().min(1).max(MAX_QUERY_LIMIT).optional(),
-		}),
+		z
+			.object({
+				viewId: z.number(),
+				offset: z.number().default(0),
+				limit: z.number().int().min(1).max(MAX_QUERY_LIMIT).optional(),
+			})
+			.merge(filterAndSortOptionsSchema),
 	)
 	.handler(async ({ data }) => {
-		const { viewId, titleQuery, statuses, purchaseStatuses, offset, limit } =
-			data;
+		const { viewId, offset, limit, ...overrides } = data;
 		const user = await getLoggedInUser();
 		const view = await findOwnedView(viewId, user.id);
 
-		const filters = applyViewFilterOverrides(view.filters, {
-			titleQuery,
-			statuses,
-			purchaseStatuses,
-		});
+		const filters = applyViewFilterOverrides(view.filters, overrides);
 
 		if (view.subject === "items") {
 			return {
@@ -119,25 +86,12 @@ export const getViewOrderItems = createServerFn({ method: "GET" })
 
 export const getViewStats = createServerFn({ method: "GET" })
 	.inputValidator(
-		z.object({
-			viewId: z.number(),
-			titleQuery: z.string().optional(),
-			statuses: filterAndSortOptionsSchema.shape.statuses,
-			purchaseStatuses: filterAndSortOptionsSchema.shape.purchaseStatuses,
-		}),
+		z.object({ viewId: z.number() }).merge(filterAndSortOptionsSchema),
 	)
-	.handler(
-		async ({ data: { viewId, titleQuery, statuses, purchaseStatuses } }) => {
-			const user = await getLoggedInUser();
-			return handleGetViewStats(
-				viewId,
-				user.id,
-				titleQuery,
-				statuses,
-				purchaseStatuses,
-			);
-		},
-	);
+	.handler(async ({ data: { viewId, ...overrides } }) => {
+		const user = await getLoggedInUser();
+		return handleGetViewStats(viewId, user.id, overrides);
+	});
 
 export type ViewResults = Awaited<ReturnType<typeof getViewResults>>;
 export type ItemViewResult = Extract<

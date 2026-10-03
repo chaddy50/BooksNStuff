@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	countActiveFilters,
@@ -9,15 +10,24 @@ vi.mock("react-i18next", () => ({
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
 
+const navigateSpy = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
-	useNavigate: () => vi.fn(),
+	useNavigate: () => navigateSpy,
 }));
 
+let capturedDialogProps: Record<string, unknown> | undefined;
 vi.mock("#/features/filterAndSort/FilterAndSortDialog", () => ({
-	FilterAndSortDialog: () => null,
+	FilterAndSortDialog: (props: Record<string, unknown>) => {
+		capturedDialogProps = props;
+		return null;
+	},
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+	navigateSpy.mockClear();
+	capturedDialogProps = undefined;
+	cleanup();
+});
 
 describe("countActiveFilters", () => {
 	it("returns 0 when no filters are set", () => {
@@ -129,5 +139,158 @@ describe("FilterAndSortButton", () => {
 
 		expect(toggleButton).toHaveClass("max-sm:size-11", "max-md:h-11");
 		expect(clearButton).toHaveClass("max-md:size-11");
+	});
+});
+
+describe("FilterAndSortButton overlay on saved filters", () => {
+	function renderButton(
+		props: Partial<ComponentProps<typeof FilterAndSortButton>> = {},
+	) {
+		render(
+			<FilterAndSortButton
+				filterAndSortChoices={{}}
+				isFilterAndSortPopupOpen={false}
+				setIsFilterAndSortPopupOpen={vi.fn()}
+				navigateTo="/views/$viewId"
+				{...props}
+			/>,
+		);
+	}
+
+	it("forwards path params to navigate when applying", () => {
+		renderButton({ params: { viewId: "7" } });
+
+		(capturedDialogProps?.onApply as (filters: object) => void)({
+			tags: ["Fiction"],
+		});
+
+		expect(navigateSpy).toHaveBeenCalledWith(
+			expect.objectContaining({ params: { viewId: "7" } }),
+		);
+	});
+
+	it("forwards path params to navigate when clearing", () => {
+		renderButton({
+			params: { viewId: "7" },
+			filterAndSortChoices: { tags: ["Fiction"] },
+		});
+
+		screen.getByLabelText("library.clearFilters").click();
+
+		expect(navigateSpy).toHaveBeenCalledWith(
+			expect.objectContaining({ params: { viewId: "7" } }),
+		);
+	});
+
+	it("keeps sortBy and sortDirection when applying an overlay on saved filters", () => {
+		renderButton({ isOverlayOnSavedFilters: true });
+
+		(capturedDialogProps?.onApply as (filters: object) => void)({
+			tags: ["Fiction"],
+			sortBy: "rating",
+			sortDirection: "desc",
+		});
+
+		const [[call]] = navigateSpy.mock.calls;
+		expect(call.search()).toEqual({
+			tags: ["Fiction"],
+			sortBy: "rating",
+			sortDirection: "desc",
+			titleQuery: undefined,
+		});
+	});
+
+	it("preserves the current title search when applying an overlay on saved filters", () => {
+		renderButton({
+			isOverlayOnSavedFilters: true,
+			filterAndSortChoices: { titleQuery: "dune" },
+		});
+
+		(capturedDialogProps?.onApply as (filters: object) => void)({
+			tags: ["Fiction"],
+			sortBy: "rating",
+			sortDirection: "desc",
+		});
+
+		const [[call]] = navigateSpy.mock.calls;
+		expect(call.search()).toEqual({
+			tags: ["Fiction"],
+			sortBy: "rating",
+			sortDirection: "desc",
+			titleQuery: "dune",
+		});
+	});
+
+	// Library/Series have no saved state to preserve a title search against, so
+	// applying a filter there keeps replacing the whole search verbatim.
+	it("does not preserve the title search when applying without isOverlayOnSavedFilters", () => {
+		renderButton({ filterAndSortChoices: { titleQuery: "dune" } });
+
+		(capturedDialogProps?.onApply as (filters: object) => void)({
+			tags: ["Fiction"],
+		});
+
+		const [[call]] = navigateSpy.mock.calls;
+		expect(call.search()).toEqual({ tags: ["Fiction"] });
+	});
+
+	// The bug this guards: clearing a view's overlay must drop a temporary sort
+	// override too, so the view falls back to its own saved sort — not whatever
+	// sort happened to be active when "clear" was clicked.
+	it("clears sort along with filters when isOverlayOnSavedFilters is true", () => {
+		renderButton({
+			isOverlayOnSavedFilters: true,
+			filterAndSortChoices: {
+				tags: ["Fiction"],
+				titleQuery: "dune",
+				sortBy: "rating",
+				sortDirection: "desc",
+			},
+		});
+
+		screen.getByLabelText("library.clearFilters").click();
+
+		const [[call]] = navigateSpy.mock.calls;
+		expect(call.search()).toEqual({ titleQuery: "dune" });
+	});
+
+	// Library/Series have no saved sort to fall back to, so clearing filters
+	// there keeps whatever sort is currently selected.
+	it("keeps the current sort when clearing without isOverlayOnSavedFilters", () => {
+		renderButton({
+			filterAndSortChoices: {
+				tags: ["Fiction"],
+				titleQuery: "dune",
+				sortBy: "rating",
+				sortDirection: "desc",
+			},
+		});
+
+		screen.getByLabelText("library.clearFilters").click();
+
+		const [[call]] = navigateSpy.mock.calls;
+		expect(call.search()).toEqual({
+			sortBy: "rating",
+			sortDirection: "desc",
+			titleQuery: "dune",
+		});
+	});
+
+	it("uses activeFilterCount instead of counting filterAndSortChoices when provided", () => {
+		renderButton({
+			filterAndSortChoices: { tags: ["Fiction"], genres: ["Horror"] },
+			activeFilterCount: 0,
+		});
+
+		expect(
+			screen.queryByLabelText("library.clearFilters"),
+		).not.toBeInTheDocument();
+		expect(screen.getByText("library.filterAndSort")).toBeInTheDocument();
+	});
+
+	it("falls back to counting filterAndSortChoices when activeFilterCount is not provided", () => {
+		renderButton({ filterAndSortChoices: { tags: ["Fiction"] } });
+
+		expect(screen.getByLabelText("library.clearFilters")).toBeInTheDocument();
 	});
 });

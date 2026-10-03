@@ -12,6 +12,24 @@ interface FilterAndSortButtonProps {
 	setIsFilterAndSortPopupOpen: Dispatch<SetStateAction<boolean>>;
 	navigateTo: string;
 	subject?: ViewSubject;
+	/** Path params `navigateTo` needs, e.g. `{ viewId: "7" }` for `/views/$viewId`. */
+	params?: Record<string, string>;
+	/**
+	 * True when `filterAndSortChoices` is a transient overlay on top of a
+	 * separately-saved baseline (a view), rather than the only source of truth
+	 * (library/series). Applying then preserves the title search — a separate
+	 * control the dialog never touches — instead of letting the dialog's full
+	 * replace drop it, and clearing reverts to no overlay at all (including
+	 * sort) instead of keeping whatever sort happened to be active.
+	 */
+	isOverlayOnSavedFilters?: boolean;
+	/**
+	 * Overrides the badge count instead of deriving it from `filterAndSortChoices`.
+	 * A view's `filterAndSortChoices` is its effective (saved + overlay) filters, which
+	 * would otherwise count the view's own permanent filters as if they were part of
+	 * the clearable overlay.
+	 */
+	activeFilterCount?: number;
 }
 
 export function FilterAndSortButton({
@@ -20,23 +38,38 @@ export function FilterAndSortButton({
 	setIsFilterAndSortPopupOpen,
 	navigateTo = "/",
 	subject = "items",
+	params,
+	isOverlayOnSavedFilters = false,
+	activeFilterCount,
 }: FilterAndSortButtonProps) {
 	const { t } = useTranslation();
-	const numberOfActiveFilters = countActiveFilters(filterAndSortChoices);
+	const numberOfActiveFilters =
+		activeFilterCount ?? countActiveFilters(filterAndSortChoices);
 	const navigate = useNavigate();
 
 	function handleApply(filters: FilterAndSortOptions) {
-		navigate({ to: navigateTo, search: () => filters });
+		navigate({
+			to: navigateTo,
+			params: params as never,
+			search: () =>
+				isOverlayOnSavedFilters
+					? { ...filters, titleQuery: filterAndSortChoices.titleQuery }
+					: filters,
+		});
 	}
 
 	function handleClearFilters() {
 		navigate({
 			to: navigateTo,
-			search: () => ({
-				sortBy: filterAndSortChoices.sortBy,
-				sortDirection: filterAndSortChoices.sortDirection,
-				titleQuery: filterAndSortChoices.titleQuery,
-			}),
+			params: params as never,
+			search: () =>
+				isOverlayOnSavedFilters
+					? { titleQuery: filterAndSortChoices.titleQuery }
+					: {
+							sortBy: filterAndSortChoices.sortBy,
+							sortDirection: filterAndSortChoices.sortDirection,
+							titleQuery: filterAndSortChoices.titleQuery,
+						},
 		});
 	}
 
