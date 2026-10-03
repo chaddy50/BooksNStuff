@@ -144,37 +144,70 @@ function Stat({ label, value, navigateTo, params, filterOverride }: StatProps) {
 		</>
 	);
 
-	// Single-key by construction — one call site per stat, each narrowing
-	// exactly one filter dimension. Doubles as the `filterOrder` entry below, so
-	// the title can later list filters in the order they were clicked rather
-	// than in a fixed field order.
-	const filterOverrideKey = filterOverride
-		? (Object.keys(filterOverride)[0] as keyof FilterAndSortOptions)
-		: undefined;
+	const statLink = getStatLink({ value, navigateTo, filterOverride });
 
-	if (!filterOverride || !navigateTo || !filterOverrideKey) {
+	if (!statLink) {
 		return <div className="flex items-baseline gap-1.5">{content}</div>;
 	}
 
 	return (
 		<Link
-			to={navigateTo}
+			to={statLink.navigateTo}
 			params={params as never}
-			search={(prev: Record<string, unknown>) => {
-				const previousOrder = Array.isArray(prev.filterOrder)
-					? prev.filterOrder.filter((key) => key !== filterOverrideKey)
-					: [];
-				return {
-					...prev,
-					...filterOverride,
-					filterOrder: [...previousOrder, filterOverrideKey],
-				};
-			}}
+			search={(prev: Record<string, unknown>) =>
+				buildFilterOverrideSearch(prev, statLink)
+			}
 			className="flex items-baseline gap-1.5"
 		>
 			{content}
 		</Link>
 	);
+}
+
+interface StatLink {
+	navigateTo: string;
+	filterOverride: Partial<FilterAndSortOptions>;
+	filterOverrideKey: keyof FilterAndSortOptions;
+}
+
+/**
+ * A stat only links somewhere worth visiting: a real destination, a single
+ * filter to narrow to, and a count other than zero.
+ */
+function getStatLink({
+	value,
+	navigateTo,
+	filterOverride,
+}: Pick<StatProps, "value" | "navigateTo" | "filterOverride">):
+	| StatLink
+	| undefined {
+	if (value === 0 || !navigateTo || !filterOverride) {
+		return undefined;
+	}
+
+	// Single-key by construction — one call site per stat, each narrowing
+	// exactly one filter dimension. Doubles as the `filterOrder` entry below, so
+	// the title can later list filters in the order they were clicked rather
+	// than in a fixed field order.
+	const filterOverrideKey = Object.keys(
+		filterOverride,
+	)[0] as keyof FilterAndSortOptions;
+
+	return { navigateTo, filterOverride, filterOverrideKey };
+}
+
+function buildFilterOverrideSearch(
+	prev: Record<string, unknown>,
+	{ filterOverride, filterOverrideKey }: StatLink,
+) {
+	const previousOrder = Array.isArray(prev.filterOrder)
+		? prev.filterOrder.filter((key) => key !== filterOverrideKey)
+		: [];
+	return {
+		...prev,
+		...filterOverride,
+		filterOrder: [...previousOrder, filterOverrideKey],
+	};
 }
 
 interface AverageRatingStatProps {
