@@ -34,6 +34,12 @@ function clamp(value: number, min: number, max: number): number {
  * hidden, moving 1:1 with the scroll delta rather than snapping — scrolling
  * down hides it exactly as fast as the content moves, and any upward scroll
  * immediately starts bringing it back, matching a native collapsing toolbar.
+ *
+ * This value only ever drives a `transform`, never layout — a layout change
+ * (resizing something) in reaction to a scroll event can itself shift the
+ * scroll position, which a scroll listener would then react to again,
+ * compounding into runaway oscillation. A transform can't do that: it's
+ * paint-only and has no way to feed back into scroll position.
  */
 export function useHeaderScrollOffset(
 	elementRef: RefObject<HTMLElement | null>,
