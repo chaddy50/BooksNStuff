@@ -281,6 +281,13 @@
       "when": 1788657125736,
       "tag": "0039_lonely_maximus",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1790979895142,
+      "tag": "0040_old_jamie_braddock",
+      "breakpoints": true
     }
   ]
 }

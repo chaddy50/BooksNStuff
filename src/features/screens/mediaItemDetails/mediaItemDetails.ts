@@ -22,6 +22,7 @@ import {
 	updateMediaItemMetadata as updateMediaItemMetadataForUser,
 	updateMediaItemSeries as updateMediaItemSeriesForUser,
 } from "#/features/screens/mediaItemDetails/mediaItemDetails.server";
+import { getRelatedMediaItems } from "#/features/screens/mediaItemDetails/relatedItems.server";
 import { MediaItemStatus, NextItemStatus, PurchaseStatus } from "#/lib/enums";
 import { transitionReleasedItems } from "#/lib/queries/itemQuery.server";
 import {
@@ -135,6 +136,7 @@ export const getMediaItemDetails = createServerFn({ method: "GET" })
 				...i,
 				rating: parseFloat(i.rating ?? "") || 0,
 			})),
+			relatedItems: await getRelatedMediaItems(id, user.id),
 		};
 	});
 

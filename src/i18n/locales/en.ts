@@ -105,6 +105,15 @@ export const en = {
 		completedDateBeforeStartDateError:
 			"Completed date cannot be before started date.",
 	},
+	relatedItems: {
+		title: "Related",
+		addButton: "+ Add Related Item",
+		dialogTitle: "Add Related Item",
+		searchPlaceholder: "Search your library...",
+		empty: "No related items yet.",
+		noResults: "No matching items in your library.",
+		remove: "Remove {{title}} from related items",
+	},
 	search: {
 		addButton: "Add Item",
 		placeholder: "Search for books, movies, TV shows, games, podcasts...",

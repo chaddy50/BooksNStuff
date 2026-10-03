@@ -6,6 +6,7 @@ import { DeleteButton } from "#/components/DeleteButton";
 import { TopBar } from "#/features/navigation/topBar/TopBar";
 import { History } from "./components/history/History";
 import { Metadata } from "./components/metadata/Metadata";
+import { RelatedItems } from "./components/relatedItems/RelatedItems";
 import { removeFromLibrary } from "./mediaItemDetails";
 
 // getRouteApi rather than importing Route directly: the route file imports this
@@ -48,6 +49,7 @@ export function MediaItemDetailsScreen() {
 				className="px-4 md:px-6 py-8 max-w-5xl mx-auto"
 			>
 				<Metadata mediaItemDetails={mediaItemDetails} />
+				<RelatedItems mediaItemDetails={mediaItemDetails} />
 				<History
 					mediaItemDetails={mediaItemDetails}
 					isUnsavedChangesGuardEnabled={() => !isDeleting}
