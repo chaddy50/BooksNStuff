@@ -146,18 +146,20 @@ type SeriesInfoResult = {
 	is_completed: boolean | null;
 };
 
+type SeriesBookDocument = {
+	id: number;
+	title: string;
+	description?: string | null;
+	pages?: number | null;
+	release_year?: number | null;
+	image?: { url: string } | null;
+	contributions?: Array<{ author?: { name: string } | null }> | null;
+	default_physical_edition?: { language_id: number | null } | null;
+};
+
 type SeriesBookEntry = {
 	position: number | null;
-	book: {
-		id: number;
-		title: string;
-		description?: string | null;
-		pages?: number | null;
-		release_year?: number | null;
-		image?: { url: string } | null;
-		contributions?: Array<{ author?: { name: string } | null }> | null;
-		default_physical_edition?: { language_id: number | null } | null;
-	} | null;
+	book: SeriesBookDocument | null;
 };
 
 const ENGLISH_LANGUAGE_ID = 1;
@@ -271,6 +273,26 @@ export async function fetchSeriesInfo(
 	};
 }
 
+function toSeriesBookNumber(position: number | null): string | undefined {
+	return position === null ? undefined : String(position);
+}
+
+function toSeriesBookMetadata(
+	position: number | null,
+	book: SeriesBookDocument,
+	seriesName: string,
+): ExternalSearchResult["metadata"] {
+	return {
+		// handleAddToLibrary reads metadata.series to file the added item under
+		// this series — without it the item would never appear in the series'
+		// library grid.
+		series: seriesName,
+		seriesBookNumber: toSeriesBookNumber(position),
+		author: book.contributions?.[0]?.author?.name,
+		pageCount: book.pages ?? undefined,
+	};
+}
+
 function toSeriesBookCandidate(
 	entry: SeriesBookEntry,
 	seriesName: string,
@@ -288,16 +310,7 @@ function toSeriesBookCandidate(
 			description: book.description ?? undefined,
 			coverImageUrl: toAbsoluteImageUrl(book.image?.url),
 			releaseDate: releaseYearToDate(book.release_year),
-			metadata: {
-				// handleAddToLibrary reads metadata.series to file the added item
-				// under this series — without it the item would never appear in the
-				// series' library grid.
-				series: seriesName,
-				seriesBookNumber:
-					entry.position === null ? undefined : String(entry.position),
-				author: book.contributions?.[0]?.author?.name,
-				pageCount: book.pages ?? undefined,
-			},
+			metadata: toSeriesBookMetadata(entry.position, book, seriesName),
 		},
 	};
 }
