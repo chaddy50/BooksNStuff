@@ -251,4 +251,13 @@ describe("removeRelatedMediaItem", () => {
 			removeRelatedMediaItem(theirItem, anyOtherItem, USER_A),
 		).rejects.toThrow();
 	});
+
+	it("throws when the related item is not owned by the requesting user", async () => {
+		const myItem = await insertItem(USER_A, "Dune");
+		const theirItem = await insertItem(USER_B, "Someone Else's Item");
+
+		await expect(
+			removeRelatedMediaItem(myItem, theirItem, USER_A),
+		).rejects.toThrow();
+	});
 });

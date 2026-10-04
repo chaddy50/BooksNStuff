@@ -169,7 +169,7 @@ export async function removeRelatedMediaItem(
 	relatedMediaItemId: number,
 	userId: string,
 ): Promise<void> {
-	await requireOwnedItemIds([mediaItemId], userId);
+	await requireOwnedItemIds([mediaItemId, relatedMediaItemId], userId);
 
 	const pair = normalizeRelationPair(mediaItemId, relatedMediaItemId);
 	await db
