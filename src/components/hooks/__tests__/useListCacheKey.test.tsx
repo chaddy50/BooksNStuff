@@ -79,6 +79,45 @@ describe("useListCacheKey", () => {
 		expect(result.current).toBe(mountedKey);
 	});
 
+	// Applying a filter/sort/search navigates the same screen to a new history entry
+	// without unmounting it, so the entry captured at mount must not be the one
+	// useInfiniteScroll keeps caching pages under once the query has moved on.
+	it("updates to the new history entry when the query changes while the list stays mounted", () => {
+		const { result, rerender } = renderHook(
+			({ query }) => useListCacheKey("library", query),
+			{ initialProps: { query: { sortBy: "title" } } },
+		);
+		expect(result.current).toContain("entry-1");
+
+		historyEntryKey = "entry-2";
+		rerender({ query: { sortBy: "rating" } });
+
+		expect(result.current).toContain("entry-2");
+		expect(result.current).not.toContain("entry-1");
+	});
+
+	// The remount after returning from a details screen reads whatever history entry
+	// is current at that point. Unless the mounted key tracked the same-screen filter
+	// navigation that happened first, this key would never match what the pages were
+	// cached under, and useInfiniteScroll would silently miss the cache.
+	it("matches a fresh remount's key after a same-screen filter navigation", () => {
+		const { result, rerender, unmount } = renderHook(
+			({ query }) => useListCacheKey("library", query),
+			{ initialProps: { query: { sortBy: "title" } } },
+		);
+
+		historyEntryKey = "entry-2";
+		rerender({ query: { sortBy: "rating" } });
+		const keyBeforeLeaving = result.current;
+		unmount();
+
+		const { result: afterReturning } = renderHook(() =>
+			useListCacheKey("library", { sortBy: "rating" }),
+		);
+
+		expect(afterReturning.current).toBe(keyBeforeLeaving);
+	});
+
 	it("gives a different key for a different query on the same entry", () => {
 		const { result: byTitle } = renderHook(() =>
 			useListCacheKey("library", { sortBy: "title" }),
