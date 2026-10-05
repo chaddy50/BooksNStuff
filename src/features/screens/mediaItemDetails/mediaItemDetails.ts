@@ -142,6 +142,15 @@ export const getMediaItemDetails = createServerFn({ method: "GET" })
 
 export type MediaItemDetails = Awaited<ReturnType<typeof getMediaItemDetails>>;
 
+async function requireOwnedMediaItem(mediaItemId: number, userId: string) {
+	const [item] = await db
+		.select({ seriesId: mediaItems.seriesId })
+		.from(mediaItems)
+		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
+	if (!item) throw new Error("Media item not found");
+	return item;
+}
+
 async function findUnfinishedInstance(mediaItemId: number) {
 	const [instance] = await db
 		.select({ id: mediaItemInstances.id })
@@ -167,13 +176,7 @@ export const updateMediaItemStatus = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data: { mediaItemId, status } }) => {
 		const user = await getLoggedInUser();
-		const [item] = await db
-			.select({ seriesId: mediaItems.seriesId })
-			.from(mediaItems)
-			.where(
-				and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, user.id)),
-			);
-		if (!item) throw new Error("Media item not found");
+		const item = await requireOwnedMediaItem(mediaItemId, user.id);
 
 		const today = new Date().toISOString().slice(0, 10);
 
@@ -258,13 +261,7 @@ export const saveInstance = createServerFn({ method: "POST" })
 			},
 		}) => {
 			const user = await getLoggedInUser();
-			const [item] = await db
-				.select({ seriesId: mediaItems.seriesId })
-				.from(mediaItems)
-				.where(
-					and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, user.id)),
-				);
-			if (!item) throw new Error("Media item not found");
+			const item = await requireOwnedMediaItem(mediaItemId, user.id);
 
 			const values = {
 				rating: rating ?? null,
