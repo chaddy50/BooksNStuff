@@ -142,6 +142,15 @@ export const getMediaItemDetails = createServerFn({ method: "GET" })
 
 export type MediaItemDetails = Awaited<ReturnType<typeof getMediaItemDetails>>;
 
+async function requireOwnedMediaItem(mediaItemId: number, userId: string) {
+	const [item] = await db
+		.select({ seriesId: mediaItems.seriesId })
+		.from(mediaItems)
+		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
+	if (!item) throw new Error("Media item not found");
+	return item;
+}
+
 async function findUnfinishedInstance(mediaItemId: number) {
 	const [instance] = await db
 		.select({ id: mediaItemInstances.id })
@@ -167,12 +176,7 @@ export const updateMediaItemStatus = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data: { mediaItemId, status } }) => {
 		const user = await getLoggedInUser();
-		const [item] = await db
-			.select({ seriesId: mediaItems.seriesId })
-			.from(mediaItems)
-			.where(
-				and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, user.id)),
-			);
+		const item = await requireOwnedMediaItem(mediaItemId, user.id);
 
 		const today = new Date().toISOString().slice(0, 10);
 
@@ -202,7 +206,7 @@ export const updateMediaItemStatus = createServerFn({ method: "POST" })
 				and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, user.id)),
 			);
 
-		if (item?.seriesId) {
+		if (item.seriesId) {
 			await syncSeriesStatus(item.seriesId, user.id);
 		}
 	});
@@ -257,6 +261,8 @@ export const saveInstance = createServerFn({ method: "POST" })
 			},
 		}) => {
 			const user = await getLoggedInUser();
+			const item = await requireOwnedMediaItem(mediaItemId, user.id);
+
 			const values = {
 				rating: rating ?? null,
 				fictionRating: fictionRating ?? null,
@@ -270,19 +276,17 @@ export const saveInstance = createServerFn({ method: "POST" })
 				await db
 					.update(mediaItemInstances)
 					.set(values)
-					.where(eq(mediaItemInstances.id, instanceId));
+					.where(
+						and(
+							eq(mediaItemInstances.id, instanceId),
+							eq(mediaItemInstances.mediaItemId, mediaItemId),
+						),
+					);
 			} else {
 				await db
 					.insert(mediaItemInstances)
 					.values({ mediaItemId: mediaItemId, ...values });
 			}
-
-			const [item] = await db
-				.select({ seriesId: mediaItems.seriesId })
-				.from(mediaItems)
-				.where(
-					and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, user.id)),
-				);
 
 			const newStatus = inferStatusAfterInstanceEdit(startedAt, completedAt);
 			if (newStatus) {
@@ -294,7 +298,7 @@ export const saveInstance = createServerFn({ method: "POST" })
 					);
 			}
 
-			if (item?.seriesId) {
+			if (item.seriesId) {
 				await syncSeriesStatus(item.seriesId, user.id);
 			}
 		},
@@ -309,7 +313,13 @@ export const deleteInstance = createServerFn({ method: "POST" })
 				mediaItemId: mediaItemInstances.mediaItemId,
 			})
 			.from(mediaItemInstances)
-			.where(eq(mediaItemInstances.id, instanceId));
+			.innerJoin(mediaItems, eq(mediaItems.id, mediaItemInstances.mediaItemId))
+			.where(
+				and(
+					eq(mediaItemInstances.id, instanceId),
+					eq(mediaItems.userId, user.id),
+				),
+			);
 
 		if (!instanceBeingDeleted) return;
 
