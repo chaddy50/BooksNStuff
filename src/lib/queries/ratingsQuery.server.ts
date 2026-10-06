@@ -41,3 +41,11 @@ export async function fetchLatestRatingsByMediaItemId(
 		]),
 	);
 }
+
+/** The rating to show for an item, defaulting to unrated/incomplete when it has none. */
+export function getLatestRating(
+	mediaItemId: number,
+	latestRatings: Map<number, LatestRating>,
+): LatestRating {
+	return latestRatings.get(mediaItemId) ?? { rating: 0, completedAt: null };
+}

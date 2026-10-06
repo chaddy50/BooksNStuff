@@ -6,7 +6,10 @@ import { db } from "#/database/index";
 import { creators, mediaItems } from "#/database/schema";
 import { getLoggedInUser } from "#/features/screens/auth/session";
 import { updateCreatorMetadata as updateCreatorMetadataForUser } from "#/features/screens/creatorDetails/creatorDetails.server";
-import { fetchLatestRatingsByMediaItemId } from "#/lib/queries/ratingsQuery.server";
+import {
+	fetchLatestRatingsByMediaItemId,
+	getLatestRating,
+} from "#/lib/queries/ratingsQuery.server";
 
 // ---------------------------------------------------------------------------
 // Server functions
@@ -63,8 +66,7 @@ export const getCreatorDetails = createServerFn({ method: "GET" })
 			...row,
 			items: items.map((item) => ({
 				...item,
-				rating: latestRatings.get(item.id)?.rating ?? 0,
-				completedAt: latestRatings.get(item.id)?.completedAt ?? null,
+				...getLatestRating(item.id, latestRatings),
 			})),
 		};
 	});

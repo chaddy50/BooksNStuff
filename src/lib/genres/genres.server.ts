@@ -2,7 +2,10 @@ import { and, asc, count, eq } from "drizzle-orm";
 
 import { db } from "#/database/index";
 import { type Genre, genres, mediaItems } from "#/database/schema";
-import { fetchLatestRatingsByMediaItemId } from "#/lib/queries/ratingsQuery.server";
+import {
+	fetchLatestRatingsByMediaItemId,
+	getLatestRating,
+} from "#/lib/queries/ratingsQuery.server";
 import type { TaxonomyEntry, TaxonomyMutationResult } from "#/lib/taxonomy";
 import {
 	isDuplicateNameError,
@@ -73,8 +76,7 @@ export async function fetchGenreDetails(genreId: number, userId: string) {
 		...row,
 		items: items.map((item) => ({
 			...item,
-			rating: latestRatings.get(item.id)?.rating ?? 0,
-			completedAt: latestRatings.get(item.id)?.completedAt ?? null,
+			...getLatestRating(item.id, latestRatings),
 		})),
 	};
 }

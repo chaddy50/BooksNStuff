@@ -15,7 +15,10 @@ import { getLoggedInUser } from "#/features/screens/auth/session";
 import { getMissingSeriesItems as getMissingSeriesItemsForUser } from "#/features/screens/seriesDetails/missingSeriesItems.server";
 import { updateSeriesMetadata as updateSeriesMetadataForUser } from "#/features/screens/seriesDetails/seriesDetails.server";
 import { MediaItemStatus, NextItemStatus } from "#/lib/enums";
-import { fetchLatestRatingsByMediaItemId } from "#/lib/queries/ratingsQuery.server";
+import {
+	fetchLatestRatingsByMediaItemId,
+	getLatestRating,
+} from "#/lib/queries/ratingsQuery.server";
 
 export const getSeriesListByType = createServerFn({ method: "GET" })
 	.inputValidator(z.object({ type: z.enum(mediaTypeEnum.enumValues) }))
@@ -79,8 +82,7 @@ export const getSeriesDetails = createServerFn({ method: "GET" })
 			rating: parseFloat(row.rating ?? "") || 0,
 			items: items.map((item) => ({
 				...item,
-				rating: latestRatings.get(item.id)?.rating ?? 0,
-				completedAt: latestRatings.get(item.id)?.completedAt ?? null,
+				...getLatestRating(item.id, latestRatings),
 			})),
 		};
 	});
