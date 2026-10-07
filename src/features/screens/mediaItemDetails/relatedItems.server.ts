@@ -7,7 +7,10 @@ import type {
 	MediaItemType,
 	PurchaseStatus,
 } from "#/lib/enums";
-import { fetchLatestRatingsByMediaItemId } from "#/lib/queries/ratingsQuery.server";
+import {
+	fetchLatestRatingsByMediaItemId,
+	getLatestRating,
+} from "#/lib/queries/ratingsQuery.server";
 
 export type RelatedMediaItem = {
 	id: number;
@@ -62,7 +65,7 @@ export async function getRelatedMediaItems(
 
 	return rows.map((row) => ({
 		...row,
-		rating: latestRatings.get(row.id)?.rating ?? 0,
+		rating: getLatestRating(row.id, latestRatings).rating,
 	}));
 }
 
