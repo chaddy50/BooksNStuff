@@ -1,7 +1,7 @@
 import { and, asc, count, eq, inArray } from "drizzle-orm";
 
 import { db } from "#/database/index";
-import { mediaItemTags, type Tag, tags } from "#/database/schema";
+import { mediaItems, mediaItemTags, type Tag, tags } from "#/database/schema";
 import type { TagWithUsageCount } from "#/lib/tags";
 import type { TaxonomyMutationResult } from "#/lib/taxonomy";
 import {
@@ -55,6 +55,7 @@ export async function saveMediaItemTags(
 	tagNames: string[],
 	userId: string,
 ): Promise<void> {
+	await requireOwnedMediaItem(mediaItemId, userId);
 	const resolvedTagIds = await upsertTagNames(tagNames, userId);
 
 	// Associations are replaced wholesale rather than diffed against the old set.
@@ -189,6 +190,20 @@ export async function mergeTags(
 }
 
 // ---- Private helpers
+
+async function requireOwnedMediaItem(
+	mediaItemId: number,
+	userId: string,
+): Promise<void> {
+	const [item] = await db
+		.select({ id: mediaItems.id })
+		.from(mediaItems)
+		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
+
+	if (!item) {
+		throw new Error("Media item not found");
+	}
+}
 
 async function findOwnedTag(tagId: number, userId: string): Promise<Tag> {
 	const [tag] = await db

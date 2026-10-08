@@ -37,6 +37,7 @@ import {
 	getTagsWithUsage,
 	mergeTags,
 	renameTag,
+	saveMediaItemTags,
 } from "../tags.server";
 
 const USER_A = "user-a";
@@ -710,5 +711,36 @@ describe("mergeTags", () => {
 			{ name: "Horror", itemCount: 0 },
 			{ name: "Space Opera", itemCount: 1 },
 		]);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// saveMediaItemTags
+// ---------------------------------------------------------------------------
+
+describe("saveMediaItemTags", () => {
+	it("replaces the caller's item tags, creating any that don't exist yet", async () => {
+		const itemId = await insertItem("First");
+		const horrorId = await insertTag({ userId: USER_A, name: "Horror" });
+		await linkTag(itemId, horrorId);
+
+		await saveMediaItemTags(itemId, ["Sci-Fi", "Horror"], USER_A);
+
+		expect(await readUsage(USER_A)).toEqual([
+			{ name: "Horror", itemCount: 1 },
+			{ name: "Sci-Fi", itemCount: 1 },
+		]);
+	});
+
+	it("rejects a mediaItemId owned by another user and leaves its tags untouched", async () => {
+		const theirItemId = await insertItem("Theirs", USER_B);
+		const theirTagId = await insertTag({ userId: USER_B, name: "Horror" });
+		await linkTag(theirItemId, theirTagId);
+
+		await expect(
+			saveMediaItemTags(theirItemId, ["Sci-Fi"], USER_A),
+		).rejects.toThrow("Media item not found");
+
+		expect(await readLinkedItemIds(theirTagId)).toEqual([theirItemId]);
 	});
 });
