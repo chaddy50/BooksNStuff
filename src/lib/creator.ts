@@ -30,3 +30,20 @@ export function resolveCreatorName(
 	const value = metadata[creatorMetadataKey(type)];
 	return typeof value === "string" ? value : null;
 }
+
+/**
+ * Groups media types by their shared JSONB creator-name key, the inverse of
+ * CREATOR_METADATA_KEY_BY_TYPE. Callers that rewrite metadata by key (e.g.
+ * propagating a creator rename) need the types that share each key.
+ */
+export function groupMediaItemTypesByCreatorMetadataKey(): ReadonlyArray<{
+	key: string;
+	types: readonly MediaItemType[];
+}> {
+	const typesByKey = new Map<string, MediaItemType[]>();
+	for (const type of Object.values(MediaItemType)) {
+		const key = creatorMetadataKey(type);
+		typesByKey.set(key, [...(typesByKey.get(key) ?? []), type]);
+	}
+	return Array.from(typesByKey, ([key, types]) => ({ key, types }));
+}

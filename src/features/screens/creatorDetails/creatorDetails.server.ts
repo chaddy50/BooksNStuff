@@ -2,7 +2,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "#/database/index";
 import { creators, mediaItems } from "#/database/schema";
-import { MediaItemType } from "#/lib/enums";
+import { groupMediaItemTypesByCreatorMetadataKey } from "#/lib/creator";
 
 /**
  * Find an existing creator row for (userId, name), or create one with the
@@ -47,20 +47,6 @@ export async function findOrCreateCreator(
 	return inserted.id;
 }
 
-/**
- * Per-media-type JSONB key holding the creator's name, and the types that use it.
- * A creator rename has to rewrite whichever key the item's type stores it under.
- */
-const CREATOR_KEYS_BY_TYPE: ReadonlyArray<{
-	key: string;
-	types: readonly MediaItemType[];
-}> = [
-	{ key: "author", types: [MediaItemType.BOOK] },
-	{ key: "director", types: [MediaItemType.MOVIE] },
-	{ key: "creator", types: [MediaItemType.TV_SHOW, MediaItemType.PODCAST] },
-	{ key: "developer", types: [MediaItemType.VIDEO_GAME] },
-];
-
 export type UpdateCreatorMetadataInput = {
 	creatorId: number;
 	name: string;
@@ -95,7 +81,7 @@ export async function updateCreatorMetadata(
 	//
 	// Note the bare jsonb_set — an item whose metadata is SQL NULL keeps NULL.
 	// That is pre-existing behavior, deliberately carried forward unchanged.
-	for (const { key, types } of CREATOR_KEYS_BY_TYPE) {
+	for (const { key, types } of groupMediaItemTypesByCreatorMetadataKey()) {
 		await db
 			.update(mediaItems)
 			.set({
