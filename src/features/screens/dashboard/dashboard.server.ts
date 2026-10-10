@@ -14,6 +14,7 @@ import { db } from "#/database/index";
 import { mediaItemInstances, mediaItems, series } from "#/database/schema";
 import { MediaItemStatus } from "#/lib/enums";
 import { fetchLatestRatingsByMediaItemId } from "#/lib/queries/ratingsQuery.server";
+import { findLastIndexWhere } from "#/lib/utils";
 
 export async function fetchInProgressItems(userId: string) {
 	return db
@@ -193,21 +194,17 @@ export async function fetchNextInSeriesItems(
 	// For each series, find the last active item by index, then the first backlog item after it
 	const nextInSeriesItems: typeof allSeriesItems = [];
 	for (const [seriesId, items] of allItemsBySeriesId.entries()) {
-		let lastActiveIndex = -1;
-		for (let index = 0; index < items.length; index++) {
-			if (activeItemIds.has(items[index].id)) {
-				lastActiveIndex = index;
-			}
-		}
+		let lastActiveIndex = findLastIndexWhere(items, (item) =>
+			activeItemIds.has(item.id),
+		);
 
 		if (lastActiveIndex === -1 && seriesLevelInProgressIds.has(seriesId)) {
 			// No recently-active individual items — use the last non-backlog item
 			// as the progress point so the next unread item is surfaced correctly.
-			for (let index = 0; index < items.length; index++) {
-				if (items[index].status !== MediaItemStatus.BACKLOG) {
-					lastActiveIndex = index;
-				}
-			}
+			lastActiveIndex = findLastIndexWhere(
+				items,
+				(item) => item.status !== MediaItemStatus.BACKLOG,
+			);
 		} else if (lastActiveIndex === -1) {
 			continue;
 		}

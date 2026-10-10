@@ -7,6 +7,19 @@ export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
 
+export function findLastIndexWhere<T>(
+	items: T[],
+	predicate: (item: T) => boolean,
+): number {
+	let lastIndex = -1;
+	for (let index = 0; index < items.length; index++) {
+		if (predicate(items[index])) {
+			lastIndex = index;
+		}
+	}
+	return lastIndex;
+}
+
 /**
  * Structural comparison for plain data — primitives, arrays, and plain objects.
  * Object key order is ignored. `Date`, `Map`, `Set`, and class instances are out

@@ -25,6 +25,7 @@ import {
 import { fetchLatestRatingsByMediaItemId } from "#/lib/queries/ratingsQuery.server";
 import { inferSeriesStatus } from "#/lib/queries/seriesStatus";
 import { MAX_QUERY_LIMIT } from "#/lib/queries/types";
+import { findLastIndexWhere } from "#/lib/utils";
 
 // ---------------------------------------------------------------------------
 // runSeriesQuery
@@ -175,12 +176,10 @@ export function findNextSeriesItem(
 		return null;
 	}
 
-	let lastEngagedIndex = -1;
-	for (let index = 0; index < items.length; index++) {
-		if (items[index].status !== MediaItemStatus.BACKLOG) {
-			lastEngagedIndex = index;
-		}
-	}
+	const lastEngagedIndex = findLastIndexWhere(
+		items,
+		(item) => item.status !== MediaItemStatus.BACKLOG,
+	);
 
 	if (lastEngagedIndex === -1) {
 		// No item has been engaged with — return the first item as the starting point.
