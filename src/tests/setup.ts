@@ -25,7 +25,7 @@ if (typeof window !== "undefined") {
 			matches: false,
 			media: query,
 			// No-op defaults; suites that need real listener behavior override matchMedia directly.
-			addEventListener: () => {},
-			removeEventListener: () => {},
+			addEventListener: () => undefined,
+			removeEventListener: () => undefined,
 		}) as unknown as MediaQueryList) as typeof window.matchMedia;
 }

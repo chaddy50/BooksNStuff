@@ -33,13 +33,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 	}, [themeMode]);
 
 	useEffect(() => {
-		if (themeMode !== "system") {
-			// No-op cleanup keeps this effect's return type consistent across branches.
-			return () => {};
-		}
-
 		const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
 		function handleSystemThemeChange() {
+			if (themeMode !== "system") {
+				return;
+			}
 			document.documentElement.classList.toggle(
 				"dark",
 				resolveIsDarkTheme("system"),
