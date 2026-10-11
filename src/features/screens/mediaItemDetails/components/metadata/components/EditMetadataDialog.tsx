@@ -33,9 +33,8 @@ import { GameFields } from "./editMetadata/GameFields";
 import { GenreField, type GenreFieldValue } from "./editMetadata/GenreField";
 import { MovieFields } from "./editMetadata/MovieFields";
 import { SeriesField, type SeriesFieldValue } from "./editMetadata/SeriesField";
+import { StatusFields } from "./editMetadata/StatusFields";
 import { TvShowFields } from "./editMetadata/TvShowFields";
-import { PurchasedToggle } from "./PurchasedToggle";
-import { StatusSelect } from "./StatusSelect";
 import { TagsEditor } from "./TagsEditor";
 
 interface EditMetadataDialogProps {
@@ -192,14 +191,7 @@ export function EditMetadataDialog(props: EditMetadataDialogProps) {
 							<Input value={title} onChange={(e) => setTitle(e.target.value)} />
 						</FormField>
 
-						<div className="flex items-center gap-4">
-							<FormField label={t("metadata.status")}>
-								<StatusSelect mediaItemDetails={mediaItemDetails} />
-							</FormField>
-							<FormField label={t("metadata.purchaseStatus")}>
-								<PurchasedToggle mediaItemDetails={mediaItemDetails} />
-							</FormField>
-						</div>
+						<StatusFields mediaItemDetails={mediaItemDetails} />
 
 						<FormField label={t("metadata.description")}>
 							<Textarea
