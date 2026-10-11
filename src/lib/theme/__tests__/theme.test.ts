@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // src/lib/** is not in the config's jsdom globs; this suite needs browser globals.
 
+import * as vm from "node:vm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	buildThemeInitScript,
@@ -122,33 +123,44 @@ describe("persistThemeMode", () => {
 });
 
 describe("buildThemeInitScript", () => {
-	afterEach(() => {
-		localStorage.clear();
-		document.documentElement.classList.remove("dark");
-		vi.restoreAllMocks();
-	});
-
-	function runInitScript() {
-		// biome-ignore lint/security/noGlobalEval: exercising the exact script that gets inlined into the document head.
-		globalThis.eval(buildThemeInitScript());
+	// Runs the generated script in an isolated vm sandbox instead of the real
+	// document, so this proves the script's own logic without eval/Function.
+	function runInitScript(
+		storedMode: string | null,
+		systemPrefersDark: boolean,
+	): boolean {
+		const classList = new Set<string>();
+		const sandbox = {
+			localStorage: { getItem: () => storedMode },
+			window: { matchMedia: () => ({ matches: systemPrefersDark }) },
+			document: {
+				documentElement: {
+					classList: {
+						toggle: (name: string, force: boolean) => {
+							if (force) {
+								classList.add(name);
+							} else {
+								classList.delete(name);
+							}
+						},
+					},
+				},
+			},
+		};
+		vm.createContext(sandbox);
+		vm.runInContext(buildThemeInitScript(), sandbox);
+		return classList.has("dark");
 	}
 
 	it("applies the dark class when dark is stored", () => {
-		localStorage.setItem(THEME_STORAGE_KEY, "dark");
-		runInitScript();
-		expect(document.documentElement.classList.contains("dark")).toBe(true);
+		expect(runInitScript("dark", false)).toBe(true);
 	});
 
 	it("leaves the dark class off when light is stored", () => {
-		localStorage.setItem(THEME_STORAGE_KEY, "light");
-		document.documentElement.classList.add("dark");
-		runInitScript();
-		expect(document.documentElement.classList.contains("dark")).toBe(false);
+		expect(runInitScript("light", true)).toBe(false);
 	});
 
 	it("falls back to the OS preference when nothing is stored", () => {
-		mockSystemPrefersDark(true);
-		runInitScript();
-		expect(document.documentElement.classList.contains("dark")).toBe(true);
+		expect(runInitScript(null, true)).toBe(true);
 	});
 });

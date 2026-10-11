@@ -102,27 +102,33 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 				<HeadContent />
 			</head>
 			<body>
-				<ThemeProvider>
-					<TanStackQueryProvider>
-						<TooltipProvider>
-							{children}
-							<TanStackDevtools
-								config={{
-									position: "bottom-right",
-								}}
-								plugins={[
-									{
-										name: "Tanstack Router",
-										render: <TanStackRouterDevtoolsPanel />,
-									},
-									TanStackQueryDevtools,
-								]}
-							/>
-						</TooltipProvider>
-					</TanStackQueryProvider>
-				</ThemeProvider>
+				<AppProviders>
+					{children}
+					<TanStackDevtools
+						config={{
+							position: "bottom-right",
+						}}
+						plugins={[
+							{
+								name: "Tanstack Router",
+								render: <TanStackRouterDevtoolsPanel />,
+							},
+							TanStackQueryDevtools,
+						]}
+					/>
+				</AppProviders>
 				<Scripts />
 			</body>
 		</html>
+	);
+}
+
+function AppProviders({ children }: { children: React.ReactNode }) {
+	return (
+		<ThemeProvider>
+			<TanStackQueryProvider>
+				<TooltipProvider>{children}</TooltipProvider>
+			</TanStackQueryProvider>
+		</ThemeProvider>
 	);
 }

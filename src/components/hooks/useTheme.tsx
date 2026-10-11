@@ -34,7 +34,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 	useEffect(() => {
 		if (themeMode !== "system") {
-			return;
+			return () => {};
 		}
 
 		const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
