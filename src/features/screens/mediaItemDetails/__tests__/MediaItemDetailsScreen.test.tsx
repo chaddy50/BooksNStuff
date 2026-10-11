@@ -29,9 +29,11 @@ vi.mock("#/features/navigation/topBar/TopBar", () => ({
 vi.mock(
 	"#/features/screens/mediaItemDetails/components/header/MediaItemDetailsHeader",
 	() => ({
-		MediaItemDetailsHeader: (props: { onLogProgress: () => void }) => (
-			<button type="button" onClick={props.onLogProgress}>
-				logProgress
+		MediaItemDetailsHeader: (props: {
+			onUpdateProgress: (instanceId: number) => void;
+		}) => (
+			<button type="button" onClick={() => props.onUpdateProgress(42)}>
+				updateProgress
 			</button>
 		),
 	}),
@@ -116,10 +118,10 @@ describe("MediaItemDetailsScreen", () => {
 		});
 	});
 
-	it("navigates to the history tab and starts a new entry when logging progress with no unfinished instance", () => {
+	it("navigates to the history tab and opens the given instance when progress is updated", () => {
 		render(<MediaItemDetailsScreen />);
 
-		fireEvent.click(screen.getByText("logProgress"));
+		fireEvent.click(screen.getByText("updateProgress"));
 
 		expect(navigate).toHaveBeenCalledWith({
 			to: "/mediaItemDetails/$mediaItemId",
@@ -129,19 +131,13 @@ describe("MediaItemDetailsScreen", () => {
 		});
 	});
 
-	it("opens the existing unfinished instance when logging progress and one exists", () => {
-		loaderData = {
-			id: 7,
-			instances: [
-				{ id: 42, startedAt: "2026-01-01", completedAt: null },
-				{ id: 41, startedAt: "2025-01-01", completedAt: "2025-02-01" },
-			],
-		};
+	it("opens the given instance without an extra navigation when already on the history tab", () => {
 		searchParams = { tab: "history" };
 		render(<MediaItemDetailsScreen />);
 
-		fireEvent.click(screen.getByText("logProgress"));
+		fireEvent.click(screen.getByText("updateProgress"));
 
+		expect(navigate).not.toHaveBeenCalled();
 		expect(screen.getByTestId("history")).toHaveTextContent("42");
 	});
 

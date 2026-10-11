@@ -1,0 +1,59 @@
+import { useTranslation } from "react-i18next";
+
+import { ProgressBar } from "#/components/ProgressBar";
+import {
+	getConsumptionLabel,
+	getProgressLabel,
+} from "#/features/screens/mediaItemDetails/components/history/components/instance/InstanceRow";
+import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/mediaItemDetails";
+import { getLogProgressLabelKey } from "#/features/screens/mediaItemDetails/mediaItemDetailsHeader";
+import { MediaItemStatus, type MediaItemType } from "#/lib/enums";
+import { formatDateRange } from "#/lib/utils";
+
+interface MediaItemDetailsHeaderCurrentInstanceProps {
+	instance: MediaItemDetails["instances"][number];
+	mediaItemType: MediaItemType;
+	onClick: () => void;
+}
+
+export function MediaItemDetailsHeaderCurrentInstance(
+	props: MediaItemDetailsHeaderCurrentInstanceProps,
+) {
+	const { instance, mediaItemType, onClick } = props;
+	const { t } = useTranslation();
+
+	const dateRange = formatDateRange(instance.startedAt, instance.completedAt);
+	const consumptionLabel = getConsumptionLabel(
+		instance.consumptionInfo,
+		t as (key: string) => string,
+	);
+	const progressLabel = getProgressLabel(
+		instance.progressPercent,
+		t as (key: string, options?: Record<string, unknown>) => string,
+	);
+	const metaLabels = [dateRange, consumptionLabel, progressLabel].filter(
+		(label): label is string => label !== null,
+	);
+
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			aria-label={t(getLogProgressLabelKey(mediaItemType, true) as never)}
+			className="flex flex-col gap-1.5 rounded-md border border-white/20 bg-white/10 px-4 py-2.5 text-left text-white transition-colors hover:bg-white/15 overflow-hidden -mb-px"
+		>
+			<div className="flex flex-wrap items-center gap-2 text-sm">
+				{metaLabels.map((label) => (
+					<span key={label}>{label}</span>
+				))}
+			</div>
+			<div className="-mx-4 -mb-2.5">
+				<ProgressBar
+					status={MediaItemStatus.IN_PROGRESS}
+					progressPercent={instance.progressPercent}
+					className="h-1"
+				/>
+			</div>
+		</button>
+	);
+}

@@ -11,7 +11,6 @@ import { MediaItemDetailsTabStrip } from "./components/MediaItemDetailsTabStrip"
 import { OverviewTab } from "./components/overview/OverviewTab";
 import { RelatedItems } from "./components/relatedItems/RelatedItems";
 import { removeFromLibrary } from "./mediaItemDetails";
-import { getUnfinishedInstance } from "./mediaItemDetailsHeader";
 import type { MediaItemDetailsTabId } from "./types";
 
 // getRouteApi rather than importing Route directly: the route file imports this
@@ -53,14 +52,11 @@ export function MediaItemDetailsScreen() {
 		});
 	}
 
-	function handleLogProgress() {
-		const unfinishedInstance = getUnfinishedInstance(
-			mediaItemDetails.instances,
-		);
+	function handleUpdateProgress(instanceId: number) {
 		if (activeTabId !== "history") {
 			handleSelectTab("history");
 		}
-		editingState.startEditing(unfinishedInstance?.id ?? "new");
+		editingState.startEditing(instanceId);
 	}
 
 	return (
@@ -80,7 +76,7 @@ export function MediaItemDetailsScreen() {
 			>
 				<MediaItemDetailsHeader
 					mediaItemDetails={mediaItemDetails}
-					onLogProgress={handleLogProgress}
+					onUpdateProgress={handleUpdateProgress}
 				/>
 
 				<MediaItemDetailsTabStrip

@@ -9,8 +9,10 @@ vi.mock("react-i18next", () => ({
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
 
+const { invalidate } = vi.hoisted(() => ({ invalidate: vi.fn() }));
+
 vi.mock("@tanstack/react-router", () => ({
-	useRouter: () => ({ invalidate: vi.fn() }),
+	useRouter: () => ({ invalidate }),
 	Link: ({
 		to,
 		params,
@@ -23,6 +25,14 @@ vi.mock("@tanstack/react-router", () => ({
 		<a href={to.replace(/\$(\w+)/g, (_, name) => params[name])}>{children}</a>
 	),
 }));
+
+vi.mock(
+	"#/features/screens/mediaItemDetails/mediaItemDetails",
+	async (importOriginal) => ({
+		...(await importOriginal()),
+		updateMediaItemStatus: vi.fn(),
+	}),
+);
 
 vi.mock(
 	"#/features/screens/mediaItemDetails/components/metadata/components/EditMetadataDialog",
@@ -62,7 +72,10 @@ function makeMediaItemDetails(
 	>[0]["mediaItemDetails"];
 }
 
-afterEach(cleanup);
+afterEach(() => {
+	cleanup();
+	vi.clearAllMocks();
+});
 
 function renderMediaItemDetailsHeader(
 	props: Partial<Parameters<typeof MediaItemDetailsHeader>[0]> = {},
@@ -71,7 +84,7 @@ function renderMediaItemDetailsHeader(
 		<TooltipProvider>
 			<MediaItemDetailsHeader
 				mediaItemDetails={makeMediaItemDetails()}
-				onLogProgress={vi.fn()}
+				onUpdateProgress={vi.fn()}
 				{...props}
 			/>
 		</TooltipProvider>,
@@ -83,6 +96,18 @@ describe("MediaItemDetailsHeader", () => {
 		renderMediaItemDetailsHeader();
 
 		expect(screen.getAllByRole("combobox")).toHaveLength(2);
+	});
+
+	it("hides the status and purchase status controls when an instance is in progress", () => {
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				instances: [
+					{ id: 99, rating: 0, startedAt: "2026-01-01", completedAt: null },
+				],
+			}),
+		});
+
+		expect(screen.queryAllByRole("combobox")).toHaveLength(0);
 	});
 
 	it("renders the title and an Edit button", () => {
@@ -146,15 +171,60 @@ describe("MediaItemDetailsHeader", () => {
 		).toBeInTheDocument();
 	});
 
-	it("calls onLogProgress when the log progress button is clicked", () => {
-		const onLogProgress = vi.fn();
-		renderMediaItemDetailsHeader({ onLogProgress });
+	it("hides the per-type start button when an instance is in progress", () => {
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				type: MediaItemType.BOOK,
+				instances: [
+					{ id: 99, rating: 0, startedAt: "2026-01-01", completedAt: null },
+				],
+			}),
+		});
+
+		expect(
+			screen.queryByRole("button", { name: "mediaItemDetails.startReading" }),
+		).not.toBeInTheDocument();
+	});
+
+	it("starts progress immediately when the start button is clicked, without opening the editor", async () => {
+		const { updateMediaItemStatus } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		const onUpdateProgress = vi.fn();
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({ id: 7 }),
+			onUpdateProgress,
+		});
 
 		fireEvent.click(
 			screen.getByRole("button", { name: "mediaItemDetails.startReading" }),
 		);
 
-		expect(onLogProgress).toHaveBeenCalledTimes(1);
+		await vi.waitFor(() =>
+			expect(updateMediaItemStatus).toHaveBeenCalledWith({
+				data: { mediaItemId: 7, status: "in_progress" },
+			}),
+		);
+		expect(invalidate).toHaveBeenCalledTimes(1);
+		expect(onUpdateProgress).not.toHaveBeenCalled();
+	});
+
+	it("calls onUpdateProgress with the unfinished instance's id when its summary is clicked", () => {
+		const onUpdateProgress = vi.fn();
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				instances: [
+					{ id: 99, rating: 0, startedAt: "2026-01-01", completedAt: null },
+				],
+			}),
+			onUpdateProgress,
+		});
+
+		fireEvent.click(
+			screen.getByRole("button", { name: "mediaItemDetails.updateProgress" }),
+		);
+
+		expect(onUpdateProgress).toHaveBeenCalledWith(99);
 	});
 
 	it("shows a rating when the most recently rated instance has one", () => {

@@ -472,6 +472,8 @@ export const en = {
 	},
 	metadata: {
 		title: "Title",
+		status: "Status",
+		purchaseStatus: "Purchase Status",
 		description: "Description",
 		coverImage: "Cover Image URL",
 		author: "Author",
