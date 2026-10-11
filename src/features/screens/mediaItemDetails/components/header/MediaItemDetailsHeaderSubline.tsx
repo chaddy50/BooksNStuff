@@ -14,6 +14,30 @@ interface MediaItemDetailsHeaderSublineProps {
 	mediaItemDetails: MediaItemDetails;
 }
 
+function CreatorOrPlainText(props: {
+	creatorId: number | null | undefined;
+	value: string;
+}) {
+	const { creatorId, value } = props;
+	return creatorId ? (
+		<CreatorLink creatorId={creatorId} creatorName={value} />
+	) : (
+		<span>{value}</span>
+	);
+}
+
+function SeriesOrPlainText(props: {
+	seriesId: number | null | undefined;
+	value: string;
+}) {
+	const { seriesId, value } = props;
+	return seriesId ? (
+		<SeriesLink seriesId={seriesId} seriesName={value} />
+	) : (
+		<span>{value}</span>
+	);
+}
+
 export function MediaItemDetailsHeaderSubline(
 	props: MediaItemDetailsHeaderSublineProps,
 ) {
@@ -38,26 +62,22 @@ export function MediaItemDetailsHeaderSubline(
 	if (creatorValue) {
 		segments.push({
 			key: "creator",
-			node: mediaItemDetails.creatorId ? (
-				<CreatorLink
+			node: (
+				<CreatorOrPlainText
 					creatorId={mediaItemDetails.creatorId}
-					creatorName={mediaItemDetails.creatorName ?? creatorValue}
+					value={mediaItemDetails.creatorName ?? creatorValue}
 				/>
-			) : (
-				<span>{creatorValue}</span>
 			),
 		});
 	}
 	if (seriesLabel) {
 		segments.push({
 			key: "series",
-			node: mediaItemDetails.seriesId ? (
-				<SeriesLink
+			node: (
+				<SeriesOrPlainText
 					seriesId={mediaItemDetails.seriesId}
-					seriesName={seriesLabel}
+					value={seriesLabel}
 				/>
-			) : (
-				<span>{seriesLabel}</span>
 			),
 		});
 	}

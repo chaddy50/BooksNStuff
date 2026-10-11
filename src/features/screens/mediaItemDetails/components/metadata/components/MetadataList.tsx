@@ -1,9 +1,131 @@
 import { Link } from "@tanstack/react-router";
+import type { TFunction } from "i18next";
 import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/mediaItemDetails";
 import { MediaItemType } from "#/lib/enums";
 import { formatHours, formatMinutes } from "#/lib/utils";
+
+type Field = { label: string; value: string };
+type FieldBuilder = (
+	metadata: Record<string, unknown>,
+	t: TFunction,
+) => Field[];
+
+function bookFields(metadata: Record<string, unknown>, t: TFunction): Field[] {
+	if (typeof metadata.pageCount !== "number") return [];
+
+	const fields: Field[] = [
+		{ label: t("metadata.pageCount"), value: `${metadata.pageCount}` },
+	];
+	// ~300 WPM x 275 words/page / 60 min/hr = 65 pages/hour (HowLongToRead.com methodology)
+	const readingHours = Math.round(metadata.pageCount / 65);
+	if (readingHours >= 1) {
+		fields.push({
+			label: t("metadata.readingTime"),
+			value: formatHours(readingHours, t),
+		});
+	}
+	return fields;
+}
+
+function movieFields(metadata: Record<string, unknown>, t: TFunction): Field[] {
+	if (typeof metadata.runtime !== "number") return [];
+	return [
+		{ label: t("metadata.runtime"), value: formatMinutes(metadata.runtime, t) },
+	];
+}
+
+function tvShowFields(
+	metadata: Record<string, unknown>,
+	t: TFunction,
+): Field[] {
+	const fields: Field[] = [];
+	if (typeof metadata.seasons === "number") {
+		fields.push({ label: t("metadata.seasons"), value: `${metadata.seasons}` });
+	}
+	if (
+		typeof metadata.episodeRuntime === "number" &&
+		typeof metadata.numberOfEpisodes === "number"
+	) {
+		const totalHours = Math.round(
+			(metadata.episodeRuntime * metadata.numberOfEpisodes) / 60,
+		);
+		if (totalHours >= 1) {
+			fields.push({
+				label: t("metadata.totalRuntime"),
+				value: formatHours(totalHours, t),
+			});
+		}
+	}
+	return fields;
+}
+
+function videoGameFields(
+	metadata: Record<string, unknown>,
+	t: TFunction,
+): Field[] {
+	const fields: Field[] = [];
+	if (Array.isArray(metadata.platforms) && metadata.platforms.length) {
+		fields.push({
+			label: t("metadata.platforms"),
+			value: metadata.platforms.join(", "),
+		});
+	}
+	if (typeof metadata.timeToBeatHastily === "number") {
+		fields.push({
+			label: t("timeToBeat.hastily"),
+			value: formatHours(metadata.timeToBeatHastily, t),
+		});
+	}
+	if (typeof metadata.timeToBeatNormally === "number") {
+		fields.push({
+			label: t("timeToBeat.normally"),
+			value: formatHours(metadata.timeToBeatNormally, t),
+		});
+	}
+	if (typeof metadata.timeToBeatCompletely === "number") {
+		fields.push({
+			label: t("timeToBeat.completely"),
+			value: formatHours(metadata.timeToBeatCompletely, t),
+		});
+	}
+	return fields;
+}
+
+function podcastFields(
+	metadata: Record<string, unknown>,
+	t: TFunction,
+): Field[] {
+	const fields: Field[] = [];
+	if (Array.isArray(metadata.episodeTitles) && metadata.episodeTitles.length) {
+		fields.push({
+			label: t("podcast.episodes"),
+			value:
+				metadata.episodeTitles.length === 1
+					? String(metadata.episodeTitles[0])
+					: `${metadata.episodeTitles.length} ${t("podcast.episodesCount")}`,
+		});
+	}
+	if (
+		typeof metadata.totalDuration === "number" &&
+		metadata.totalDuration > 0
+	) {
+		fields.push({
+			label: t("metadata.runtime"),
+			value: formatMinutes(metadata.totalDuration, t),
+		});
+	}
+	return fields;
+}
+
+const FIELD_BUILDER_BY_TYPE: Record<MediaItemType, FieldBuilder> = {
+	[MediaItemType.BOOK]: bookFields,
+	[MediaItemType.MOVIE]: movieFields,
+	[MediaItemType.TV_SHOW]: tvShowFields,
+	[MediaItemType.VIDEO_GAME]: videoGameFields,
+	[MediaItemType.PODCAST]: podcastFields,
+};
 
 // Creator, series, release year, and tags live in the media item header instead;
 // this list only covers the remaining, less headline details.
@@ -19,93 +141,9 @@ export function MetadataList({
 	genreName?: string | null;
 }) {
 	const { t } = useTranslation();
-	const fields: Array<{ label: string; value: string }> = [];
-
-	if (metadata) {
-		const m = metadata as Record<string, unknown>;
-		switch (type) {
-			case MediaItemType.BOOK:
-				if (typeof m.pageCount === "number") {
-					fields.push({
-						label: t("metadata.pageCount"),
-						value: `${m.pageCount}`,
-					});
-					// ~300 WPM x 275 words/page / 60 min/hr = 65 pages/hour (HowLongToRead.com methodology)
-					const readingHours = Math.round((m.pageCount as number) / 65);
-					if (readingHours >= 1) {
-						fields.push({
-							label: t("metadata.readingTime"),
-							value: formatHours(readingHours, t),
-						});
-					}
-				}
-				break;
-			case MediaItemType.MOVIE:
-				if (typeof m.runtime === "number")
-					fields.push({
-						label: t("metadata.runtime"),
-						value: formatMinutes(m.runtime as number, t),
-					});
-				break;
-			case MediaItemType.TV_SHOW:
-				if (typeof m.seasons === "number")
-					fields.push({ label: t("metadata.seasons"), value: `${m.seasons}` });
-				if (
-					typeof m.episodeRuntime === "number" &&
-					typeof m.numberOfEpisodes === "number"
-				) {
-					const totalHours = Math.round(
-						((m.episodeRuntime as number) * (m.numberOfEpisodes as number)) /
-							60,
-					);
-					if (totalHours >= 1) {
-						fields.push({
-							label: t("metadata.totalRuntime"),
-							value: formatHours(totalHours, t),
-						});
-					}
-				}
-				break;
-			case MediaItemType.VIDEO_GAME:
-				if (Array.isArray(m.platforms) && m.platforms.length)
-					fields.push({
-						label: t("metadata.platforms"),
-						value: m.platforms.join(", "),
-					});
-				if (typeof m.timeToBeatHastily === "number")
-					fields.push({
-						label: t("timeToBeat.hastily"),
-						value: formatHours(m.timeToBeatHastily, t),
-					});
-				if (typeof m.timeToBeatNormally === "number")
-					fields.push({
-						label: t("timeToBeat.normally"),
-						value: formatHours(m.timeToBeatNormally, t),
-					});
-				if (typeof m.timeToBeatCompletely === "number")
-					fields.push({
-						label: t("timeToBeat.completely"),
-						value: formatHours(m.timeToBeatCompletely, t),
-					});
-				break;
-			case MediaItemType.PODCAST:
-				if (Array.isArray(m.episodeTitles) && m.episodeTitles.length) {
-					fields.push({
-						label: t("podcast.episodes"),
-						value:
-							m.episodeTitles.length === 1
-								? String(m.episodeTitles[0])
-								: `${m.episodeTitles.length} ${t("podcast.episodesCount")}`,
-					});
-				}
-				if (typeof m.totalDuration === "number" && m.totalDuration > 0)
-					fields.push({
-						label: t("metadata.runtime"),
-						value: formatMinutes(m.totalDuration as number, t),
-					});
-				break;
-		}
-	}
+	const fields = metadata
+		? FIELD_BUILDER_BY_TYPE[type](metadata as Record<string, unknown>, t)
+		: [];
 
 	const hasContent = fields.length > 0 || !!genreName;
 	if (!hasContent) return null;

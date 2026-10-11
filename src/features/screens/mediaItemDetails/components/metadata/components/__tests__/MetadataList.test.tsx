@@ -25,6 +25,44 @@ describe("MetadataList", () => {
 		expect(screen.getByText("400")).toBeInTheDocument();
 	});
 
+	it("shows a movie's runtime", () => {
+		render(
+			<MetadataList type={MediaItemType.MOVIE} metadata={{ runtime: 120 }} />,
+		);
+
+		expect(screen.getByText("2 time.hours")).toBeInTheDocument();
+	});
+
+	it("shows a tv show's season count", () => {
+		render(
+			<MetadataList type={MediaItemType.TV_SHOW} metadata={{ seasons: 3 }} />,
+		);
+
+		expect(screen.getByText("3")).toBeInTheDocument();
+	});
+
+	it("shows a video game's platforms", () => {
+		render(
+			<MetadataList
+				type={MediaItemType.VIDEO_GAME}
+				metadata={{ platforms: ["PC", "PS5"] }}
+			/>,
+		);
+
+		expect(screen.getByText("PC, PS5")).toBeInTheDocument();
+	});
+
+	it("shows a podcast's episode count", () => {
+		render(
+			<MetadataList
+				type={MediaItemType.PODCAST}
+				metadata={{ episodeTitles: ["Ep 1", "Ep 2"] }}
+			/>,
+		);
+
+		expect(screen.getByText("2 podcast.episodesCount")).toBeInTheDocument();
+	});
+
 	it("shows the genre when both a name and id are known", () => {
 		render(
 			<MetadataList

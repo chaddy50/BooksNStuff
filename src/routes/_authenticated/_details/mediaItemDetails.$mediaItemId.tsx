@@ -6,7 +6,10 @@ import { getMediaItemDetails } from "#/features/screens/mediaItemDetails/mediaIt
 import { MEDIA_ITEM_DETAILS_TAB_IDS } from "#/features/screens/mediaItemDetails/types";
 
 const searchSchema = z.object({
-	tab: z.enum(MEDIA_ITEM_DETAILS_TAB_IDS).optional().catch(undefined),
+	tab: z
+		.enum(MEDIA_ITEM_DETAILS_TAB_IDS)
+		.optional()
+		.catch(() => undefined),
 });
 
 export const Route = createFileRoute(
