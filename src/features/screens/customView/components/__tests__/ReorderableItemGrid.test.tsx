@@ -84,6 +84,7 @@ function makeItem(id: number, title: string): ItemQueryItem {
 		genreName: null,
 		completedAt: null,
 		rating: 0,
+		progressPercent: null,
 	};
 }
 

@@ -52,6 +52,7 @@ interface InstanceFormValues {
 	reviewText: string;
 	startedAt: string;
 	completedAt: string;
+	progressPercent: string;
 	consumptionInfo: ConsumptionInfo | null;
 	seasonReviews: SeasonReview[];
 }
@@ -83,6 +84,16 @@ function getInitialConsumptionInfo(
 	return { method: getDefaultMethod(mediaItemType, settings) };
 }
 
+function formatProgressPercentInput(
+	progressPercent: number | null | undefined,
+): string {
+	return progressPercent != null ? String(progressPercent) : "";
+}
+
+function parseProgressPercentInput(value: string): number | undefined {
+	return value ? Number(value) : undefined;
+}
+
 export function InstanceEditForm({
 	instance,
 	mediaItemId,
@@ -106,6 +117,9 @@ export function InstanceEditForm({
 			(instance === undefined ? new Date().toISOString().split("T")[0] : ""),
 	);
 	const [completedAt, setCompletedAt] = useState(instance?.completedAt ?? "");
+	const [progressPercent, setProgressPercent] = useState(
+		formatProgressPercentInput(instance?.progressPercent),
+	);
 	const [consumptionInfo, setConsumptionInfo] =
 		useState<ConsumptionInfo | null>(
 			getInitialConsumptionInfo(mediaItemType, instance, null),
@@ -121,6 +135,7 @@ export function InstanceEditForm({
 		reviewText,
 		startedAt,
 		completedAt,
+		progressPercent,
 		consumptionInfo,
 		seasonReviews,
 	};
@@ -168,7 +183,9 @@ export function InstanceEditForm({
 			: null;
 	const startedAtId = useId();
 	const completedAtId = useId();
+	const progressPercentId = useId();
 	const reviewTextId = useId();
+	const parsedProgressPercent = parseProgressPercentInput(progressPercent);
 
 	const usedSeasons = new Set(seasonReviews.map((r) => r.season));
 	const nextAvailableSeason = totalSeasons
@@ -242,6 +259,7 @@ export function InstanceEditForm({
 					reviewText: reviewText || undefined,
 					startedAt: startedAt || undefined,
 					completedAt: completedAt || undefined,
+					progressPercent: parsedProgressPercent,
 					seasonReviews: seasonReviews.length > 0 ? seasonReviews : undefined,
 					consumptionInfo: consumptionInfo ?? undefined,
 				},
@@ -267,6 +285,7 @@ export function InstanceEditForm({
 					reviewText: reviewText || undefined,
 					startedAt: startedAt || undefined,
 					completedAt: completedAt || undefined,
+					progressPercent: parsedProgressPercent,
 					seasonReviews: seasonReviews.length > 0 ? seasonReviews : undefined,
 					consumptionInfo: consumptionInfo ?? undefined,
 				},
@@ -338,6 +357,23 @@ export function InstanceEditForm({
 						onChange={(e) => setCompletedAt(e.target.value)}
 					/>
 				</div>
+			</div>
+			<div className="flex flex-col gap-1.5">
+				<label
+					className="text-sm text-muted-foreground"
+					htmlFor={progressPercentId}
+				>
+					{t("mediaItemDetails.progress")}
+				</label>
+				<Input
+					id={progressPercentId}
+					type="number"
+					min={0}
+					max={100}
+					value={progressPercent}
+					onChange={(e) => setProgressPercent(e.target.value)}
+					className="w-16 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+				/>
 			</div>
 			{dateError && (
 				<p className="text-sm text-destructive" data-testid="date-error">

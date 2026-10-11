@@ -10,4 +10,11 @@ export const getDashboardData = createServerFn({ method: "GET" }).handler(
 );
 
 export type DashboardData = Awaited<ReturnType<typeof getDashboardData>>;
-export type DashboardItem = DashboardData["inProgressItems"][number];
+// `progressPercent` only ever comes back on `inProgressItems` — the other two
+// sections can never hold an IN_PROGRESS item, so it stays optional here.
+export type DashboardItem = Omit<
+	DashboardData["inProgressItems"][number],
+	"progressPercent"
+> & {
+	progressPercent?: number | null;
+};

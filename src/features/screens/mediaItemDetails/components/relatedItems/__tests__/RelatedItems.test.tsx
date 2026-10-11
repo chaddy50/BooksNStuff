@@ -66,6 +66,7 @@ describe("RelatedItems", () => {
 				purchaseStatus: PurchaseStatus.NOT_PURCHASED,
 				expectedReleaseDate: null,
 				rating: 0,
+				progressPercent: null,
 			},
 		]);
 
@@ -86,6 +87,7 @@ describe("RelatedItems", () => {
 				purchaseStatus: PurchaseStatus.NOT_PURCHASED,
 				expectedReleaseDate: null,
 				rating: 0,
+				progressPercent: null,
 			},
 		]);
 

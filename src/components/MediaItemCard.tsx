@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { RatingStars } from "#/features/screens/mediaItemDetails/components/history/components/instance/rating/ratingStars/RatingStars";
 import { MediaItemStatus, MediaItemType, PurchaseStatus } from "#/lib/enums";
+import { ProgressBar } from "./ProgressBar";
 import { PurchasedBadge } from "./PurchasedBadge";
 import { StatusBadge } from "./StatusBadge";
 import { TypeBadge } from "./TypeBadge";
@@ -17,6 +18,8 @@ type MediaItemCardItem = {
 	expectedReleaseDate?: string | null;
 	seriesId?: number | null | undefined;
 	seriesName?: string | null | undefined;
+	// Only ever set on an item the caller already knows is IN_PROGRESS.
+	progressPercent?: number | null;
 };
 
 // Reaching any of these statuses means the item is already in hand, so whether
@@ -37,6 +40,7 @@ interface MediaItemCardProps {
 	shouldShowRating?: boolean;
 	shouldShowPurchaseStatus?: boolean;
 	shouldShowStatus?: boolean;
+	shouldShowProgress?: boolean;
 	shouldLinkToDetails?: boolean;
 }
 
@@ -46,6 +50,7 @@ export function MediaItemCard({
 	shouldShowRating = true,
 	shouldShowPurchaseStatus = true,
 	shouldShowStatus = true,
+	shouldShowProgress = true,
 	shouldLinkToDetails = true,
 }: MediaItemCardProps) {
 	const shouldShowRatingStars =
@@ -131,6 +136,12 @@ export function MediaItemCard({
 						</div>
 					</div>
 				)}
+
+				<ProgressBar
+					status={mediaItem.status}
+					progressPercent={mediaItem.progressPercent}
+					shouldShow={shouldShowProgress}
+				/>
 			</div>
 		</div>
 	);

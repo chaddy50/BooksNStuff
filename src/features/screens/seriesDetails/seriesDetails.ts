@@ -16,6 +16,10 @@ import { getMissingSeriesItems as getMissingSeriesItemsForUser } from "#/feature
 import { updateSeriesMetadata as updateSeriesMetadataForUser } from "#/features/screens/seriesDetails/seriesDetails.server";
 import { MediaItemStatus, NextItemStatus } from "#/lib/enums";
 import {
+	fetchCurrentProgressByMediaItemId,
+	getCurrentProgress,
+} from "#/lib/queries/progressQuery.server";
+import {
 	fetchLatestRatingsByMediaItemId,
 	getLatestRating,
 } from "#/lib/queries/ratingsQuery.server";
@@ -75,7 +79,10 @@ export const getSeriesDetails = createServerFn({ method: "GET" })
 		}
 
 		const itemIds = items.map((item) => item.id);
-		const latestRatings = await fetchLatestRatingsByMediaItemId(itemIds);
+		const [latestRatings, currentProgress] = await Promise.all([
+			fetchLatestRatingsByMediaItemId(itemIds),
+			fetchCurrentProgressByMediaItemId(itemIds),
+		]);
 
 		return {
 			...row,
@@ -83,6 +90,7 @@ export const getSeriesDetails = createServerFn({ method: "GET" })
 			items: items.map((item) => ({
 				...item,
 				...getLatestRating(item.id, latestRatings),
+				progressPercent: getCurrentProgress(item.id, currentProgress),
 			})),
 		};
 	});

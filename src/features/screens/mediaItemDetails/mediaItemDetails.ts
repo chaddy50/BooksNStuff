@@ -4,25 +4,21 @@ import { z } from "zod";
 
 import { db } from "#/database/index";
 import {
-	type ConsumptionInfo,
-	creators,
-	genres,
 	mediaItemInstances,
 	mediaItemStatusEnum,
 	mediaItems,
-	mediaItemTags,
 	mediaTypeEnum,
 	series,
-	tags,
 } from "#/database/schema";
 import { getLoggedInUser } from "#/features/screens/auth/session";
 import {
+	getMediaItemDetailsForUser,
 	removeFromLibrary as removeFromLibraryForUser,
+	saveInstanceForUser,
 	updateMediaItemCreator as updateMediaItemCreatorForUser,
 	updateMediaItemMetadata as updateMediaItemMetadataForUser,
 	updateMediaItemSeries as updateMediaItemSeriesForUser,
 } from "#/features/screens/mediaItemDetails/mediaItemDetails.server";
-import { getRelatedMediaItems } from "#/features/screens/mediaItemDetails/relatedItems.server";
 import { MediaItemStatus, NextItemStatus, PurchaseStatus } from "#/lib/enums";
 import { transitionReleasedItems } from "#/lib/queries/itemQuery.server";
 import {
@@ -80,64 +76,7 @@ export const getMediaItemDetails = createServerFn({ method: "GET" })
 	.handler(async ({ data: { id } }) => {
 		const user = await getLoggedInUser();
 		await transitionReleasedItems(user.id);
-		const [row] = await db
-			.select({
-				id: mediaItems.id,
-				status: mediaItems.status,
-				purchaseStatus: mediaItems.purchaseStatus,
-				expectedReleaseDate: mediaItems.expectedReleaseDate,
-				seriesId: mediaItems.seriesId,
-				seriesName: series.name,
-				creatorId: mediaItems.creatorId,
-				creatorName: creators.name,
-				genreId: mediaItems.genreId,
-				genreName: genres.name,
-				title: mediaItems.title,
-				type: mediaItems.type,
-				description: mediaItems.description,
-				coverImageUrl: mediaItems.coverImageUrl,
-				releaseDate: mediaItems.releaseDate,
-				metadata: mediaItems.metadata,
-			})
-			.from(mediaItems)
-			.leftJoin(series, eq(mediaItems.seriesId, series.id))
-			.leftJoin(creators, eq(mediaItems.creatorId, creators.id))
-			.leftJoin(genres, eq(mediaItems.genreId, genres.id))
-			.where(and(eq(mediaItems.id, id), eq(mediaItems.userId, user.id)));
-
-		if (!row) throw new Error(`Entry ${id} not found`);
-
-		const instances = await db
-			.select({
-				id: mediaItemInstances.id,
-				rating: mediaItemInstances.rating,
-				fictionRating: mediaItemInstances.fictionRating,
-				seasonReviews: mediaItemInstances.seasonReviews,
-				consumptionInfo: mediaItemInstances.consumptionInfo,
-				reviewText: mediaItemInstances.reviewText,
-				startedAt: mediaItemInstances.startedAt,
-				completedAt: mediaItemInstances.completedAt,
-			})
-			.from(mediaItemInstances)
-			.where(eq(mediaItemInstances.mediaItemId, id))
-			.orderBy(desc(mediaItemInstances.id));
-
-		const itemTags = await db
-			.select({ name: tags.name })
-			.from(mediaItemTags)
-			.innerJoin(tags, eq(tags.id, mediaItemTags.tagId))
-			.where(eq(mediaItemTags.mediaItemId, id))
-			.orderBy(tags.name);
-
-		return {
-			...row,
-			tags: itemTags.map((t) => t.name),
-			instances: instances.map((i) => ({
-				...i,
-				rating: parseFloat(i.rating ?? "") || 0,
-			})),
-			relatedItems: await getRelatedMediaItems(id, user.id),
-		};
+		return getMediaItemDetailsForUser(id, user.id);
 	});
 
 export type MediaItemDetails = Awaited<ReturnType<typeof getMediaItemDetails>>;
@@ -229,6 +168,7 @@ export const saveInstance = createServerFn({ method: "POST" })
 			reviewText: z.string().optional(),
 			startedAt: z.string().optional(),
 			completedAt: z.string().optional(),
+			progressPercent: z.number().int().min(0).max(100).nullable().optional(),
 			seasonReviews: z
 				.array(
 					z.object({
@@ -246,63 +186,10 @@ export const saveInstance = createServerFn({ method: "POST" })
 				.optional(),
 		}),
 	)
-	.handler(
-		async ({
-			data: {
-				mediaItemId,
-				instanceId,
-				rating,
-				fictionRating,
-				reviewText,
-				startedAt,
-				completedAt,
-				seasonReviews,
-				consumptionInfo,
-			},
-		}) => {
-			const user = await getLoggedInUser();
-			const item = await requireOwnedMediaItem(mediaItemId, user.id);
-
-			const values = {
-				rating: rating ?? null,
-				fictionRating: fictionRating ?? null,
-				seasonReviews: seasonReviews ?? null,
-				consumptionInfo: (consumptionInfo ?? null) as ConsumptionInfo | null,
-				reviewText: reviewText || null,
-				startedAt: startedAt || null,
-				completedAt: completedAt || null,
-			};
-			if (instanceId) {
-				await db
-					.update(mediaItemInstances)
-					.set(values)
-					.where(
-						and(
-							eq(mediaItemInstances.id, instanceId),
-							eq(mediaItemInstances.mediaItemId, mediaItemId),
-						),
-					);
-			} else {
-				await db
-					.insert(mediaItemInstances)
-					.values({ mediaItemId: mediaItemId, ...values });
-			}
-
-			const newStatus = inferStatusAfterInstanceEdit(startedAt, completedAt);
-			if (newStatus) {
-				await db
-					.update(mediaItems)
-					.set({ status: newStatus })
-					.where(
-						and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, user.id)),
-					);
-			}
-
-			if (item.seriesId) {
-				await syncSeriesStatus(item.seriesId, user.id);
-			}
-		},
-	);
+	.handler(async ({ data }) => {
+		const user = await getLoggedInUser();
+		await saveInstanceForUser(data, user.id);
+	});
 
 export const deleteInstance = createServerFn({ method: "POST" })
 	.inputValidator(z.object({ instanceId: z.number() }))

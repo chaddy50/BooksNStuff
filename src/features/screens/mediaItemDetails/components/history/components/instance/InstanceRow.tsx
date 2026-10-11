@@ -18,6 +18,14 @@ export function getConsumptionLabel(
 	return t(`consumption.method.${info.method}`);
 }
 
+export function getProgressLabel(
+	progressPercent: number | null,
+	t: (key: string, options?: Record<string, unknown>) => string,
+): string | null {
+	if (progressPercent == null) return null;
+	return t("mediaItemDetails.progressComplete", { percent: progressPercent });
+}
+
 export function InstanceRow({
 	index,
 	instance,
@@ -34,6 +42,13 @@ export function InstanceRow({
 		instance.consumptionInfo,
 		t as (key: string) => string,
 	);
+	const progressLabel = getProgressLabel(
+		instance.progressPercent,
+		t as (key: string, options?: Record<string, unknown>) => string,
+	);
+	const metaLabels = [dateRange, consumptionLabel, progressLabel].filter(
+		(label): label is string => label !== null,
+	);
 
 	return (
 		<div className="flex flex-col gap-1.5 p-4 rounded-lg border border-border bg-card">
@@ -42,14 +57,11 @@ export function InstanceRow({
 					<span className="text-sm font-medium text-muted-foreground">
 						#{index}
 					</span>
-					{dateRange && (
-						<span className="text-muted-foreground text-sm">{dateRange}</span>
-					)}
-					{consumptionLabel && (
-						<span className="text-muted-foreground text-sm">
-							{consumptionLabel}
+					{metaLabels.map((label) => (
+						<span key={label} className="text-muted-foreground text-sm">
+							{label}
 						</span>
-					)}
+					))}
 					<RatingStars rating={instance.rating} shouldShowValue />
 				</div>
 				<Button

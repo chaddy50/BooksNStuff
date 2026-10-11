@@ -512,12 +512,14 @@ function buildItemSelectQuery(
 			genreName: genres.name,
 			latestRating: sql<string | null>`latest_instance.latest_rating`,
 			completedAt: sql<string | null>`latest_instance.latest_completed_at`,
+			progressPercent: sql<number | null>`current_progress.progress_percent`,
 		})
 		.from(mediaItems)
 		.leftJoin(series, eq(mediaItems.seriesId, series.id))
 		.leftJoin(creators, eq(mediaItems.creatorId, creators.id))
 		.leftJoin(genres, eq(mediaItems.genreId, genres.id))
 		.leftJoin(buildLatestInstanceLateral(), sql`true`)
+		.leftJoin(buildCurrentProgressLateral(), sql`true`)
 		.where(and(...conditions))
 		.orderBy(...sortClauses);
 }
@@ -541,6 +543,24 @@ function buildLatestInstanceLateral(): SQL {
 		ORDER BY ${mediaItemInstances.id} DESC
 		LIMIT 1
 	) AS latest_instance`;
+}
+
+/**
+ * The currently unfinished instance of each item, as a lateral join — the
+ * one a user is actively making progress on, as opposed to any instance
+ * they've already completed.
+ */
+function buildCurrentProgressLateral(): SQL {
+	return sql`LATERAL (
+		SELECT
+			${mediaItemInstances.progressPercent} AS progress_percent
+		FROM ${mediaItemInstances}
+		WHERE ${mediaItemInstances.mediaItemId} = ${mediaItems.id}
+			AND ${mediaItemInstances.startedAt} IS NOT NULL
+			AND ${mediaItemInstances.completedAt} IS NULL
+		ORDER BY ${mediaItemInstances.id} DESC
+		LIMIT 1
+	) AS current_progress`;
 }
 
 /**

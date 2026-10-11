@@ -90,6 +90,8 @@ export const en = {
 		review: "Review",
 		started: "Started",
 		completed: "Completed",
+		progress: "Progress %",
+		progressComplete: "{{percent}}% complete",
 		removeFromLibrary: "Remove from Library",
 		expectedReleaseDate: "Expected Release",
 		clearExpectedReleaseDate: "Clear",

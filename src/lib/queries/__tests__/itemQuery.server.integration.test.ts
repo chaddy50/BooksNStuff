@@ -974,6 +974,32 @@ describe("LATERAL join for latest instance", () => {
 	});
 });
 
+describe("LATERAL join for current progress", () => {
+	it("returns the progressPercent from the unfinished instance", async () => {
+		const itemId = await insertItem({ title: "In Progress" });
+		await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+			progressPercent: 42,
+		});
+
+		const result = await runItemQuery({}, USER);
+
+		expect(result.items).toHaveLength(1);
+		expect(result.items[0].progressPercent).toBe(42);
+	});
+
+	it("returns null progressPercent for an item with no unfinished instance", async () => {
+		const itemId = await insertItem({ title: "Finished" });
+		await insertInstance({ mediaItemId: itemId, completedAt: "2024-01-01" });
+
+		const result = await runItemQuery({}, USER);
+
+		expect(result.items).toHaveLength(1);
+		expect(result.items[0].progressPercent).toBeNull();
+	});
+});
+
 // ---------------------------------------------------------------------------
 // Custom order
 // ---------------------------------------------------------------------------

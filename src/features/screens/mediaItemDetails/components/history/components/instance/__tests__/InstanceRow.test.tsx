@@ -22,6 +22,7 @@ const baseInstance: Instance = {
 	seasonReviews: null,
 	consumptionInfo: null,
 	reviewText: null,
+	progressPercent: null,
 	startedAt: null,
 	completedAt: null,
 };
@@ -124,6 +125,22 @@ describe("InstanceRow", () => {
 		renderInstanceRow({ rating: 0 });
 
 		expect(screen.queryByTestId("rating-stars")).not.toBeInTheDocument();
+	});
+
+	it("shows the progress percentage when the instance has one", () => {
+		renderInstanceRow({ progressPercent: 42 });
+
+		expect(
+			screen.getByText("mediaItemDetails.progressComplete"),
+		).toBeInTheDocument();
+	});
+
+	it("shows no progress percentage when the instance has none", () => {
+		renderInstanceRow({ progressPercent: null });
+
+		expect(
+			screen.queryByText("mediaItemDetails.progressComplete"),
+		).not.toBeInTheDocument();
 	});
 
 	it("shows a season review's fiction rating categories", () => {

@@ -1,13 +1,26 @@
-import { and, count, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, sql } from "drizzle-orm";
 
 import { db } from "#/database/index";
-import { creators, mediaItems, series } from "#/database/schema";
+import {
+	type ConsumptionInfo,
+	creators,
+	type FictionRating,
+	genres,
+	mediaItemInstances,
+	mediaItems,
+	mediaItemTags,
+	type SeasonReview,
+	series,
+	tags,
+} from "#/database/schema";
 import { creatorMetadataKey } from "#/lib/creator";
 import type { MediaItemType } from "#/lib/enums";
 import { syncSeriesStatus } from "#/lib/queries/seriesQuery.server";
+import { inferStatusAfterInstanceEdit } from "./mediaItemDetails";
+import { getRelatedMediaItems } from "./relatedItems.server";
 
 /**
- * The write half of the media item details screen.
+ * The read and write logic behind the media item details screen.
  *
  * Every mutation here is scoped by `(id, userId)`. Since the item row carries
  * both the user's tracking state and their own copy of the descriptive data, a
@@ -18,6 +31,147 @@ import { syncSeriesStatus } from "#/lib/queries/seriesQuery.server";
  * imported by client-side code. Import it only from server function handler
  * bodies or other server-only modules.
  */
+
+export async function getMediaItemDetailsForUser(id: number, userId: string) {
+	const [row] = await db
+		.select({
+			id: mediaItems.id,
+			status: mediaItems.status,
+			purchaseStatus: mediaItems.purchaseStatus,
+			expectedReleaseDate: mediaItems.expectedReleaseDate,
+			seriesId: mediaItems.seriesId,
+			seriesName: series.name,
+			creatorId: mediaItems.creatorId,
+			creatorName: creators.name,
+			genreId: mediaItems.genreId,
+			genreName: genres.name,
+			title: mediaItems.title,
+			type: mediaItems.type,
+			description: mediaItems.description,
+			coverImageUrl: mediaItems.coverImageUrl,
+			releaseDate: mediaItems.releaseDate,
+			metadata: mediaItems.metadata,
+		})
+		.from(mediaItems)
+		.leftJoin(series, eq(mediaItems.seriesId, series.id))
+		.leftJoin(creators, eq(mediaItems.creatorId, creators.id))
+		.leftJoin(genres, eq(mediaItems.genreId, genres.id))
+		.where(and(eq(mediaItems.id, id), eq(mediaItems.userId, userId)));
+
+	if (!row) throw new Error(`Entry ${id} not found`);
+
+	const instances = await db
+		.select({
+			id: mediaItemInstances.id,
+			rating: mediaItemInstances.rating,
+			fictionRating: mediaItemInstances.fictionRating,
+			seasonReviews: mediaItemInstances.seasonReviews,
+			consumptionInfo: mediaItemInstances.consumptionInfo,
+			reviewText: mediaItemInstances.reviewText,
+			progressPercent: mediaItemInstances.progressPercent,
+			startedAt: mediaItemInstances.startedAt,
+			completedAt: mediaItemInstances.completedAt,
+		})
+		.from(mediaItemInstances)
+		.where(eq(mediaItemInstances.mediaItemId, id))
+		.orderBy(desc(mediaItemInstances.id));
+
+	const itemTags = await db
+		.select({ name: tags.name })
+		.from(mediaItemTags)
+		.innerJoin(tags, eq(tags.id, mediaItemTags.tagId))
+		.where(eq(mediaItemTags.mediaItemId, id))
+		.orderBy(tags.name);
+
+	return {
+		...row,
+		tags: itemTags.map((t) => t.name),
+		instances: instances.map((i) => ({
+			...i,
+			rating: parseFloat(i.rating ?? "") || 0,
+		})),
+		relatedItems: await getRelatedMediaItems(id, userId),
+	};
+}
+
+export type SaveInstanceInput = {
+	mediaItemId: number;
+	instanceId?: number;
+	rating?: string;
+	fictionRating?: FictionRating;
+	reviewText?: string;
+	startedAt?: string;
+	completedAt?: string;
+	progressPercent?: number | null;
+	seasonReviews?: SeasonReview[];
+	consumptionInfo?: { method: string; controlMethod?: string };
+};
+
+/** Empty-string form fields mean "cleared", so they are stored as null too. */
+function emptyToNull(value: string | undefined): string | null {
+	return value || null;
+}
+
+function undefinedToNull<T>(value: T | undefined): T | null {
+	return value ?? null;
+}
+
+function buildInstanceValues(data: SaveInstanceInput) {
+	return {
+		rating: undefinedToNull(data.rating),
+		fictionRating: undefinedToNull(data.fictionRating),
+		seasonReviews: undefinedToNull(data.seasonReviews),
+		consumptionInfo: undefinedToNull(
+			data.consumptionInfo,
+		) as ConsumptionInfo | null,
+		reviewText: emptyToNull(data.reviewText),
+		startedAt: emptyToNull(data.startedAt),
+		completedAt: emptyToNull(data.completedAt),
+		progressPercent: undefinedToNull(data.progressPercent),
+	};
+}
+
+export async function saveInstanceForUser(
+	data: SaveInstanceInput,
+	userId: string,
+): Promise<void> {
+	const { mediaItemId, instanceId, startedAt, completedAt } = data;
+
+	const [item] = await db
+		.select({ seriesId: mediaItems.seriesId })
+		.from(mediaItems)
+		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
+	if (!item) throw new Error("Media item not found");
+
+	const values = buildInstanceValues(data);
+	if (instanceId) {
+		await db
+			.update(mediaItemInstances)
+			.set(values)
+			.where(
+				and(
+					eq(mediaItemInstances.id, instanceId),
+					eq(mediaItemInstances.mediaItemId, mediaItemId),
+				),
+			);
+	} else {
+		await db.insert(mediaItemInstances).values({ mediaItemId, ...values });
+	}
+
+	const newStatus = inferStatusAfterInstanceEdit(startedAt, completedAt);
+	if (newStatus) {
+		await db
+			.update(mediaItems)
+			.set({ status: newStatus })
+			.where(
+				and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)),
+			);
+	}
+
+	if (item.seriesId) {
+		await syncSeriesStatus(item.seriesId, userId);
+	}
+}
 
 export type UpdateMediaItemMetadataInput = {
 	mediaItemId: number;
