@@ -7,7 +7,9 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { useEffect } from "react";
+import { ThemeProvider } from "#/components/hooks/useTheme";
 import { TooltipProvider } from "#/components/ui/tooltip";
+import { buildThemeInitScript } from "#/lib/theme/theme";
 import "../i18n";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import TanStackQueryProvider from "../integrations/tanstack-query/root-provider";
@@ -62,6 +64,11 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 				href: "/logo192.png",
 			},
 		],
+		scripts: [
+			{
+				children: buildThemeInitScript(),
+			},
+		],
 	}),
 	shellComponent: RootDocument,
 });
@@ -95,25 +102,33 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 				<HeadContent />
 			</head>
 			<body>
-				<TanStackQueryProvider>
-					<TooltipProvider>
-						{children}
-						<TanStackDevtools
-							config={{
-								position: "bottom-right",
-							}}
-							plugins={[
-								{
-									name: "Tanstack Router",
-									render: <TanStackRouterDevtoolsPanel />,
-								},
-								TanStackQueryDevtools,
-							]}
-						/>
-					</TooltipProvider>
-				</TanStackQueryProvider>
+				<AppProviders>
+					{children}
+					<TanStackDevtools
+						config={{
+							position: "bottom-right",
+						}}
+						plugins={[
+							{
+								name: "Tanstack Router",
+								render: <TanStackRouterDevtoolsPanel />,
+							},
+							TanStackQueryDevtools,
+						]}
+					/>
+				</AppProviders>
 				<Scripts />
 			</body>
 		</html>
+	);
+}
+
+function AppProviders({ children }: { children: React.ReactNode }) {
+	return (
+		<ThemeProvider>
+			<TanStackQueryProvider>
+				<TooltipProvider>{children}</TooltipProvider>
+			</TanStackQueryProvider>
+		</ThemeProvider>
 	);
 }

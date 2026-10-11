@@ -16,3 +16,16 @@ if (typeof Element !== "undefined") {
 		// jsdom has no layout, so there is nothing to actually scroll.
 	};
 }
+
+// jsdom ships no matchMedia either. `??=` leaves a suite-local mock in place
+// for tests that need to simulate a specific OS color-scheme preference.
+if (typeof window !== "undefined") {
+	window.matchMedia ??= ((query: string) =>
+		({
+			matches: false,
+			media: query,
+			// No-op defaults; suites that need real listener behavior override matchMedia directly.
+			addEventListener: () => undefined,
+			removeEventListener: () => undefined,
+		}) as unknown as MediaQueryList) as typeof window.matchMedia;
+}
