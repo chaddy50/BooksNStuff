@@ -4,10 +4,15 @@ import { useTranslation } from "react-i18next";
 
 import { DeleteButton } from "#/components/DeleteButton";
 import { TopBar } from "#/features/navigation/topBar/TopBar";
+import { MediaItemDetailsHeader } from "./components/header/MediaItemDetailsHeader";
 import { History } from "./components/history/History";
-import { Metadata } from "./components/metadata/Metadata";
+import { useInstanceEditingState } from "./components/history/useInstanceEditingState";
+import { MediaItemDetailsTabStrip } from "./components/MediaItemDetailsTabStrip";
+import { OverviewTab } from "./components/overview/OverviewTab";
 import { RelatedItems } from "./components/relatedItems/RelatedItems";
 import { removeFromLibrary } from "./mediaItemDetails";
+import { getUnfinishedInstance } from "./mediaItemDetailsHeader";
+import type { MediaItemDetailsTabId } from "./types";
 
 // getRouteApi rather than importing Route directly: the route file imports this
 // screen, so importing it back would be a cycle.
@@ -17,9 +22,15 @@ const route = getRouteApi(
 
 export function MediaItemDetailsScreen() {
 	const mediaItemDetails = route.useLoaderData();
+	const { tab } = route.useSearch();
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const [isDeleting, setIsDeleting] = useState(false);
+	const activeTabId: MediaItemDetailsTabId = tab ?? "overview";
+
+	const editingState = useInstanceEditingState({
+		isUnsavedChangesGuardEnabled: () => !isDeleting,
+	});
 
 	async function handleDelete() {
 		setIsDeleting(true);
@@ -31,6 +42,24 @@ export function MediaItemDetailsScreen() {
 		} finally {
 			setIsDeleting(false);
 		}
+	}
+
+	function handleSelectTab(tabId: MediaItemDetailsTabId) {
+		navigate({
+			to: "/mediaItemDetails/$mediaItemId",
+			params: { mediaItemId: String(mediaItemDetails.id) },
+			search: { tab: tabId },
+		});
+	}
+
+	function handleLogProgress() {
+		const unfinishedInstance = getUnfinishedInstance(
+			mediaItemDetails.instances,
+		);
+		if (activeTabId !== "history") {
+			handleSelectTab("history");
+		}
+		editingState.startEditing(unfinishedInstance?.id ?? "new");
 	}
 
 	return (
@@ -46,14 +75,36 @@ export function MediaItemDetailsScreen() {
 
 			<div
 				key={mediaItemDetails.id}
-				className="px-4 md:px-6 py-8 max-w-5xl mx-auto"
+				className="px-4 md:px-6 py-8 max-w-5xl mx-auto flex flex-col gap-6"
 			>
-				<Metadata mediaItemDetails={mediaItemDetails} />
-				<History
+				<MediaItemDetailsHeader
 					mediaItemDetails={mediaItemDetails}
-					isUnsavedChangesGuardEnabled={() => !isDeleting}
+					onLogProgress={handleLogProgress}
 				/>
-				<RelatedItems mediaItemDetails={mediaItemDetails} />
+
+				<MediaItemDetailsTabStrip
+					activeTabId={activeTabId}
+					onSelect={handleSelectTab}
+				/>
+
+				<div
+					role="tabpanel"
+					id={`media-item-details-panel-${activeTabId}`}
+					aria-labelledby={`media-item-details-tab-${activeTabId}`}
+				>
+					{activeTabId === "overview" && (
+						<OverviewTab mediaItemDetails={mediaItemDetails} />
+					)}
+					{activeTabId === "history" && (
+						<History
+							mediaItemDetails={mediaItemDetails}
+							editingState={editingState}
+						/>
+					)}
+					{activeTabId === "related" && (
+						<RelatedItems mediaItemDetails={mediaItemDetails} />
+					)}
+				</div>
 			</div>
 		</div>
 	);

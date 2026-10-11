@@ -7,12 +7,19 @@ vi.mock("react-i18next", () => ({
 }));
 
 const navigate = vi.fn();
+let searchParams: { tab?: string } = {};
+let loaderData: { id: number; instances: unknown[] } = {
+	id: 7,
+	instances: [],
+};
 
 vi.mock("@tanstack/react-router", () => ({
 	getRouteApi: () => ({
-		useLoaderData: () => ({ id: 7 }),
+		useLoaderData: () => loaderData,
+		useSearch: () => searchParams,
 	}),
 	useNavigate: () => navigate,
+	useBlocker: () => ({ status: "idle" }),
 }));
 
 vi.mock("#/features/navigation/topBar/TopBar", () => ({
@@ -20,9 +27,20 @@ vi.mock("#/features/navigation/topBar/TopBar", () => ({
 }));
 
 vi.mock(
-	"#/features/screens/mediaItemDetails/components/metadata/Metadata",
+	"#/features/screens/mediaItemDetails/components/header/MediaItemDetailsHeader",
 	() => ({
-		Metadata: () => null,
+		MediaItemDetailsHeader: (props: { onLogProgress: () => void }) => (
+			<button type="button" onClick={props.onLogProgress}>
+				logProgress
+			</button>
+		),
+	}),
+);
+
+vi.mock(
+	"#/features/screens/mediaItemDetails/components/overview/OverviewTab",
+	() => ({
+		OverviewTab: () => <div data-testid="overview-tab" />,
 	}),
 );
 
@@ -33,33 +51,22 @@ vi.mock(
 	}),
 );
 
-// Captures the contract the screen hands the guard, which is the unit under test
-// here — History's own behavior is covered by its suite.
-let isUnsavedChangesGuardEnabled: (() => boolean) | undefined;
-
 vi.mock(
 	"#/features/screens/mediaItemDetails/components/history/History",
 	() => ({
-		History: (props: { isUnsavedChangesGuardEnabled?: () => boolean }) => {
-			isUnsavedChangesGuardEnabled = props.isUnsavedChangesGuardEnabled;
-			return <div data-testid="history" />;
-		},
+		History: (props: {
+			editingState: { idBeingEdited: number | "new" | null };
+		}) => (
+			<div data-testid="history">
+				{String(props.editingState.idBeingEdited)}
+			</div>
+		),
 	}),
 );
 
 vi.mock("#/features/screens/mediaItemDetails/mediaItemDetails", () => ({
 	removeFromLibrary: vi.fn(),
 }));
-
-function deferred<T>() {
-	let resolve!: (value: T) => void;
-	let reject!: (error: unknown) => void;
-	const promise = new Promise<T>((resolvePromise, rejectPromise) => {
-		resolve = resolvePromise;
-		reject = rejectPromise;
-	});
-	return { promise, resolve, reject };
-}
 
 function clickRemoveFromLibrary() {
 	fireEvent.click(screen.getByText("mediaItemDetails.removeFromLibrary"));
@@ -68,26 +75,60 @@ function clickRemoveFromLibrary() {
 afterEach(cleanup);
 beforeEach(() => {
 	vi.clearAllMocks();
-	isUnsavedChangesGuardEnabled = undefined;
+	searchParams = {};
+	loaderData = { id: 7, instances: [] };
 });
 
 describe("MediaItemDetailsScreen", () => {
-	it("renders history above related items", () => {
+	it("defaults to the overview tab when no tab is in the URL", () => {
 		render(<MediaItemDetailsScreen />);
 
-		const history = screen.getByTestId("history");
-		const relatedItems = screen.getByTestId("related-items");
-
-		expect(
-			history.compareDocumentPosition(relatedItems) &
-				Node.DOCUMENT_POSITION_FOLLOWING,
-		).toBeTruthy();
+		expect(screen.getByTestId("overview-tab")).toBeInTheDocument();
+		expect(screen.queryByTestId("history")).not.toBeInTheDocument();
+		expect(screen.queryByTestId("related-items")).not.toBeInTheDocument();
 	});
 
-	it("leaves the guard enabled while the user is just viewing the item", () => {
+	it("shows the history panel when tab=history is in the URL", () => {
+		searchParams = { tab: "history" };
 		render(<MediaItemDetailsScreen />);
 
-		expect(isUnsavedChangesGuardEnabled?.()).toBe(true);
+		expect(screen.getByTestId("history")).toBeInTheDocument();
+		expect(screen.queryByTestId("overview-tab")).not.toBeInTheDocument();
+	});
+
+	it("shows the related panel when tab=related is in the URL", () => {
+		searchParams = { tab: "related" };
+		render(<MediaItemDetailsScreen />);
+
+		expect(screen.getByTestId("related-items")).toBeInTheDocument();
+	});
+
+	it("navigates to the history tab and starts a new entry when logging progress with no unfinished instance", () => {
+		render(<MediaItemDetailsScreen />);
+
+		fireEvent.click(screen.getByText("logProgress"));
+
+		expect(navigate).toHaveBeenCalledWith({
+			to: "/mediaItemDetails/$mediaItemId",
+			params: { mediaItemId: "7" },
+			search: { tab: "history" },
+		});
+	});
+
+	it("opens the existing unfinished instance when logging progress and one exists", () => {
+		loaderData = {
+			id: 7,
+			instances: [
+				{ id: 42, startedAt: "2026-01-01", completedAt: null },
+				{ id: 41, startedAt: "2025-01-01", completedAt: "2025-02-01" },
+			],
+		};
+		searchParams = { tab: "history" };
+		render(<MediaItemDetailsScreen />);
+
+		fireEvent.click(screen.getByText("logProgress"));
+
+		expect(screen.getByTestId("history")).toHaveTextContent("42");
 	});
 
 	// The server fn is keyed on the item now, not on a separate metadata row.
@@ -107,56 +148,31 @@ describe("MediaItemDetailsScreen", () => {
 		expect(payload.data).not.toHaveProperty("metadataId");
 	});
 
-	it("disables the guard while the delete request is still in flight", async () => {
-		const { removeFromLibrary } = await import(
-			"#/features/screens/mediaItemDetails/mediaItemDetails"
-		);
-		const pendingDelete = deferred<undefined>();
-		vi.mocked(removeFromLibrary).mockReturnValue(pendingDelete.promise);
-		render(<MediaItemDetailsScreen />);
-
-		clickRemoveFromLibrary();
-
-		expect(isUnsavedChangesGuardEnabled?.()).toBe(false);
-		expect(navigate).not.toHaveBeenCalled();
-
-		pendingDelete.resolve(undefined);
-	});
-
-	it("is still disabled by the time it navigates away", async () => {
+	it("navigates home after a successful delete", async () => {
 		const { removeFromLibrary } = await import(
 			"#/features/screens/mediaItemDetails/mediaItemDetails"
 		);
 		vi.mocked(removeFromLibrary).mockResolvedValue(undefined);
-		let wasEnabledDuringNavigation: boolean | undefined;
-		navigate.mockImplementation((options: { to: string }) => {
-			wasEnabledDuringNavigation = isUnsavedChangesGuardEnabled?.();
-			expect(options).toEqual({ to: "/" });
-			return Promise.resolve();
-		});
 		render(<MediaItemDetailsScreen />);
 
 		clickRemoveFromLibrary();
 
-		await vi.waitFor(() => expect(navigate).toHaveBeenCalledTimes(1));
-		expect(wasEnabledDuringNavigation).toBe(false);
+		await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/" }));
 	});
 
-	it("re-enables the guard when the delete fails", async () => {
+	it("does not navigate when the delete fails", async () => {
 		const { removeFromLibrary } = await import(
 			"#/features/screens/mediaItemDetails/mediaItemDetails"
 		);
 		vi.mocked(removeFromLibrary).mockRejectedValue(new Error("network down"));
-		// The screen has no error handling of its own, so the click handler's
-		// promise rejects with nothing awaiting it; that is out of scope here.
 		const ignoreRejection = () => {};
 		process.on("unhandledRejection", ignoreRejection);
 		render(<MediaItemDetailsScreen />);
 
 		clickRemoveFromLibrary();
 
-		await vi.waitFor(() => expect(isUnsavedChangesGuardEnabled?.()).toBe(true));
-		expect(navigate).not.toHaveBeenCalled();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(navigate).not.toHaveBeenCalledWith({ to: "/" });
 		process.off("unhandledRejection", ignoreRejection);
 	});
 });

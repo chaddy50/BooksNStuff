@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useImperativeHandle } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { History } from "#/features/screens/mediaItemDetails/components/history/History";
+import { useInstanceEditingState } from "#/features/screens/mediaItemDetails/components/history/useInstanceEditingState";
 import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/mediaItemDetails";
 import { MediaItemType } from "#/lib/enums";
 
@@ -73,6 +74,21 @@ const mediaItemDetails = {
 	],
 } as unknown as MediaItemDetails;
 
+function HistoryHarness(props: {
+	mediaItemDetails: MediaItemDetails;
+	isUnsavedChangesGuardEnabled?: () => boolean;
+}) {
+	const editingState = useInstanceEditingState({
+		isUnsavedChangesGuardEnabled: props.isUnsavedChangesGuardEnabled,
+	});
+	return (
+		<History
+			mediaItemDetails={props.mediaItemDetails}
+			editingState={editingState}
+		/>
+	);
+}
+
 /** Opens the editor on the first entry, which every switching case starts from. */
 function openFirstEditor() {
 	fireEvent.click(screen.getAllByText("mediaItemDetails.edit")[0]);
@@ -88,7 +104,7 @@ beforeEach(() => {
 
 describe("History", () => {
 	it("switches entries immediately when the open editor is clean", () => {
-		render(<History mediaItemDetails={mediaItemDetails} />);
+		render(<HistoryHarness mediaItemDetails={mediaItemDetails} />);
 		openFirstEditor();
 
 		fireEvent.click(screen.getByText("mediaItemDetails.edit"));
@@ -98,7 +114,7 @@ describe("History", () => {
 	});
 
 	it("prompts instead of switching entries when the open editor is dirty", () => {
-		render(<History mediaItemDetails={mediaItemDetails} />);
+		render(<HistoryHarness mediaItemDetails={mediaItemDetails} />);
 		openFirstEditor();
 		editorHasUnsavedChanges.mockReturnValue(true);
 
@@ -110,7 +126,7 @@ describe("History", () => {
 	});
 
 	it("completes the switch without saving when the user discards", () => {
-		render(<History mediaItemDetails={mediaItemDetails} />);
+		render(<HistoryHarness mediaItemDetails={mediaItemDetails} />);
 		openFirstEditor();
 		editorHasUnsavedChanges.mockReturnValue(true);
 		fireEvent.click(screen.getByText("mediaItemDetails.edit"));
@@ -123,7 +139,7 @@ describe("History", () => {
 	});
 
 	it("saves and then completes the switch when the user saves and continues", async () => {
-		render(<History mediaItemDetails={mediaItemDetails} />);
+		render(<HistoryHarness mediaItemDetails={mediaItemDetails} />);
 		openFirstEditor();
 		editorHasUnsavedChanges.mockReturnValue(true);
 		fireEvent.click(screen.getByText("mediaItemDetails.edit"));
@@ -138,7 +154,7 @@ describe("History", () => {
 
 	it("keeps the user on the current entry when the save is refused", async () => {
 		editorSave.mockResolvedValue(false);
-		render(<History mediaItemDetails={mediaItemDetails} />);
+		render(<HistoryHarness mediaItemDetails={mediaItemDetails} />);
 		openFirstEditor();
 		editorHasUnsavedChanges.mockReturnValue(true);
 		fireEvent.click(screen.getByText("mediaItemDetails.edit"));
@@ -151,7 +167,7 @@ describe("History", () => {
 	});
 
 	it("cancels the pending switch when the user keeps editing", () => {
-		render(<History mediaItemDetails={mediaItemDetails} />);
+		render(<HistoryHarness mediaItemDetails={mediaItemDetails} />);
 		openFirstEditor();
 		editorHasUnsavedChanges.mockReturnValue(true);
 		fireEvent.click(screen.getByText("mediaItemDetails.edit"));
@@ -164,7 +180,7 @@ describe("History", () => {
 	});
 
 	it("guards adding a new entry while the open editor is dirty", () => {
-		render(<History mediaItemDetails={mediaItemDetails} />);
+		render(<HistoryHarness mediaItemDetails={mediaItemDetails} />);
 		openFirstEditor();
 		editorHasUnsavedChanges.mockReturnValue(true);
 
@@ -177,7 +193,7 @@ describe("History", () => {
 	});
 
 	it("adds a new entry immediately when nothing is dirty", () => {
-		render(<History mediaItemDetails={mediaItemDetails} />);
+		render(<HistoryHarness mediaItemDetails={mediaItemDetails} />);
 
 		fireEvent.click(screen.getByText("mediaItemDetails.addInstance"));
 
@@ -186,7 +202,7 @@ describe("History", () => {
 	});
 
 	it("never guards the editor's own cancel button", () => {
-		render(<History mediaItemDetails={mediaItemDetails} />);
+		render(<HistoryHarness mediaItemDetails={mediaItemDetails} />);
 		openFirstEditor();
 		editorHasUnsavedChanges.mockReturnValue(true);
 
@@ -199,7 +215,7 @@ describe("History", () => {
 
 	it("treats a closed editor as clean", () => {
 		editorHasUnsavedChanges.mockReturnValue(true);
-		render(<History mediaItemDetails={mediaItemDetails} />);
+		render(<HistoryHarness mediaItemDetails={mediaItemDetails} />);
 
 		fireEvent.click(screen.getAllByText("mediaItemDetails.edit")[0]);
 
@@ -209,7 +225,7 @@ describe("History", () => {
 
 	it("shows the empty state when there are no entries", () => {
 		render(
-			<History
+			<HistoryHarness
 				mediaItemDetails={
 					{ ...mediaItemDetails, instances: [] } as unknown as MediaItemDetails
 				}
@@ -223,7 +239,7 @@ describe("History", () => {
 
 	it("does not prompt while the screen has disabled the guard", () => {
 		render(
-			<History
+			<HistoryHarness
 				mediaItemDetails={mediaItemDetails}
 				isUnsavedChangesGuardEnabled={() => false}
 			/>,

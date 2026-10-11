@@ -1,73 +1,30 @@
 import { Link } from "@tanstack/react-router";
 import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
-import { SeriesLink } from "#/components/SeriesLink";
-import { CreatorLink } from "#/features/screens/mediaItemDetails/components/metadata/components/CreatorLink";
 import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/mediaItemDetails";
 import { MediaItemType } from "#/lib/enums";
-import { formatReleaseYear } from "#/lib/releaseDate";
 import { formatHours, formatMinutes } from "#/lib/utils";
 
+// Creator, series, release year, and tags live in the media item header instead;
+// this list only covers the remaining, less headline details.
 export function MetadataList({
 	type,
 	metadata,
-	releaseDate,
-	seriesId,
-	seriesName,
-	creatorId,
-	creatorName,
 	genreId,
 	genreName,
-	tags = [],
 }: {
 	type: MediaItemDetails["type"];
 	metadata: MediaItemDetails["metadata"];
-	releaseDate: MediaItemDetails["releaseDate"];
-	seriesId?: number | null;
-	seriesName?: string | null;
-	creatorId?: number | null;
-	creatorName?: string | null;
 	genreId?: number | null;
 	genreName?: string | null;
-	tags?: string[];
 }) {
 	const { t } = useTranslation();
-	const fields: Array<{
-		label: string;
-		value: string;
-		shouldSeriesNameBeLink?: boolean;
-		shouldCreatorBeLink?: boolean;
-	}> = [];
-
-	const releaseYear = formatReleaseYear(releaseDate, t);
-	if (releaseYear) {
-		fields.push({
-			label: t("mediaItemDetails.releaseDate"),
-			value: releaseYear,
-		});
-	}
+	const fields: Array<{ label: string; value: string }> = [];
 
 	if (metadata) {
 		const m = metadata as Record<string, unknown>;
 		switch (type) {
 			case MediaItemType.BOOK:
-				if (typeof m.author === "string")
-					fields.push({
-						label: t("metadata.author"),
-						value: m.author,
-						shouldCreatorBeLink: !!creatorId,
-					});
-				if (seriesName) {
-					const seriesLabel =
-						typeof m.seriesBookNumber === "string"
-							? `${seriesName} #${m.seriesBookNumber}`
-							: seriesName;
-					fields.push({
-						label: t("metadata.series"),
-						value: seriesLabel,
-						shouldSeriesNameBeLink: !!seriesId,
-					});
-				}
 				if (typeof m.pageCount === "number") {
 					fields.push({
 						label: t("metadata.pageCount"),
@@ -84,18 +41,6 @@ export function MetadataList({
 				}
 				break;
 			case MediaItemType.MOVIE:
-				if (seriesName)
-					fields.push({
-						label: t("metadata.series"),
-						value: seriesName,
-						shouldSeriesNameBeLink: !!seriesId,
-					});
-				if (typeof m.director === "string")
-					fields.push({
-						label: t("metadata.director"),
-						value: m.director,
-						shouldCreatorBeLink: !!creatorId,
-					});
 				if (typeof m.runtime === "number")
 					fields.push({
 						label: t("metadata.runtime"),
@@ -103,18 +48,6 @@ export function MetadataList({
 					});
 				break;
 			case MediaItemType.TV_SHOW:
-				if (seriesName)
-					fields.push({
-						label: t("metadata.series"),
-						value: seriesName,
-						shouldSeriesNameBeLink: !!seriesId,
-					});
-				if (typeof m.creator === "string")
-					fields.push({
-						label: t("metadata.creator"),
-						value: m.creator,
-						shouldCreatorBeLink: !!creatorId,
-					});
 				if (typeof m.seasons === "number")
 					fields.push({ label: t("metadata.seasons"), value: `${m.seasons}` });
 				if (
@@ -134,18 +67,6 @@ export function MetadataList({
 				}
 				break;
 			case MediaItemType.VIDEO_GAME:
-				if (seriesName)
-					fields.push({
-						label: t("metadata.series"),
-						value: seriesName,
-						shouldSeriesNameBeLink: !!seriesId,
-					});
-				if (typeof m.developer === "string")
-					fields.push({
-						label: t("metadata.developer"),
-						value: m.developer,
-						shouldCreatorBeLink: !!creatorId,
-					});
 				if (Array.isArray(m.platforms) && m.platforms.length)
 					fields.push({
 						label: t("metadata.platforms"),
@@ -168,18 +89,6 @@ export function MetadataList({
 					});
 				break;
 			case MediaItemType.PODCAST:
-				if (seriesName)
-					fields.push({
-						label: t("metadata.series"),
-						value: seriesName,
-						shouldSeriesNameBeLink: !!seriesId,
-					});
-				if (typeof m.creator === "string")
-					fields.push({
-						label: t("metadata.creator"),
-						value: m.creator,
-						shouldCreatorBeLink: !!creatorId,
-					});
 				if (Array.isArray(m.episodeTitles) && m.episodeTitles.length) {
 					fields.push({
 						label: t("podcast.episodes"),
@@ -198,32 +107,19 @@ export function MetadataList({
 		}
 	}
 
-	const hasContent = fields.length > 0 || !!genreName || tags.length > 0;
+	const hasContent = fields.length > 0 || !!genreName;
 	if (!hasContent) return null;
 
 	return (
 		<div className="flex flex-col gap-1.5 text-sm">
-			{fields.map(
-				({ label, value, shouldSeriesNameBeLink, shouldCreatorBeLink }) => (
-					<Fragment key={label}>
-						<div className="flex gap-3">
-							<span className="text-muted-foreground w-28 shrink-0">
-								{label}
-							</span>
-							{shouldSeriesNameBeLink ? (
-								<SeriesLink seriesId={seriesId} seriesName={value} />
-							) : shouldCreatorBeLink ? (
-								<CreatorLink
-									creatorId={creatorId}
-									creatorName={creatorName ?? value}
-								/>
-							) : (
-								<span className="text-foreground">{value}</span>
-							)}
-						</div>
-					</Fragment>
-				),
-			)}
+			{fields.map(({ label, value }) => (
+				<Fragment key={label}>
+					<div className="flex gap-3">
+						<span className="text-muted-foreground w-28 shrink-0">{label}</span>
+						<span className="text-foreground">{value}</span>
+					</div>
+				</Fragment>
+			))}
 			{genreName && genreId && (
 				<div className="flex gap-3">
 					<span className="text-muted-foreground w-28 shrink-0">
@@ -236,23 +132,6 @@ export function MetadataList({
 					>
 						{genreName}
 					</Link>
-				</div>
-			)}
-			{tags.length > 0 && (
-				<div className="flex gap-3">
-					<span className="text-muted-foreground w-28 shrink-0">
-						{t("mediaItem.tags")}
-					</span>
-					<div className="flex flex-wrap gap-1.5">
-						{tags.map((tag) => (
-							<span
-								key={tag}
-								className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs"
-							>
-								{tag}
-							</span>
-						))}
-					</div>
 				</div>
 			)}
 		</div>

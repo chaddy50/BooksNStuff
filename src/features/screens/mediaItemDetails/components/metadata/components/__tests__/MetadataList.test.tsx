@@ -5,47 +5,44 @@ import { MetadataList } from "#/features/screens/mediaItemDetails/components/met
 import { MediaItemType } from "#/lib/enums";
 
 vi.mock("react-i18next", () => ({
-	useTranslation: () => ({
-		t: (key: string, options?: { year: number }) =>
-			key === "time.yearBCE" ? `${options?.year} BCE` : key,
-	}),
+	useTranslation: () => ({ t: (key: string) => key }),
 }));
 
 vi.mock("@tanstack/react-router", () => ({
 	Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-function renderMetadataList(releaseDate: string | null) {
-	return render(
-		<MetadataList
-			type={MediaItemType.BOOK}
-			metadata={null}
-			releaseDate={releaseDate}
-		/>,
-	);
-}
-
 afterEach(cleanup);
 
+// Creator, series, release year, and tags live in the media item header instead —
+// this list only takes type-specific fields and genre.
 describe("MetadataList", () => {
-	it("shows a pre-0 CE release year with a BCE suffix", () => {
-		renderMetadataList("1200-01-01 BC");
+	it("shows type-specific details like page count", () => {
+		render(
+			<MetadataList type={MediaItemType.BOOK} metadata={{ pageCount: 400 }} />,
+		);
 
-		expect(screen.getByText("1200 BCE")).toBeInTheDocument();
-		expect(screen.queryByText("NaN")).not.toBeInTheDocument();
+		expect(screen.getByText("400")).toBeInTheDocument();
 	});
 
-	it("shows a CE release year as a bare year", () => {
-		renderMetadataList("2020-01-01");
+	it("shows the genre when both a name and id are known", () => {
+		render(
+			<MetadataList
+				type={MediaItemType.BOOK}
+				metadata={null}
+				genreId={3}
+				genreName="Sci-Fi"
+			/>,
+		);
 
-		expect(screen.getByText("2020")).toBeInTheDocument();
+		expect(screen.getByText("Sci-Fi")).toBeInTheDocument();
 	});
 
-	it("omits the release field when there is no release date", () => {
-		renderMetadataList(null);
+	it("returns nothing when there is no content left to show", () => {
+		const { container } = render(
+			<MetadataList type={MediaItemType.BOOK} metadata={null} />,
+		);
 
-		expect(
-			screen.queryByText("mediaItemDetails.releaseDate"),
-		).not.toBeInTheDocument();
+		expect(container).toBeEmptyDOMElement();
 	});
 });
