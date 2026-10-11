@@ -1,4 +1,5 @@
 import { useRouter } from "@tanstack/react-router";
+import { Pencil } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SaveAndCancelButtons } from "#/components/SaveAndCancelButtons";
@@ -32,6 +33,7 @@ import { GameFields } from "./editMetadata/GameFields";
 import { GenreField, type GenreFieldValue } from "./editMetadata/GenreField";
 import { MovieFields } from "./editMetadata/MovieFields";
 import { SeriesField, type SeriesFieldValue } from "./editMetadata/SeriesField";
+import { StatusFields } from "./editMetadata/StatusFields";
 import { TvShowFields } from "./editMetadata/TvShowFields";
 import { TagsEditor } from "./TagsEditor";
 
@@ -168,8 +170,14 @@ export function EditMetadataDialog(props: EditMetadataDialogProps) {
 
 	return (
 		<>
-			<Button variant="outline" onClick={() => setIsOpen(true)}>
-				{t("mediaItemDetails.edit")}
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				onClick={() => setIsOpen(true)}
+				aria-label={t("mediaItemDetails.edit")}
+				className="text-white hover:bg-white/10 hover:text-white"
+			>
+				<Pencil />
 			</Button>
 
 			<Dialog open={isOpen} onOpenChange={(open) => !open && setIsOpen(false)}>
@@ -182,6 +190,8 @@ export function EditMetadataDialog(props: EditMetadataDialogProps) {
 						<FormField label={t("metadata.title")}>
 							<Input value={title} onChange={(e) => setTitle(e.target.value)} />
 						</FormField>
+
+						<StatusFields mediaItemDetails={mediaItemDetails} />
 
 						<FormField label={t("metadata.description")}>
 							<Textarea

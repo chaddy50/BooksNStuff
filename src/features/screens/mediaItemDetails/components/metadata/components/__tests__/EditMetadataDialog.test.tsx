@@ -25,7 +25,7 @@ vi.mock("../editMetadata/TvShowFields", () => ({ TvShowFields: () => null }));
 vi.mock("../editMetadata/GameFields", () => ({ GameFields: () => null }));
 vi.mock("../TagsEditor", () => ({ TagsEditor: () => null }));
 
-const mediaItemDetails = {
+const baseMediaItemDetails = {
 	id: 1,
 	title: "A Memory Called Empire",
 	description: null,
@@ -33,6 +33,8 @@ const mediaItemDetails = {
 	releaseDate: null,
 	metadata: null,
 	type: MediaItemType.BOOK,
+	status: "backlog",
+	purchaseStatus: "not_purchased",
 	seriesId: null,
 	seriesName: null,
 	creatorId: null,
@@ -40,12 +42,15 @@ const mediaItemDetails = {
 	genreId: null,
 	genreName: null,
 	tags: [],
+	instances: [],
 } as unknown as Parameters<typeof EditMetadataDialog>[0]["mediaItemDetails"];
+
+const mediaItemDetails = baseMediaItemDetails;
 
 afterEach(cleanup);
 
 describe("EditMetadataDialog", () => {
-	it("shows a labeled Edit trigger instead of a bare icon button", () => {
+	it("shows an Edit trigger with an accessible name", () => {
 		render(<EditMetadataDialog mediaItemDetails={mediaItemDetails} />);
 
 		expect(
@@ -61,5 +66,15 @@ describe("EditMetadataDialog", () => {
 		);
 
 		expect(screen.getByRole("dialog")).toBeInTheDocument();
+	});
+
+	it("always includes status and purchase status fields", () => {
+		render(<EditMetadataDialog mediaItemDetails={mediaItemDetails} />);
+
+		fireEvent.click(
+			screen.getByRole("button", { name: "mediaItemDetails.edit" }),
+		);
+
+		expect(screen.getAllByRole("combobox")).toHaveLength(2);
 	});
 });

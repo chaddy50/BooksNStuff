@@ -1,3 +1,5 @@
+import { useRouter } from "@tanstack/react-router";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { TypeBadge } from "#/components/TypeBadge";
@@ -8,33 +10,53 @@ import { EditMetadataDialog } from "#/features/screens/mediaItemDetails/componen
 import { PurchasedToggle } from "#/features/screens/mediaItemDetails/components/metadata/components/PurchasedToggle";
 import { StatusSelect } from "#/features/screens/mediaItemDetails/components/metadata/components/StatusSelect";
 import { Title } from "#/features/screens/mediaItemDetails/components/metadata/components/Title";
-import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/mediaItemDetails";
+import {
+	type MediaItemDetails,
+	updateMediaItemStatus,
+} from "#/features/screens/mediaItemDetails/mediaItemDetails";
 import {
 	getLogProgressLabelKey,
 	getMostRecentRating,
 	getUnfinishedInstance,
 } from "#/features/screens/mediaItemDetails/mediaItemDetailsHeader";
+import { MediaItemStatus } from "#/lib/enums";
 import { MediaItemDetailsHeaderBackdrop } from "./MediaItemDetailsHeaderBackdrop";
 import { MediaItemDetailsHeaderCreatorLine } from "./MediaItemDetailsHeaderCreatorLine";
+import { MediaItemDetailsHeaderCurrentInstance } from "./MediaItemDetailsHeaderCurrentInstance";
 import { MediaItemDetailsHeaderSubline } from "./MediaItemDetailsHeaderSubline";
 import { MediaItemDetailsHeaderTags } from "./MediaItemDetailsHeaderTags";
 
 interface MediaItemDetailsHeaderProps {
 	mediaItemDetails: MediaItemDetails;
-	onLogProgress: () => void;
+	onUpdateProgress: (instanceId: number) => void;
 }
 
 export function MediaItemDetailsHeader(props: MediaItemDetailsHeaderProps) {
-	const { mediaItemDetails, onLogProgress } = props;
+	const { mediaItemDetails, onUpdateProgress } = props;
 	const { t } = useTranslation();
+	const router = useRouter();
+	const [isStarting, setIsStarting] = useState(false);
 	const rating = getMostRecentRating(mediaItemDetails.instances);
-	const hasUnfinishedInstance = Boolean(
-		getUnfinishedInstance(mediaItemDetails.instances),
-	);
+	const unfinishedInstance = getUnfinishedInstance(mediaItemDetails.instances);
 	const logProgressLabelKey = getLogProgressLabelKey(
 		mediaItemDetails.type,
-		hasUnfinishedInstance,
+		false,
 	);
+
+	async function handleStart() {
+		setIsStarting(true);
+		try {
+			await updateMediaItemStatus({
+				data: {
+					mediaItemId: mediaItemDetails.id,
+					status: MediaItemStatus.IN_PROGRESS,
+				},
+			});
+			router.invalidate();
+		} finally {
+			setIsStarting(false);
+		}
+	}
 
 	return (
 		<MediaItemDetailsHeaderBackdrop
@@ -44,7 +66,10 @@ export function MediaItemDetailsHeader(props: MediaItemDetailsHeaderProps) {
 				<Artwork mediaItemDetails={mediaItemDetails} />
 
 				<div className="flex flex-col gap-3 flex-1 min-w-0">
-					<Title mediaItemDetails={mediaItemDetails} />
+					<div className="flex items-center gap-2">
+						<Title mediaItemDetails={mediaItemDetails} />
+						<EditMetadataDialog mediaItemDetails={mediaItemDetails} />
+					</div>
 					<div className="flex items-center gap-3 flex-wrap">
 						<TypeBadge type={mediaItemDetails.type} className="shrink-0" />
 						<MediaItemDetailsHeaderSubline
@@ -58,17 +83,26 @@ export function MediaItemDetailsHeader(props: MediaItemDetailsHeaderProps) {
 
 					<RatingStars rating={rating} isOnDarkBackground />
 
-					<div className="flex items-center gap-3">
-						<StatusSelect mediaItemDetails={mediaItemDetails} />
-						<PurchasedToggle mediaItemDetails={mediaItemDetails} />
-					</div>
+					{!unfinishedInstance && (
+						<div className="flex items-center gap-3">
+							<StatusSelect mediaItemDetails={mediaItemDetails} />
+							<PurchasedToggle mediaItemDetails={mediaItemDetails} />
+						</div>
+					)}
 				</div>
 
 				<div className="flex items-center gap-2 shrink-0">
-					<Button onClick={onLogProgress}>
-						{t(logProgressLabelKey as never)}
-					</Button>
-					<EditMetadataDialog mediaItemDetails={mediaItemDetails} />
+					{unfinishedInstance ? (
+						<MediaItemDetailsHeaderCurrentInstance
+							instance={unfinishedInstance}
+							mediaItemType={mediaItemDetails.type}
+							onClick={() => onUpdateProgress(unfinishedInstance.id)}
+						/>
+					) : (
+						<Button onClick={handleStart} disabled={isStarting}>
+							{t(logProgressLabelKey as never)}
+						</Button>
+					)}
 				</div>
 			</div>
 		</MediaItemDetailsHeaderBackdrop>
