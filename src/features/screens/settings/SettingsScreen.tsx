@@ -2,6 +2,7 @@ import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { TopBar } from "#/features/navigation/topBar/TopBar";
+import { AppearanceSection } from "./components/AppearanceSection";
 import { BackupSection } from "./components/BackupSection";
 import { SettingsTabStrip } from "./components/SettingsTabStrip";
 import { UserInfo } from "./components/UserInfo";
@@ -46,6 +47,7 @@ export function SettingsScreen() {
 
 				<aside className="flex flex-col gap-10 md:col-span-1">
 					<UserInfo />
+					<AppearanceSection />
 					<BackupSection />
 				</aside>
 			</main>

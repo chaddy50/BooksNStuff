@@ -330,6 +330,13 @@ export const en = {
 			mergeDescription:
 				'Every item in "{{sourceName}}" will move to "{{targetName}}", and "{{sourceName}}" will be deleted. This cannot be undone.',
 		},
+		appearance: {
+			title: "Appearance",
+			description: "Overrides your device setting just for this app.",
+			light: "Light",
+			dark: "Dark",
+			system: "System",
+		},
 	},
 	viewGroups: {
 		newGroup: "New Group",
