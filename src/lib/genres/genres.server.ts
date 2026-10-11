@@ -2,6 +2,7 @@ import { and, asc, count, eq } from "drizzle-orm";
 
 import { db } from "#/database/index";
 import { type Genre, genres, mediaItems } from "#/database/schema";
+import { computeProfileStats } from "#/lib/queries/profileStats";
 import {
 	fetchLatestRatingsByMediaItemId,
 	getLatestRating,
@@ -66,18 +67,20 @@ export async function fetchGenreDetails(genreId: number, userId: string) {
 		.orderBy(asc(mediaItems.releaseDate), asc(mediaItems.sortTitle));
 
 	if (items.length === 0) {
-		return { ...row, items: [] };
+		return { ...row, items: [], stats: computeProfileStats([]) };
 	}
 
 	const itemIds = items.map((item) => item.id);
 	const latestRatings = await fetchLatestRatingsByMediaItemId(itemIds);
+	const itemsWithRatings = items.map((item) => ({
+		...item,
+		...getLatestRating(item.id, latestRatings),
+	}));
 
 	return {
 		...row,
-		items: items.map((item) => ({
-			...item,
-			...getLatestRating(item.id, latestRatings),
-		})),
+		items: itemsWithRatings,
+		stats: computeProfileStats(itemsWithRatings),
 	};
 }
 

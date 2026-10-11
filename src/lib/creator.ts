@@ -47,3 +47,36 @@ export function groupMediaItemTypesByCreatorMetadataKey(): ReadonlyArray<{
 	}
 	return Array.from(typesByKey, ([key, types]) => ({ key, types }));
 }
+
+export type CreatorRole = "author" | "director" | "creator" | "developer";
+
+/**
+ * A creator's role for display, derived from the media types of their linked
+ * items rather than stored — a creator with mixed item types (rare) gets
+ * whichever role their items lean toward, ties broken by metadata-key order.
+ */
+export function deriveCreatorRole(
+	itemTypes: ReadonlyArray<MediaItemType>,
+): CreatorRole | null {
+	if (itemTypes.length === 0) {
+		return null;
+	}
+
+	const countByKey = new Map<string, number>();
+	for (const type of itemTypes) {
+		const key = creatorMetadataKey(type);
+		countByKey.set(key, (countByKey.get(key) ?? 0) + 1);
+	}
+
+	let winningKey: string | null = null;
+	let highestCount = 0;
+	for (const { key } of groupMediaItemTypesByCreatorMetadataKey()) {
+		const count = countByKey.get(key) ?? 0;
+		if (count > highestCount) {
+			highestCount = count;
+			winningKey = key;
+		}
+	}
+
+	return winningKey as CreatorRole;
+}
