@@ -13,6 +13,7 @@ type Instance = {
 	seasonReviews: null;
 	consumptionInfo: null;
 	reviewText: string | null;
+	progressPercent: number | null;
 	startedAt: string | null;
 	completedAt: string | null;
 };
@@ -25,6 +26,7 @@ function makeInstance(overrides: Partial<Instance>): Instance {
 		seasonReviews: null,
 		consumptionInfo: null,
 		reviewText: null,
+		progressPercent: null,
 		startedAt: null,
 		completedAt: null,
 		...overrides,
