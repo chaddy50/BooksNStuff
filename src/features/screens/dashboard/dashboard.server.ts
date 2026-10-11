@@ -13,6 +13,7 @@ import {
 import { db } from "#/database/index";
 import { mediaItemInstances, mediaItems, series } from "#/database/schema";
 import { MediaItemStatus } from "#/lib/enums";
+import { fetchCurrentProgressByMediaItemId } from "#/lib/queries/progressQuery.server";
 import { fetchLatestRatingsByMediaItemId } from "#/lib/queries/ratingsQuery.server";
 import { findLastIndexWhere } from "#/lib/utils";
 
@@ -236,6 +237,22 @@ async function attachRatings<T extends { id: number }>(
 	}));
 }
 
+async function attachProgress<T extends { id: number }>(
+	items: T[],
+): Promise<(T & { progressPercent: number | null })[]> {
+	if (items.length === 0) {
+		return items.map((item) => ({ ...item, progressPercent: null }));
+	}
+
+	const itemIds = items.map((item) => item.id);
+	const currentProgress = await fetchCurrentProgressByMediaItemId(itemIds);
+
+	return items.map((item) => ({
+		...item,
+		progressPercent: currentProgress.get(item.id) ?? null,
+	}));
+}
+
 export async function fetchDashboardData(userId: string) {
 	const [
 		inProgressItemsRaw,
@@ -269,12 +286,13 @@ export async function fetchDashboardData(userId: string) {
 		({ completedAt: _completedAt, ...rest }) => rest,
 	);
 
-	const [inProgressItems, nextInSeriesItems, recentlyFinishedItems] =
+	const [inProgressItemsWithRatings, nextInSeriesItems, recentlyFinishedItems] =
 		await Promise.all([
 			attachRatings(inProgressItemsRaw),
 			attachRatings(nextInSeriesItemsRaw),
 			attachRatings(recentlyFinishedWithoutCompletedAt),
 		]);
+	const inProgressItems = await attachProgress(inProgressItemsWithRatings);
 
 	return { inProgressItems, nextInSeriesItems, recentlyFinishedItems };
 }

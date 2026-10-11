@@ -31,6 +31,7 @@ function makeItem(overrides: Partial<LibraryItem> = {}): LibraryItem {
 		genreName: null,
 		completedAt: null,
 		rating: 0,
+		progressPercent: null,
 		...overrides,
 	};
 }

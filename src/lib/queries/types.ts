@@ -27,6 +27,7 @@ export type ItemQueryItem = {
 	genreName: string | null;
 	completedAt: string | null;
 	rating: number;
+	progressPercent: number | null;
 };
 
 export type ItemStats = {

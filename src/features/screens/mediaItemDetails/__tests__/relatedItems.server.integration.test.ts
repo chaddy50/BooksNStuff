@@ -13,6 +13,7 @@ vi.mock("#/features/screens/auth/session", () => ({
 
 import { MediaItemType } from "#/lib/enums";
 import {
+	insertInstance,
 	insertMediaItem,
 	insertMediaItemRelation,
 	truncateAll,
@@ -77,6 +78,25 @@ describe("getRelatedMediaItems", () => {
 		const related = await getRelatedMediaItems(myItem, USER_A);
 
 		expect(related).toEqual([]);
+	});
+
+	it("attaches a related item's stored progressPercent", async () => {
+		const book = await insertItem(USER_A, "Dune");
+		const movie = await insertItem(
+			USER_A,
+			"Dune (1984 film)",
+			MediaItemType.MOVIE,
+		);
+		await insertMediaItemRelation({ mediaItemIdA: book, mediaItemIdB: movie });
+		await insertInstance({
+			mediaItemId: movie,
+			startedAt: "2024-01-01",
+			progressPercent: 65,
+		});
+
+		const related = await getRelatedMediaItems(book, USER_A);
+
+		expect(related[0].progressPercent).toBe(65);
 	});
 });
 

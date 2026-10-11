@@ -172,4 +172,22 @@ describe("fetchDashboardData", () => {
 		expect(allTitles).toContain("Up next");
 		expect(allTitles).not.toContain("B's item");
 	});
+
+	it("attaches each in-progress item's stored progressPercent", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			title: "Reading now",
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+			progressPercent: 42,
+		});
+
+		const data = await fetchDashboardData(USER_A);
+
+		expect(data.inProgressItems[0].progressPercent).toBe(42);
+	});
 });

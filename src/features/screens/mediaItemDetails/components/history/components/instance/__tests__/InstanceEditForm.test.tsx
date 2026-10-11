@@ -77,6 +77,78 @@ describe("InstanceEditForm", () => {
 		expect(saveInstance).toHaveBeenCalled();
 	});
 
+	it("prefills the progress field from the instance's stored progressPercent", () => {
+		render(
+			<InstanceEditForm
+				{...baseProps}
+				instance={{
+					id: 42,
+					rating: 0,
+					fictionRating: null,
+					seasonReviews: null,
+					consumptionInfo: null,
+					reviewText: null,
+					progressPercent: 55,
+					startedAt: "2024-01-01",
+					completedAt: null,
+				}}
+			/>,
+		);
+
+		expect(screen.getByLabelText("mediaItemDetails.progress")).toHaveValue(55);
+	});
+
+	it("saves the typed progress percentage", async () => {
+		const { saveInstance } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		vi.mocked(saveInstance).mockClear();
+		render(<InstanceEditForm {...baseProps} />);
+
+		fireEvent.change(screen.getByLabelText("mediaItemDetails.progress"), {
+			target: { value: "30" },
+		});
+		fireEvent.click(screen.getByText("mediaItemDetails.save"));
+
+		await vi.waitFor(() => expect(saveInstance).toHaveBeenCalled());
+		expect(vi.mocked(saveInstance).mock.calls[0][0].data.progressPercent).toBe(
+			30,
+		);
+	});
+
+	it("sends an undefined progressPercent (clearing it server-side) when the field is emptied", async () => {
+		const { saveInstance } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		vi.mocked(saveInstance).mockClear();
+		render(
+			<InstanceEditForm
+				{...baseProps}
+				instance={{
+					id: 42,
+					rating: 0,
+					fictionRating: null,
+					seasonReviews: null,
+					consumptionInfo: null,
+					reviewText: null,
+					progressPercent: 55,
+					startedAt: "2024-01-01",
+					completedAt: null,
+				}}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText("mediaItemDetails.progress"), {
+			target: { value: "" },
+		});
+		fireEvent.click(screen.getByText("mediaItemDetails.save"));
+
+		await vi.waitFor(() => expect(saveInstance).toHaveBeenCalled());
+		expect(
+			vi.mocked(saveInstance).mock.calls[0][0].data.progressPercent,
+		).toBeUndefined();
+	});
+
 	it("shows season reviews section only when mediaItemType is TV_SHOW", () => {
 		const { rerender } = render(
 			<InstanceEditForm {...baseProps} mediaItemType={MediaItemType.BOOK} />,
@@ -113,6 +185,7 @@ describe("InstanceEditForm", () => {
 			seasonReviews: null,
 			consumptionInfo: null,
 			reviewText: null,
+			progressPercent: null,
 			startedAt: null,
 			completedAt: null,
 		};
@@ -189,6 +262,7 @@ describe("InstanceEditForm", () => {
 			seasonReviews: null,
 			consumptionInfo: null,
 			reviewText: null,
+			progressPercent: null,
 			startedAt: null,
 			completedAt: null,
 		};
@@ -212,6 +286,7 @@ const savedInstance = {
 	seasonReviews: null,
 	consumptionInfo: null,
 	reviewText: "First impressions",
+	progressPercent: null,
 	startedAt: "2024-01-01",
 	completedAt: null,
 };

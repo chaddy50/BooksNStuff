@@ -7,6 +7,10 @@ import { creators, mediaItems } from "#/database/schema";
 import { getLoggedInUser } from "#/features/screens/auth/session";
 import { updateCreatorMetadata as updateCreatorMetadataForUser } from "#/features/screens/creatorDetails/creatorDetails.server";
 import {
+	fetchCurrentProgressByMediaItemId,
+	getCurrentProgress,
+} from "#/lib/queries/progressQuery.server";
+import {
 	fetchLatestRatingsByMediaItemId,
 	getLatestRating,
 } from "#/lib/queries/ratingsQuery.server";
@@ -60,13 +64,17 @@ export const getCreatorDetails = createServerFn({ method: "GET" })
 		}
 
 		const itemIds = items.map((item) => item.id);
-		const latestRatings = await fetchLatestRatingsByMediaItemId(itemIds);
+		const [latestRatings, currentProgress] = await Promise.all([
+			fetchLatestRatingsByMediaItemId(itemIds),
+			fetchCurrentProgressByMediaItemId(itemIds),
+		]);
 
 		return {
 			...row,
 			items: items.map((item) => ({
 				...item,
 				...getLatestRating(item.id, latestRatings),
+				progressPercent: getCurrentProgress(item.id, currentProgress),
 			})),
 		};
 	});

@@ -140,6 +140,7 @@ type InsertInstanceOptions = {
 	fictionRating?: FictionRating;
 	seasonReviews?: SeasonReview[];
 	consumptionInfo?: ConsumptionInfo;
+	progressPercent?: number;
 };
 
 /** Inserts a `media_item_instances` row and returns its id. */
@@ -157,6 +158,7 @@ export async function insertInstance(
 			fictionRating: options.fictionRating ?? null,
 			seasonReviews: options.seasonReviews ?? null,
 			consumptionInfo: options.consumptionInfo ?? null,
+			progressPercent: options.progressPercent ?? null,
 		})
 		.returning({ id: mediaItemInstances.id });
 

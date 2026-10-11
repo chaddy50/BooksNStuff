@@ -50,6 +50,13 @@ export function InstanceRow({
 							{consumptionLabel}
 						</span>
 					)}
+					{instance.progressPercent != null && (
+						<span className="text-muted-foreground text-sm">
+							{t("mediaItemDetails.progressComplete", {
+								percent: instance.progressPercent,
+							})}
+						</span>
+					)}
 					<RatingStars rating={instance.rating} shouldShowValue />
 				</div>
 				<Button

@@ -22,7 +22,9 @@ import {
 	truncateAll,
 } from "#/tests/integration/helpers";
 import {
+	getMediaItemDetailsForUser,
 	removeFromLibrary,
+	saveInstanceForUser,
 	updateMediaItemCreator,
 	updateMediaItemMetadata,
 	updateMediaItemSeries,
@@ -412,5 +414,61 @@ describe("removeFromLibrary", () => {
 		await removeFromLibrary(itemB, USER_A);
 
 		expect(await readItem(itemB)).toBeDefined();
+	});
+});
+
+describe("saveInstanceForUser / getMediaItemDetailsForUser progress", () => {
+	it("round-trips a saved progressPercent onto the instance", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+		});
+
+		await saveInstanceForUser(
+			{ mediaItemId: itemId, instanceId, progressPercent: 42 },
+			USER_A,
+		);
+
+		const details = await getMediaItemDetailsForUser(itemId, USER_A);
+		expect(details.instances[0].progressPercent).toBe(42);
+	});
+
+	it("clears progressPercent back to null when omitted on a later save", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+			progressPercent: 42,
+		});
+
+		await saveInstanceForUser({ mediaItemId: itemId, instanceId }, USER_A);
+
+		const details = await getMediaItemDetailsForUser(itemId, USER_A);
+		expect(details.instances[0].progressPercent).toBeNull();
+	});
+
+	it("does not update an instance belonging to another user's item", async () => {
+		const { itemB } = await seedBothUsersOwnSameItem();
+		const instanceId = await insertInstance({
+			mediaItemId: itemB,
+			startedAt: "2024-01-01",
+		});
+
+		await expect(
+			saveInstanceForUser(
+				{ mediaItemId: itemB, instanceId, progressPercent: 90 },
+				USER_A,
+			),
+		).rejects.toThrow("Media item not found");
+
+		const details = await getMediaItemDetailsForUser(itemB, USER_B);
+		expect(details.instances[0].progressPercent).toBeNull();
 	});
 });

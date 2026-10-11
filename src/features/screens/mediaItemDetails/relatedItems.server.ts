@@ -8,6 +8,10 @@ import type {
 	PurchaseStatus,
 } from "#/lib/enums";
 import {
+	fetchCurrentProgressByMediaItemId,
+	getCurrentProgress,
+} from "#/lib/queries/progressQuery.server";
+import {
 	fetchLatestRatingsByMediaItemId,
 	getLatestRating,
 } from "#/lib/queries/ratingsQuery.server";
@@ -21,6 +25,7 @@ export type RelatedMediaItem = {
 	purchaseStatus: PurchaseStatus;
 	expectedReleaseDate: string | null;
 	rating: number;
+	progressPercent: number | null;
 };
 
 /** The id of whichever side of the pair isn't the item being viewed. */
@@ -59,13 +64,16 @@ export async function getRelatedMediaItems(
 		)
 		.orderBy(mediaItems.sortTitle);
 
-	const latestRatings = await fetchLatestRatingsByMediaItemId(
-		rows.map((row) => row.id),
-	);
+	const itemIds = rows.map((row) => row.id);
+	const [latestRatings, currentProgress] = await Promise.all([
+		fetchLatestRatingsByMediaItemId(itemIds),
+		fetchCurrentProgressByMediaItemId(itemIds),
+	]);
 
 	return rows.map((row) => ({
 		...row,
 		rating: getLatestRating(row.id, latestRatings).rating,
+		progressPercent: getCurrentProgress(row.id, currentProgress),
 	}));
 }
 

@@ -54,6 +54,7 @@ type BaseItem = {
 	purchaseStatus: PurchaseStatus;
 	status: MediaItemStatus;
 	expectedReleaseDate?: string | null;
+	progressPercent?: number | null;
 };
 
 const baseItem: BaseItem = {
@@ -72,6 +73,7 @@ function renderMediaItemCard(
 		shouldShowRating?: boolean;
 		shouldShowPurchaseStatus?: boolean;
 		shouldShowStatus?: boolean;
+		shouldShowProgress?: boolean;
 		shouldLinkToDetails?: boolean;
 	} = {},
 ) {
@@ -80,6 +82,7 @@ function renderMediaItemCard(
 		shouldShowRating,
 		shouldShowPurchaseStatus,
 		shouldShowStatus,
+		shouldShowProgress,
 		shouldLinkToDetails,
 		...itemOverrides
 	} = overrides;
@@ -91,6 +94,7 @@ function renderMediaItemCard(
 				shouldShowRating={shouldShowRating}
 				shouldShowPurchaseStatus={shouldShowPurchaseStatus}
 				shouldShowStatus={shouldShowStatus}
+				shouldShowProgress={shouldShowProgress}
 				shouldLinkToDetails={shouldLinkToDetails}
 			/>
 		</TooltipProvider>,
@@ -319,6 +323,44 @@ describe("MediaItemCard", () => {
 	it("does not show series name even when seriesName is provided", () => {
 		renderMediaItemCard({ seriesName: "The Expanse" });
 		expect(screen.queryByText("The Expanse")).not.toBeInTheDocument();
+	});
+
+	it("shows a progress indicator for an in-progress item with a stored progressPercent", () => {
+		renderMediaItemCard({
+			status: MediaItemStatus.IN_PROGRESS,
+			progressPercent: 30,
+		});
+
+		const progressBar = screen.getByRole("progressbar");
+		expect(progressBar).toHaveAttribute("aria-valuenow", "30");
+	});
+
+	it("shows no progress indicator when progressPercent is not set", () => {
+		renderMediaItemCard({
+			status: MediaItemStatus.IN_PROGRESS,
+			progressPercent: null,
+		});
+
+		expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+	});
+
+	it("shows no progress indicator for a non-in-progress item even with a stored progressPercent", () => {
+		renderMediaItemCard({
+			status: MediaItemStatus.COMPLETED,
+			progressPercent: 100,
+		});
+
+		expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+	});
+
+	it("shows no progress indicator when shouldShowProgress is false", () => {
+		renderMediaItemCard({
+			status: MediaItemStatus.IN_PROGRESS,
+			progressPercent: 30,
+			shouldShowProgress: false,
+		});
+
+		expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
 	});
 });
 
@@ -577,6 +619,7 @@ type SurfaceItem = {
 	creatorName: null;
 	genreId: null;
 	genreName: null;
+	progressPercent: number | null;
 };
 
 function buildSurfaceItem(overrides: Partial<SurfaceItem> = {}): SurfaceItem {
@@ -597,6 +640,7 @@ function buildSurfaceItem(overrides: Partial<SurfaceItem> = {}): SurfaceItem {
 		creatorName: null,
 		genreId: null,
 		genreName: null,
+		progressPercent: null,
 		...overrides,
 	};
 }
