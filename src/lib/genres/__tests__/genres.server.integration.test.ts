@@ -229,6 +229,47 @@ describe("fetchGenreDetails", () => {
 
 		expect(details.items).toEqual([]);
 	});
+
+	it("includes stats computed from the genre's items", async () => {
+		const genreId = await insertGenre({ userId: USER_A, name: "Fiction" });
+		const completedId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.COMPLETED,
+			genreId,
+		});
+		await insertInstance({
+			mediaItemId: completedId,
+			completedAt: "2024-01-01",
+			rating: "4",
+		});
+		await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.BACKLOG,
+			genreId,
+		});
+
+		const details = await fetchGenreDetails(genreId, USER_A);
+
+		expect(details.stats).toEqual({
+			totalCount: 2,
+			completedCount: 1,
+			averageRating: 4,
+		});
+	});
+
+	it("returns zero stats for a genre with no items", async () => {
+		const genreId = await insertGenre({ userId: USER_A, name: "Empty" });
+
+		const details = await fetchGenreDetails(genreId, USER_A);
+
+		expect(details.stats).toEqual({
+			totalCount: 0,
+			completedCount: 0,
+			averageRating: null,
+		});
+	});
 });
 
 // ---------------------------------------------------------------------------

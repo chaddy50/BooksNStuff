@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveCreatorName } from "../creator";
+import { deriveCreatorRole, resolveCreatorName } from "../creator";
 
 describe("resolveCreatorName", () => {
 	it("returns author for books", () => {
@@ -39,5 +39,23 @@ describe("resolveCreatorName", () => {
 
 	it("returns null when the expected field is not a string", () => {
 		expect(resolveCreatorName("book", { author: 42 })).toBeNull();
+	});
+});
+
+describe("deriveCreatorRole", () => {
+	it("returns null for a creator with no items", () => {
+		expect(deriveCreatorRole([])).toBeNull();
+	});
+
+	it("returns author for a creator whose items are all books", () => {
+		expect(deriveCreatorRole(["book", "book"])).toBe("author");
+	});
+
+	it("returns the majority role for a mixed set of items", () => {
+		expect(deriveCreatorRole(["movie", "movie", "book"])).toBe("director");
+	});
+
+	it("breaks a tie by the author/director/creator/developer priority order", () => {
+		expect(deriveCreatorRole(["movie", "book"])).toBe("author");
 	});
 });
