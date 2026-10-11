@@ -62,12 +62,25 @@ export function deriveCreatorRole(
 		return null;
 	}
 
+	const countByKey = countItemsByCreatorMetadataKey(itemTypes);
+	return pickHighestCountKeyInPriorityOrder(countByKey) as CreatorRole;
+}
+
+function countItemsByCreatorMetadataKey(
+	itemTypes: ReadonlyArray<MediaItemType>,
+): Map<string, number> {
 	const countByKey = new Map<string, number>();
 	for (const type of itemTypes) {
 		const key = creatorMetadataKey(type);
 		countByKey.set(key, (countByKey.get(key) ?? 0) + 1);
 	}
+	return countByKey;
+}
 
+/** Ties go to whichever key comes first in metadata-key priority order. */
+function pickHighestCountKeyInPriorityOrder(
+	countByKey: Map<string, number>,
+): string | null {
 	let winningKey: string | null = null;
 	let highestCount = 0;
 	for (const { key } of groupMediaItemTypesByCreatorMetadataKey()) {
@@ -77,6 +90,5 @@ export function deriveCreatorRole(
 			winningKey = key;
 		}
 	}
-
-	return winningKey as CreatorRole;
+	return winningKey;
 }
