@@ -143,23 +143,24 @@ type InsertInstanceOptions = {
 	progressPercent?: number;
 };
 
+const DEFAULT_INSTANCE_VALUES = {
+	completedAt: null,
+	startedAt: null,
+	rating: null,
+	reviewText: null,
+	fictionRating: null,
+	seasonReviews: null,
+	consumptionInfo: null,
+	progressPercent: null,
+};
+
 /** Inserts a `media_item_instances` row and returns its id. */
 export async function insertInstance(
 	options: InsertInstanceOptions,
 ): Promise<number> {
 	const [row] = await testDb
 		.insert(mediaItemInstances)
-		.values({
-			mediaItemId: options.mediaItemId,
-			completedAt: options.completedAt ?? null,
-			startedAt: options.startedAt ?? null,
-			rating: options.rating ?? null,
-			reviewText: options.reviewText ?? null,
-			fictionRating: options.fictionRating ?? null,
-			seasonReviews: options.seasonReviews ?? null,
-			consumptionInfo: options.consumptionInfo ?? null,
-			progressPercent: options.progressPercent ?? null,
-		})
+		.values({ ...DEFAULT_INSTANCE_VALUES, ...options })
 		.returning({ id: mediaItemInstances.id });
 
 	if (!row) throw new Error("insertInstance failed");

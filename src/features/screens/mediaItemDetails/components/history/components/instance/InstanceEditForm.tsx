@@ -84,6 +84,16 @@ function getInitialConsumptionInfo(
 	return { method: getDefaultMethod(mediaItemType, settings) };
 }
 
+function formatProgressPercentInput(
+	progressPercent: number | null | undefined,
+): string {
+	return progressPercent != null ? String(progressPercent) : "";
+}
+
+function parseProgressPercentInput(value: string): number | undefined {
+	return value ? Number(value) : undefined;
+}
+
 export function InstanceEditForm({
 	instance,
 	mediaItemId,
@@ -108,7 +118,7 @@ export function InstanceEditForm({
 	);
 	const [completedAt, setCompletedAt] = useState(instance?.completedAt ?? "");
 	const [progressPercent, setProgressPercent] = useState(
-		instance?.progressPercent != null ? String(instance.progressPercent) : "",
+		formatProgressPercentInput(instance?.progressPercent),
 	);
 	const [consumptionInfo, setConsumptionInfo] =
 		useState<ConsumptionInfo | null>(
@@ -175,9 +185,7 @@ export function InstanceEditForm({
 	const completedAtId = useId();
 	const progressPercentId = useId();
 	const reviewTextId = useId();
-	const parsedProgressPercent = progressPercent
-		? Number(progressPercent)
-		: undefined;
+	const parsedProgressPercent = parseProgressPercentInput(progressPercent);
 
 	const usedSeasons = new Set(seasonReviews.map((r) => r.season));
 	const nextAvailableSeason = totalSeasons

@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import { RatingStars } from "#/features/screens/mediaItemDetails/components/history/components/instance/rating/ratingStars/RatingStars";
 import { MediaItemStatus, MediaItemType, PurchaseStatus } from "#/lib/enums";
+import { ProgressBar } from "./ProgressBar";
 import { PurchasedBadge } from "./PurchasedBadge";
 import { StatusBadge } from "./StatusBadge";
 import { TypeBadge } from "./TypeBadge";
@@ -53,7 +53,6 @@ export function MediaItemCard({
 	shouldShowProgress = true,
 	shouldLinkToDetails = true,
 }: MediaItemCardProps) {
-	const { t } = useTranslation();
 	const shouldShowRatingStars =
 		shouldShowRating && mediaItem.status === MediaItemStatus.COMPLETED;
 	const shouldShowPurchasedBadge =
@@ -64,11 +63,6 @@ export function MediaItemCard({
 	const shouldShowStatusBadge =
 		shouldShowStatus && mediaItem.status !== MediaItemStatus.BACKLOG;
 	const isPodcast = mediaItem.type === MediaItemType.PODCAST;
-	const progressPercent = mediaItem.progressPercent ?? null;
-	const shouldShowProgressBar =
-		shouldShowProgress &&
-		mediaItem.status === MediaItemStatus.IN_PROGRESS &&
-		progressPercent !== null;
 
 	const cardContent = (
 		<div className="aspect-2/3 w-full bg-muted relative">
@@ -143,23 +137,11 @@ export function MediaItemCard({
 					</div>
 				)}
 
-				{shouldShowProgressBar && progressPercent !== null && (
-					<div
-						role="progressbar"
-						aria-valuenow={progressPercent}
-						aria-valuemin={0}
-						aria-valuemax={100}
-						aria-label={t("mediaItemDetails.progressComplete", {
-							percent: progressPercent,
-						})}
-						className="w-full h-2.5 bg-black/60 backdrop-blur-sm border-t border-white/40"
-					>
-						<div
-							className="h-full bg-[#a855f7]"
-							style={{ width: `${progressPercent}%` }}
-						/>
-					</div>
-				)}
+				<ProgressBar
+					status={mediaItem.status}
+					progressPercent={mediaItem.progressPercent}
+					shouldShow={shouldShowProgress}
+				/>
 			</div>
 		</div>
 	);

@@ -107,15 +107,20 @@ export type SaveInstanceInput = {
 	consumptionInfo?: { method: string; controlMethod?: string };
 };
 
+/** Empty-string form fields mean "cleared", so they are stored as null too. */
+function emptyToNull(value: string | undefined): string | null {
+	return value || null;
+}
+
 function buildInstanceValues(data: SaveInstanceInput) {
 	return {
 		rating: data.rating ?? null,
 		fictionRating: data.fictionRating ?? null,
 		seasonReviews: data.seasonReviews ?? null,
 		consumptionInfo: (data.consumptionInfo ?? null) as ConsumptionInfo | null,
-		reviewText: data.reviewText || null,
-		startedAt: data.startedAt || null,
-		completedAt: data.completedAt || null,
+		reviewText: emptyToNull(data.reviewText),
+		startedAt: emptyToNull(data.startedAt),
+		completedAt: emptyToNull(data.completedAt),
 		progressPercent: data.progressPercent ?? null,
 	};
 }
