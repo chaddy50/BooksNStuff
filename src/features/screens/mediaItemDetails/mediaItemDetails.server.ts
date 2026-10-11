@@ -112,16 +112,22 @@ function emptyToNull(value: string | undefined): string | null {
 	return value || null;
 }
 
+function undefinedToNull<T>(value: T | undefined): T | null {
+	return value ?? null;
+}
+
 function buildInstanceValues(data: SaveInstanceInput) {
 	return {
-		rating: data.rating ?? null,
-		fictionRating: data.fictionRating ?? null,
-		seasonReviews: data.seasonReviews ?? null,
-		consumptionInfo: (data.consumptionInfo ?? null) as ConsumptionInfo | null,
+		rating: undefinedToNull(data.rating),
+		fictionRating: undefinedToNull(data.fictionRating),
+		seasonReviews: undefinedToNull(data.seasonReviews),
+		consumptionInfo: undefinedToNull(
+			data.consumptionInfo,
+		) as ConsumptionInfo | null,
 		reviewText: emptyToNull(data.reviewText),
 		startedAt: emptyToNull(data.startedAt),
 		completedAt: emptyToNull(data.completedAt),
-		progressPercent: data.progressPercent ?? null,
+		progressPercent: undefinedToNull(data.progressPercent),
 	};
 }
 
