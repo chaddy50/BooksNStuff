@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // src/lib/** is not in the config's jsdom globs; this suite needs browser globals.
 
-import * as vm from "node:vm";
+import { createContext, runInContext } from "node:vm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	buildThemeInitScript,
@@ -147,8 +147,8 @@ describe("buildThemeInitScript", () => {
 				},
 			},
 		};
-		vm.createContext(sandbox);
-		vm.runInContext(buildThemeInitScript(), sandbox);
+		createContext(sandbox);
+		runInContext(buildThemeInitScript(), sandbox);
 		return classList.has("dark");
 	}
 

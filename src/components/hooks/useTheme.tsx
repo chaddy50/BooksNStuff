@@ -34,6 +34,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 	useEffect(() => {
 		if (themeMode !== "system") {
+			// No-op cleanup keeps this effect's return type consistent across branches.
 			return () => {};
 		}
 
