@@ -49,6 +49,7 @@ export function MediaItemDetailsScreen() {
 			to: "/mediaItemDetails/$mediaItemId",
 			params: { mediaItemId: String(mediaItemDetails.id) },
 			search: { tab: tabId },
+			resetScroll: false,
 		});
 	}
 
