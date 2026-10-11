@@ -8,7 +8,7 @@ interface ArtworkProps {
 export function Artwork(props: ArtworkProps) {
 	const { mediaItemDetails } = props;
 	return (
-		<div className="shrink-0 w-full max-w-64 md:max-w-none md:w-75">
+		<div className="shrink-0 w-full max-w-64 mx-auto md:mx-0 md:max-w-none md:w-75">
 			<div
 				className={`${mediaItemDetails.type === MediaItemType.PODCAST ? "aspect-square" : "aspect-2/3"} bg-muted rounded-lg overflow-hidden`}
 			>

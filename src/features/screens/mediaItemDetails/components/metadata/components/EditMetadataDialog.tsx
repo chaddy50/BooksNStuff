@@ -1,5 +1,4 @@
 import { useRouter } from "@tanstack/react-router";
-import { Pencil } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SaveAndCancelButtons } from "#/components/SaveAndCancelButtons";
@@ -169,14 +168,8 @@ export function EditMetadataDialog(props: EditMetadataDialogProps) {
 
 	return (
 		<>
-			<Button
-				variant="ghost"
-				size="icon"
-				className="text-muted-foreground hover:text-foreground"
-				onClick={() => setIsOpen(true)}
-				aria-label={t("mediaItemDetails.edit")}
-			>
-				<Pencil className="size-4" />
+			<Button variant="outline" onClick={() => setIsOpen(true)}>
+				{t("mediaItemDetails.edit")}
 			</Button>
 
 			<Dialog open={isOpen} onOpenChange={(open) => !open && setIsOpen(false)}>

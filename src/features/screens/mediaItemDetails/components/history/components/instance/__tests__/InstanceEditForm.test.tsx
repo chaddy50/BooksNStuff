@@ -509,13 +509,31 @@ describe("InstanceEditForm scrolling into view", () => {
 		HTMLElement.prototype.scrollIntoView = scrollIntoView;
 	});
 
-	it("scrolls itself into view on mount when creating a new entry", () => {
+	function stubBoundingRect(rect: { top: number; bottom: number }) {
+		HTMLElement.prototype.getBoundingClientRect = vi
+			.fn()
+			.mockReturnValue({ ...rect, height: rect.bottom - rect.top } as DOMRect);
+	}
+
+	it("scrolls a new entry's form into view on mount when it's off-screen", () => {
+		stubBoundingRect({ top: 2000, bottom: 2400 });
+
 		render(<InstanceEditForm {...baseProps} />);
 
 		expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
 	});
 
-	it("does not scroll on mount when editing an existing entry", () => {
+	it("scrolls an existing entry's form into view on mount when it's off-screen", () => {
+		stubBoundingRect({ top: -400, bottom: -100 });
+
+		render(<InstanceEditForm {...baseProps} instance={savedInstance} />);
+
+		expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
+	});
+
+	it("does not scroll when the form is already fully in view", () => {
+		stubBoundingRect({ top: 100, bottom: 300 });
+
 		render(<InstanceEditForm {...baseProps} instance={savedInstance} />);
 
 		expect(scrollIntoView).not.toHaveBeenCalled();

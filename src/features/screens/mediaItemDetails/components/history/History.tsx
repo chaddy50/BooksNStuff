@@ -1,32 +1,18 @@
-import { useRef, useState } from "react";
-import { useUnsavedChangesGuard } from "#/components/hooks/useUnsavedChangesGuard";
 import { UnsavedChangesDialog } from "#/components/UnsavedChangesDialog";
 import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/mediaItemDetails";
-import type { InstanceEditFormHandle } from "./components/instance/InstanceEditForm";
 import { InstanceList } from "./components/instance/InstanceList";
 import { TopBar } from "./components/TopBar";
+import type { InstanceEditingState } from "./useInstanceEditingState";
 
 interface HistoryProps {
 	mediaItemDetails: MediaItemDetails;
-	isUnsavedChangesGuardEnabled?: () => boolean;
+	editingState: InstanceEditingState;
 }
 
 export function History(props: HistoryProps) {
-	const { mediaItemDetails, isUnsavedChangesGuardEnabled } = props;
-	const [idBeingEdited, setIdBeingEdited] = useState<number | "new" | null>(
-		null,
-	);
-	const editorRef = useRef<InstanceEditFormHandle | null>(null);
-
-	const guard = useUnsavedChangesGuard({
-		hasUnsavedChanges: () => editorRef.current?.hasUnsavedChanges() ?? false,
-		save: () => editorRef.current?.save() ?? Promise.resolve(true),
-		isEnabled: isUnsavedChangesGuardEnabled,
-	});
-
-	function startEditing(id: number | "new") {
-		guard.startEditing(() => setIdBeingEdited(id));
-	}
+	const { mediaItemDetails, editingState } = props;
+	const { idBeingEdited, setIdBeingEdited, editorRef, guard, startEditing } =
+		editingState;
 
 	return (
 		<div className="mb-10">

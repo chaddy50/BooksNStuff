@@ -141,14 +141,20 @@ export function InstanceEditForm({
 	};
 	const baselineRef = useRef(currentValues);
 
-	// Scrolling a newly-created entry's form into view only ever needs to
-	// happen once, on mount — not on every `instance` identity change.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: mount-only, see comment above
+	// Scrolling the form into view only ever needs to happen once, on mount —
+	// not on every `instance` identity change. Only scroll when the form
+	// isn't already fully visible, so opening a row the user can already see
+	// doesn't jump the page.
 	useEffect(() => {
-		if (instance) {
+		const element = formRootRef.current;
+		if (!element) {
 			return;
 		}
-		formRootRef.current?.scrollIntoView({ block: "nearest" });
+		const rect = element.getBoundingClientRect();
+		const isFullyInView = rect.top >= 0 && rect.bottom <= window.innerHeight;
+		if (!isFullyInView) {
+			element.scrollIntoView({ block: "nearest" });
+		}
 	}, []);
 
 	useEffect(() => {
