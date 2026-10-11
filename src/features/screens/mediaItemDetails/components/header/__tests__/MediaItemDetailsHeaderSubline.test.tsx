@@ -27,12 +27,10 @@ function makeMediaItemDetails(
 ): Parameters<typeof MediaItemDetailsHeaderSubline>[0]["mediaItemDetails"] {
 	return {
 		type: MediaItemType.BOOK,
-		metadata: { author: "Arkady Martine", seriesBookNumber: "1" },
+		metadata: {},
 		releaseDate: "2019-01-01",
-		seriesId: 5,
-		seriesName: "Teixcalaan",
-		creatorId: 9,
-		creatorName: "Arkady Martine",
+		genreId: 3,
+		genreName: "Sci-Fi",
 		...overrides,
 	} as unknown as Parameters<
 		typeof MediaItemDetailsHeaderSubline
@@ -42,47 +40,31 @@ function makeMediaItemDetails(
 afterEach(cleanup);
 
 describe("MediaItemDetailsHeaderSubline", () => {
-	it("renders the release year, creator, and series with book number, dot-separated, in that order", () => {
+	it("renders the genre and release year, dot-separated, genre first", () => {
 		render(
 			<MediaItemDetailsHeaderSubline
 				mediaItemDetails={makeMediaItemDetails()}
 			/>,
 		);
 
+		expect(screen.getByText("Sci-Fi")).toBeInTheDocument();
 		expect(screen.getByText("2019")).toBeInTheDocument();
-		expect(screen.getByText("Arkady Martine")).toBeInTheDocument();
-		expect(screen.getByText("Teixcalaan #1")).toBeInTheDocument();
 
 		const text =
 			screen.getByTestId("media-item-details-header-subline").textContent ?? "";
-		expect(text.indexOf("2019")).toBeLessThan(text.indexOf("Arkady Martine"));
-		expect(text.indexOf("Arkady Martine")).toBeLessThan(
-			text.indexOf("Teixcalaan #1"),
-		);
+		expect(text.indexOf("Sci-Fi")).toBeLessThan(text.indexOf("2019"));
 	});
 
-	it("links the creator when a creatorId is known", () => {
+	it("links the genre to its genre page", () => {
 		render(
 			<MediaItemDetailsHeaderSubline
 				mediaItemDetails={makeMediaItemDetails()}
 			/>,
 		);
 
-		expect(
-			screen.getByRole("link", { name: "Arkady Martine" }),
-		).toHaveAttribute("href", "/creator/9");
-	});
-
-	it("links the series when a seriesId is known", () => {
-		render(
-			<MediaItemDetailsHeaderSubline
-				mediaItemDetails={makeMediaItemDetails()}
-			/>,
-		);
-
-		expect(screen.getByRole("link", { name: "Teixcalaan #1" })).toHaveAttribute(
+		expect(screen.getByRole("link", { name: "Sci-Fi" })).toHaveAttribute(
 			"href",
-			"/series/5",
+			"/genre/3",
 		);
 	});
 
@@ -90,24 +72,22 @@ describe("MediaItemDetailsHeaderSubline", () => {
 		render(
 			<MediaItemDetailsHeaderSubline
 				mediaItemDetails={makeMediaItemDetails({
-					seriesId: null,
-					seriesName: null,
+					genreId: null,
+					genreName: null,
 				})}
 			/>,
 		);
 
-		expect(screen.queryByText("Teixcalaan #1")).not.toBeInTheDocument();
-		expect(screen.getByText("Arkady Martine")).toBeInTheDocument();
+		expect(screen.queryByText("Sci-Fi")).not.toBeInTheDocument();
 		expect(screen.getByText("2019")).toBeInTheDocument();
 	});
 
-	it("renders nothing when there is no creator, series, or year", () => {
+	it("renders nothing when there is no genre or release year", () => {
 		const { container } = render(
 			<MediaItemDetailsHeaderSubline
 				mediaItemDetails={makeMediaItemDetails({
-					metadata: {},
-					seriesId: null,
-					seriesName: null,
+					genreId: null,
+					genreName: null,
 					releaseDate: null,
 				})}
 			/>,

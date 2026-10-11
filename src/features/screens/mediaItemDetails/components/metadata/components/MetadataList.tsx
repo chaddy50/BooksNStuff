@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import type { TFunction } from "i18next";
 import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
@@ -127,26 +126,21 @@ const FIELD_BUILDER_BY_TYPE: Record<MediaItemType, FieldBuilder> = {
 	[MediaItemType.PODCAST]: podcastFields,
 };
 
-// Creator, series, release year, and tags live in the media item header instead;
-// this list only covers the remaining, less headline details.
+// Creator, series, release year, genre, and tags live in the media item header
+// instead; this list only covers the remaining, less headline details.
 export function MetadataList({
 	type,
 	metadata,
-	genreId,
-	genreName,
 }: {
 	type: MediaItemDetails["type"];
 	metadata: MediaItemDetails["metadata"];
-	genreId?: number | null;
-	genreName?: string | null;
 }) {
 	const { t } = useTranslation();
 	const fields = metadata
 		? FIELD_BUILDER_BY_TYPE[type](metadata as Record<string, unknown>, t)
 		: [];
 
-	const hasContent = fields.length > 0 || !!genreName;
-	if (!hasContent) return null;
+	if (fields.length === 0) return null;
 
 	return (
 		<div className="flex flex-col gap-1.5 text-sm">
@@ -158,20 +152,6 @@ export function MetadataList({
 					</div>
 				</Fragment>
 			))}
-			{genreName && genreId && (
-				<div className="flex gap-3">
-					<span className="text-muted-foreground w-28 shrink-0">
-						{t("metadata.genre")}
-					</span>
-					<Link
-						to="/genre/$genreId"
-						params={{ genreId: String(genreId) }}
-						className="text-foreground hover:underline"
-					>
-						{genreName}
-					</Link>
-				</div>
-			)}
 		</div>
 	);
 }
