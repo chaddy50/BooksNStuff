@@ -107,22 +107,24 @@ export type SaveInstanceInput = {
 	consumptionInfo?: { method: string; controlMethod?: string };
 };
 
+function buildInstanceValues(data: SaveInstanceInput) {
+	return {
+		rating: data.rating ?? null,
+		fictionRating: data.fictionRating ?? null,
+		seasonReviews: data.seasonReviews ?? null,
+		consumptionInfo: (data.consumptionInfo ?? null) as ConsumptionInfo | null,
+		reviewText: data.reviewText || null,
+		startedAt: data.startedAt || null,
+		completedAt: data.completedAt || null,
+		progressPercent: data.progressPercent ?? null,
+	};
+}
+
 export async function saveInstanceForUser(
 	data: SaveInstanceInput,
 	userId: string,
 ): Promise<void> {
-	const {
-		mediaItemId,
-		instanceId,
-		rating,
-		fictionRating,
-		reviewText,
-		startedAt,
-		completedAt,
-		progressPercent,
-		seasonReviews,
-		consumptionInfo,
-	} = data;
+	const { mediaItemId, instanceId, startedAt, completedAt } = data;
 
 	const [item] = await db
 		.select({ seriesId: mediaItems.seriesId })
@@ -130,16 +132,7 @@ export async function saveInstanceForUser(
 		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
 	if (!item) throw new Error("Media item not found");
 
-	const values = {
-		rating: rating ?? null,
-		fictionRating: fictionRating ?? null,
-		seasonReviews: seasonReviews ?? null,
-		consumptionInfo: (consumptionInfo ?? null) as ConsumptionInfo | null,
-		reviewText: reviewText || null,
-		startedAt: startedAt || null,
-		completedAt: completedAt || null,
-		progressPercent: progressPercent ?? null,
-	};
+	const values = buildInstanceValues(data);
 	if (instanceId) {
 		await db
 			.update(mediaItemInstances)
@@ -151,9 +144,7 @@ export async function saveInstanceForUser(
 				),
 			);
 	} else {
-		await db
-			.insert(mediaItemInstances)
-			.values({ mediaItemId: mediaItemId, ...values });
+		await db.insert(mediaItemInstances).values({ mediaItemId, ...values });
 	}
 
 	const newStatus = inferStatusAfterInstanceEdit(startedAt, completedAt);
