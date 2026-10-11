@@ -3,17 +3,12 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "#/database/index";
-import { creators, mediaItems } from "#/database/schema";
+import { creators } from "#/database/schema";
 import { getLoggedInUser } from "#/features/screens/auth/session";
-import { updateCreatorMetadata as updateCreatorMetadataForUser } from "#/features/screens/creatorDetails/creatorDetails.server";
 import {
-	fetchCurrentProgressByMediaItemId,
-	getCurrentProgress,
-} from "#/lib/queries/progressQuery.server";
-import {
-	fetchLatestRatingsByMediaItemId,
-	getLatestRating,
-} from "#/lib/queries/ratingsQuery.server";
+	fetchCreatorDetails,
+	updateCreatorMetadata as updateCreatorMetadataForUser,
+} from "#/features/screens/creatorDetails/creatorDetails.server";
 
 // ---------------------------------------------------------------------------
 // Server functions
@@ -34,49 +29,7 @@ export const getCreatorDetails = createServerFn({ method: "GET" })
 	.inputValidator(z.object({ id: z.number() }))
 	.handler(async ({ data: { id } }) => {
 		const user = await getLoggedInUser();
-
-		const [row] = await db
-			.select()
-			.from(creators)
-			.where(and(eq(creators.id, id), eq(creators.userId, user.id)));
-
-		if (!row) {
-			throw new Error(`Creator ${id} not found`);
-		}
-
-		const items = await db
-			.select({
-				id: mediaItems.id,
-				status: mediaItems.status,
-				purchaseStatus: mediaItems.purchaseStatus,
-				expectedReleaseDate: mediaItems.expectedReleaseDate,
-				title: mediaItems.title,
-				type: mediaItems.type,
-				coverImageUrl: mediaItems.coverImageUrl,
-				metadata: mediaItems.metadata,
-			})
-			.from(mediaItems)
-			.where(and(eq(mediaItems.creatorId, id), eq(mediaItems.userId, user.id)))
-			.orderBy(asc(mediaItems.releaseDate), asc(mediaItems.sortTitle));
-
-		if (items.length === 0) {
-			return { ...row, items: [] };
-		}
-
-		const itemIds = items.map((item) => item.id);
-		const [latestRatings, currentProgress] = await Promise.all([
-			fetchLatestRatingsByMediaItemId(itemIds),
-			fetchCurrentProgressByMediaItemId(itemIds),
-		]);
-
-		return {
-			...row,
-			items: items.map((item) => ({
-				...item,
-				...getLatestRating(item.id, latestRatings),
-				progressPercent: getCurrentProgress(item.id, currentProgress),
-			})),
-		};
+		return fetchCreatorDetails(id, user.id);
 	});
 
 export type CreatorDetails = Awaited<ReturnType<typeof getCreatorDetails>>;

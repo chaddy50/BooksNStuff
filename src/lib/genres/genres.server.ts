@@ -2,6 +2,7 @@ import { and, asc, count, eq } from "drizzle-orm";
 
 import { db } from "#/database/index";
 import { type Genre, genres, mediaItems } from "#/database/schema";
+import { computeProfileStats } from "#/lib/queries/profileStats";
 import {
 	fetchCurrentProgressByMediaItemId,
 	getCurrentProgress,
@@ -70,7 +71,7 @@ export async function fetchGenreDetails(genreId: number, userId: string) {
 		.orderBy(asc(mediaItems.releaseDate), asc(mediaItems.sortTitle));
 
 	if (items.length === 0) {
-		return { ...row, items: [] };
+		return { ...row, items: [], stats: computeProfileStats([]) };
 	}
 
 	const itemIds = items.map((item) => item.id);
@@ -78,14 +79,16 @@ export async function fetchGenreDetails(genreId: number, userId: string) {
 		fetchLatestRatingsByMediaItemId(itemIds),
 		fetchCurrentProgressByMediaItemId(itemIds),
 	]);
+	const itemsWithRatings = items.map((item) => ({
+		...item,
+		...getLatestRating(item.id, latestRatings),
+		progressPercent: getCurrentProgress(item.id, currentProgress),
+	}));
 
 	return {
 		...row,
-		items: items.map((item) => ({
-			...item,
-			...getLatestRating(item.id, latestRatings),
-			progressPercent: getCurrentProgress(item.id, currentProgress),
-		})),
+		items: itemsWithRatings,
+		stats: computeProfileStats(itemsWithRatings),
 	};
 }
 

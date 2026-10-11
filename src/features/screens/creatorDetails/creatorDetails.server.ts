@@ -1,8 +1,20 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "#/database/index";
 import { creators, mediaItems } from "#/database/schema";
-import { groupMediaItemTypesByCreatorMetadataKey } from "#/lib/creator";
+import {
+	deriveCreatorRole,
+	groupMediaItemTypesByCreatorMetadataKey,
+} from "#/lib/creator";
+import { computeProfileStats } from "#/lib/queries/profileStats";
+import {
+	fetchCurrentProgressByMediaItemId,
+	getCurrentProgress,
+} from "#/lib/queries/progressQuery.server";
+import {
+	fetchLatestRatingsByMediaItemId,
+	getLatestRating,
+} from "#/lib/queries/ratingsQuery.server";
 
 /**
  * Find an existing creator row for (userId, name), or create one with the
@@ -45,6 +57,58 @@ export async function findOrCreateCreator(
 	}
 
 	return inserted.id;
+}
+
+export async function fetchCreatorDetails(creatorId: number, userId: string) {
+	const [row] = await db
+		.select()
+		.from(creators)
+		.where(and(eq(creators.id, creatorId), eq(creators.userId, userId)));
+
+	if (!row) {
+		throw new Error(`Creator ${creatorId} not found`);
+	}
+
+	const items = await db
+		.select({
+			id: mediaItems.id,
+			status: mediaItems.status,
+			purchaseStatus: mediaItems.purchaseStatus,
+			expectedReleaseDate: mediaItems.expectedReleaseDate,
+			title: mediaItems.title,
+			type: mediaItems.type,
+			coverImageUrl: mediaItems.coverImageUrl,
+			metadata: mediaItems.metadata,
+		})
+		.from(mediaItems)
+		.where(
+			and(eq(mediaItems.creatorId, creatorId), eq(mediaItems.userId, userId)),
+		)
+		.orderBy(asc(mediaItems.releaseDate), asc(mediaItems.sortTitle));
+
+	const role = deriveCreatorRole(items.map((item) => item.type));
+
+	if (items.length === 0) {
+		return { ...row, items: [], stats: computeProfileStats([]), role };
+	}
+
+	const itemIds = items.map((item) => item.id);
+	const [latestRatings, currentProgress] = await Promise.all([
+		fetchLatestRatingsByMediaItemId(itemIds),
+		fetchCurrentProgressByMediaItemId(itemIds),
+	]);
+	const itemsWithRatings = items.map((item) => ({
+		...item,
+		...getLatestRating(item.id, latestRatings),
+		progressPercent: getCurrentProgress(item.id, currentProgress),
+	}));
+
+	return {
+		...row,
+		items: itemsWithRatings,
+		stats: computeProfileStats(itemsWithRatings),
+		role,
+	};
 }
 
 export type UpdateCreatorMetadataInput = {
