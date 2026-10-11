@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 
+import { TypeBadge } from "#/components/TypeBadge";
 import { Button } from "#/components/ui/button";
 import { RatingStars } from "#/features/screens/mediaItemDetails/components/history/components/instance/rating/ratingStars/RatingStars";
 import { Artwork } from "#/features/screens/mediaItemDetails/components/metadata/components/Artwork";
@@ -14,6 +15,7 @@ import {
 	getUnfinishedInstance,
 } from "#/features/screens/mediaItemDetails/mediaItemDetailsHeader";
 import { MediaItemDetailsHeaderBackdrop } from "./MediaItemDetailsHeaderBackdrop";
+import { MediaItemDetailsHeaderCreatorLine } from "./MediaItemDetailsHeaderCreatorLine";
 import { MediaItemDetailsHeaderSubline } from "./MediaItemDetailsHeaderSubline";
 import { MediaItemDetailsHeaderTags } from "./MediaItemDetailsHeaderTags";
 
@@ -42,11 +44,16 @@ export function MediaItemDetailsHeader(props: MediaItemDetailsHeaderProps) {
 				<Artwork mediaItemDetails={mediaItemDetails} />
 
 				<div className="flex flex-col gap-3 flex-1 min-w-0">
-					<Title mediaItemDetails={mediaItemDetails}>
+					<Title mediaItemDetails={mediaItemDetails} />
+					<div className="flex items-center gap-3 flex-wrap">
+						<TypeBadge type={mediaItemDetails.type} className="shrink-0" />
 						<MediaItemDetailsHeaderSubline
 							mediaItemDetails={mediaItemDetails}
 						/>
-					</Title>
+					</div>
+					<MediaItemDetailsHeaderCreatorLine
+						mediaItemDetails={mediaItemDetails}
+					/>
 					<MediaItemDetailsHeaderTags tags={mediaItemDetails.tags} />
 
 					<RatingStars rating={rating} isOnDarkBackground />

@@ -192,11 +192,32 @@ describe("MediaItemDetailsHeader", () => {
 		).toBeTruthy();
 	});
 
-	it("shows the creator, series, and release year on the same line as the type badge", () => {
+	it("shows the genre and release year on the same line as the type badge, below the title", () => {
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				releaseDate: "2019-01-01",
+				genreId: 3,
+				genreName: "Sci-Fi",
+			}),
+		});
+
+		expect(screen.getByText("Sci-Fi")).toBeInTheDocument();
+		expect(screen.getByText("2019")).toBeInTheDocument();
+
+		const subline = screen.getByTestId("media-item-details-header-subline");
+		const typeBadge = screen.getByTestId("type-badge");
+		const heading = screen.getByRole("heading", {
+			name: "A Memory Called Empire",
+		});
+
+		expect(subline.parentElement).toBe(typeBadge.parentElement);
+		expect(typeBadge.parentElement).not.toBe(heading.parentElement);
+	});
+
+	it("shows the creator and series on their own line below the title", () => {
 		renderMediaItemDetailsHeader({
 			mediaItemDetails: makeMediaItemDetails({
 				metadata: { author: "Arkady Martine", seriesBookNumber: "1" },
-				releaseDate: "2019-01-01",
 				seriesId: 5,
 				seriesName: "Teixcalaan",
 				creatorId: 9,
@@ -206,11 +227,12 @@ describe("MediaItemDetailsHeader", () => {
 
 		expect(screen.getByText("Arkady Martine")).toBeInTheDocument();
 		expect(screen.getByText("Teixcalaan #1")).toBeInTheDocument();
-		expect(screen.getByText("2019")).toBeInTheDocument();
 
-		const subline = screen.getByTestId("media-item-details-header-subline");
+		const creatorLine = screen.getByTestId(
+			"media-item-details-header-creator-line",
+		);
 		const typeBadge = screen.getByTestId("type-badge");
-		expect(subline.parentElement).toBe(typeBadge.parentElement?.parentElement);
+		expect(creatorLine.parentElement).not.toBe(typeBadge.parentElement);
 	});
 
 	it("shows the item's tags on their own line", () => {

@@ -63,17 +63,19 @@ describe("MetadataList", () => {
 		expect(screen.getByText("2 podcast.episodesCount")).toBeInTheDocument();
 	});
 
-	it("shows the genre when both a name and id are known", () => {
-		render(
+	it("no longer renders genre; it moved into the header", () => {
+		const { container } = render(
 			<MetadataList
 				type={MediaItemType.BOOK}
 				metadata={null}
+				// @ts-expect-error genreId/genreName no longer exist on MetadataList's props
 				genreId={3}
 				genreName="Sci-Fi"
 			/>,
 		);
 
-		expect(screen.getByText("Sci-Fi")).toBeInTheDocument();
+		expect(screen.queryByText("Sci-Fi")).not.toBeInTheDocument();
+		expect(container).toBeEmptyDOMElement();
 	});
 
 	it("returns nothing when there is no content left to show", () => {
