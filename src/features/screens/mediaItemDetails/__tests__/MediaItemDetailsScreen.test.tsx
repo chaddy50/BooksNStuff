@@ -103,6 +103,19 @@ describe("MediaItemDetailsScreen", () => {
 		expect(screen.getByTestId("related-items")).toBeInTheDocument();
 	});
 
+	it("keeps the scroll position when switching tabs", () => {
+		render(<MediaItemDetailsScreen />);
+
+		fireEvent.click(screen.getByText("mediaItemDetails.history"));
+
+		expect(navigate).toHaveBeenCalledWith({
+			to: "/mediaItemDetails/$mediaItemId",
+			params: { mediaItemId: "7" },
+			search: { tab: "history" },
+			resetScroll: false,
+		});
+	});
+
 	it("navigates to the history tab and starts a new entry when logging progress with no unfinished instance", () => {
 		render(<MediaItemDetailsScreen />);
 
@@ -112,6 +125,7 @@ describe("MediaItemDetailsScreen", () => {
 			to: "/mediaItemDetails/$mediaItemId",
 			params: { mediaItemId: "7" },
 			search: { tab: "history" },
+			resetScroll: false,
 		});
 	});
 
