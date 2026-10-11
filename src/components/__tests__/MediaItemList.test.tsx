@@ -55,6 +55,12 @@ function renderMediaItemList(
 afterEach(cleanup);
 
 describe("MediaItemList", () => {
+	it("shows an empty state when there are no items", () => {
+		renderMediaItemList([]);
+
+		expect(screen.getByText("views.empty")).toBeInTheDocument();
+	});
+
 	// Omitting the prop must reach MediaItemCard as undefined so its own default
 	// decides — which is why this asserts through the real card, not a stub.
 	it("shows badges when the prop is omitted", () => {
