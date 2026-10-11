@@ -29,6 +29,9 @@ Media Tracker: a TanStack Start (React) app for tracking media (movies, shows, b
 ## Conventions
 
 - Feature-first placement: new code goes inside the relevant `src/features/**` folder, not into a generic shared bucket, unless it's genuinely used by 2+ features.
+- One component per file; the file name matches the exported component (`PascalCase.tsx`).
+- Sub-components live in a `components/` folder at the root of the parent component's own directory, not as plain siblings next to the parent (e.g. `history/History.tsx` + `history/components/TopBar.tsx`). This nests recursively: a sub-component with its own sub-components gets its own `components/` folder inside its own directory.
+- Shared components (used by more than one feature) belong in the top-level `src/components/` (`ui/` for design-system primitives), not nested under a feature.
 - Colocate tests in `__tests__/` beside the source file.
 - Don't hand-edit generated Drizzle migration files; regenerate via `db:generate`.
 
