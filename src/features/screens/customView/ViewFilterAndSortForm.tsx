@@ -34,6 +34,7 @@ export function ViewFilterAndSortForm({
 	const [name, setName] = useState(initialName);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 	const { data: tagsList = [] } = useQuery({
 		queryKey: ["tags"],
 		queryFn: () => getTags(),
@@ -59,8 +60,11 @@ export function ViewFilterAndSortForm({
 
 	async function handleSubmit() {
 		setIsSubmitting(true);
+		setError(null);
 		try {
 			await onSubmit({ name, subject, filters: buildFilters() });
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Failed to save changes.");
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -69,8 +73,11 @@ export function ViewFilterAndSortForm({
 	async function handleDelete() {
 		if (!onDelete) return;
 		setIsDeleting(true);
+		setError(null);
 		try {
 			await onDelete();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Failed to delete view.");
 		} finally {
 			setIsDeleting(false);
 		}
@@ -85,6 +92,7 @@ export function ViewFilterAndSortForm({
 			/>
 			<Filters {...filtersProps} />
 			<SortingOptions {...sortingProps} shouldAllowCustomOrder />
+			{error && <p className="text-sm text-destructive">{error}</p>}
 			<FilterAndSortActions
 				onSubmit={handleSubmit}
 				onCancel={onCancel}
