@@ -135,6 +135,16 @@ describe("InstanceRow", () => {
 		).toBeInTheDocument();
 	});
 
+	it("shows a · separator between each of the three meta labels", () => {
+		renderInstanceRow({
+			startedAt: "2026-01-01",
+			progressPercent: 42,
+			consumptionInfo: { method: "ebook" },
+		});
+
+		expect(screen.getAllByText("·")).toHaveLength(2);
+	});
+
 	it("shows no progress percentage when the instance has none", () => {
 		renderInstanceRow({ progressPercent: null });
 

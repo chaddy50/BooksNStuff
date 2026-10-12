@@ -24,8 +24,8 @@ describe("formatDateRange", () => {
 		);
 	});
 
-	it("returns start date with Present when only startedAt is set", () => {
-		expect(formatDateRange("2024-01-01", null)).toBe("Jan 01, 2024 – Present");
+	it("returns 'Started {date}' when only startedAt is set", () => {
+		expect(formatDateRange("2024-01-01", null)).toBe("Started Jan 01, 2024");
 	});
 
 	it("returns just the end date when only completedAt is set", () => {

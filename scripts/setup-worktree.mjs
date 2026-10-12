@@ -123,9 +123,16 @@ function linkSharedPaths(checkoutRoot, mainRoot) {
 /**
  * Each checkout gets its own real node_modules. See the note at the top of this
  * file for why a symlink to the main checkout is not an option.
+ *
+ * Checks for node_modules/.package-lock.json rather than just node_modules
+ * itself — npm only writes that file once `npm ci`/`npm install` completes, so
+ * it can't be fooled by a node_modules directory that only has stray cache
+ * dirs in it (e.g. Vite's .vite/.vite-temp, written as soon as anything runs
+ * vite/vitest from this checkout even while resolving the actual packages
+ * from a parent directory's node_modules).
  */
 function ensureDependencies(checkoutRoot) {
-	if (existsSync(join(checkoutRoot, "node_modules"))) {
+	if (existsSync(join(checkoutRoot, "node_modules", ".package-lock.json"))) {
 		return;
 	}
 

@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ProgressBar } from "#/components/ProgressBar";
@@ -42,9 +43,16 @@ export function MediaItemDetailsHeaderCurrentInstance(
 			aria-label={t(getLogProgressLabelKey(mediaItemType, true) as never)}
 			className="flex flex-col gap-1.5 rounded-md border border-border bg-accent/50 px-4 py-2.5 text-left text-foreground transition-colors hover:bg-accent overflow-hidden -mb-px"
 		>
-			<div className="flex flex-wrap items-center gap-2 text-sm">
-				{metaLabels.map((label) => (
-					<span key={label}>{label}</span>
+			<div className="text-sm">
+				{metaLabels.map((label, index) => (
+					<Fragment key={label}>
+						{index > 0 && (
+							<span className="mx-1.5" aria-hidden="true">
+								·
+							</span>
+						)}
+						<span>{label}</span>
+					</Fragment>
 				))}
 			</div>
 			<div className="-mx-4 -mb-2.5">

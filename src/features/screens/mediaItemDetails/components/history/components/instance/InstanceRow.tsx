@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import { MarkdownTextBlock } from "#/components/MarkdownTextBlock";
 import { Button } from "#/components/ui/button";
@@ -57,11 +58,18 @@ export function InstanceRow({
 					<span className="text-sm font-medium text-muted-foreground">
 						#{index}
 					</span>
-					{metaLabels.map((label) => (
-						<span key={label} className="text-muted-foreground text-sm">
-							{label}
-						</span>
-					))}
+					<span className="text-muted-foreground text-sm">
+						{metaLabels.map((label, index) => (
+							<Fragment key={label}>
+								{index > 0 && (
+									<span className="mx-1.5" aria-hidden="true">
+										·
+									</span>
+								)}
+								<span>{label}</span>
+							</Fragment>
+						))}
+					</span>
 					<RatingStars rating={instance.rating} shouldShowValue />
 				</div>
 				<Button
