@@ -16,7 +16,7 @@ export function MediaItemDetailsHeaderTags(
 			{tags.map((tag) => (
 				<span
 					key={tag}
-					className="px-2 py-0.5 rounded-full bg-white/15 text-white text-xs"
+					className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs"
 				>
 					{tag}
 				</span>

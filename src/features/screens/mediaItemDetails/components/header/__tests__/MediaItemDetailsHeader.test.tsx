@@ -237,6 +237,18 @@ describe("MediaItemDetailsHeader", () => {
 		expect(screen.getByTestId("rating-stars")).toBeInTheDocument();
 	});
 
+	it("uses theme-aware star colors instead of a hardcoded dark-background color", () => {
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				instances: [{ id: 1, rating: 4, startedAt: null, completedAt: null }],
+			}),
+		});
+
+		const [filledStar] = screen.getAllByTestId("rating-star");
+		expect(filledStar.querySelector("svg")).toHaveClass("text-yellow-800");
+		expect(filledStar.querySelector("svg")).not.toHaveClass("text-yellow-300");
+	});
+
 	it("omits the rating when no instance has one", () => {
 		renderMediaItemDetailsHeader();
 

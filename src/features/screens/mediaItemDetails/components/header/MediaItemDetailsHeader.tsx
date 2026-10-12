@@ -59,9 +59,7 @@ export function MediaItemDetailsHeader(props: MediaItemDetailsHeaderProps) {
 	}
 
 	return (
-		<MediaItemDetailsHeaderBackdrop
-			coverImageUrl={mediaItemDetails.coverImageUrl}
-		>
+		<MediaItemDetailsHeaderBackdrop>
 			<div className="flex flex-col md:flex-row gap-6 md:items-end">
 				<Artwork mediaItemDetails={mediaItemDetails} />
 
@@ -81,7 +79,7 @@ export function MediaItemDetailsHeader(props: MediaItemDetailsHeaderProps) {
 					/>
 					<MediaItemDetailsHeaderTags tags={mediaItemDetails.tags} />
 
-					<RatingStars rating={rating} isOnDarkBackground />
+					<RatingStars rating={rating} />
 
 					{!unfinishedInstance && (
 						<div className="flex items-center gap-3">

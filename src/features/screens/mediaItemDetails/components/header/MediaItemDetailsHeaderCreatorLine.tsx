@@ -79,7 +79,7 @@ export function MediaItemDetailsHeaderCreatorLine(
 
 	return (
 		<p
-			className="text-white/80 text-sm"
+			className="text-foreground text-sm"
 			data-testid="media-item-details-header-creator-line"
 		>
 			{segments.map(({ key, node }, index) => (

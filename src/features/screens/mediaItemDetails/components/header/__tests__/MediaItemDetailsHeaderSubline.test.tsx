@@ -82,6 +82,21 @@ describe("MediaItemDetailsHeaderSubline", () => {
 		expect(screen.getByText("2019")).toBeInTheDocument();
 	});
 
+	it("uses theme-aware full-strength text instead of a hardcoded white color", () => {
+		render(
+			<MediaItemDetailsHeaderSubline
+				mediaItemDetails={makeMediaItemDetails()}
+			/>,
+		);
+
+		expect(screen.getByTestId("media-item-details-header-subline")).toHaveClass(
+			"text-foreground",
+		);
+		expect(
+			screen.getByTestId("media-item-details-header-subline"),
+		).not.toHaveClass("text-white/80", "text-muted-foreground");
+	});
+
 	it("renders nothing when there is no genre or release year", () => {
 		const { container } = render(
 			<MediaItemDetailsHeaderSubline
