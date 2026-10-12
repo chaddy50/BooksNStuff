@@ -58,20 +58,18 @@ export function InstanceRow({
 					<span className="text-sm font-medium text-muted-foreground">
 						#{index}
 					</span>
-					{metaLabels.length > 0 && (
-						<span className="text-muted-foreground text-sm">
-							{metaLabels.map((label, index) => (
-								<Fragment key={label}>
-									{index > 0 && (
-										<span className="mx-1.5" aria-hidden="true">
-											·
-										</span>
-									)}
-									<span>{label}</span>
-								</Fragment>
-							))}
-						</span>
-					)}
+					<span className="text-muted-foreground text-sm">
+						{metaLabels.map((label, index) => (
+							<Fragment key={label}>
+								{index > 0 && (
+									<span className="mx-1.5" aria-hidden="true">
+										·
+									</span>
+								)}
+								<span>{label}</span>
+							</Fragment>
+						))}
+					</span>
 					<RatingStars rating={instance.rating} shouldShowValue />
 				</div>
 				<Button
