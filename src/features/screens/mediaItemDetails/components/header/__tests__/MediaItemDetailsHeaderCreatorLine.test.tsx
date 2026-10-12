@@ -98,6 +98,21 @@ describe("MediaItemDetailsHeaderCreatorLine", () => {
 		expect(screen.getByText("Arkady Martine")).toBeInTheDocument();
 	});
 
+	it("uses theme-aware full-strength text instead of a hardcoded white color", () => {
+		render(
+			<MediaItemDetailsHeaderCreatorLine
+				mediaItemDetails={makeMediaItemDetails()}
+			/>,
+		);
+
+		expect(
+			screen.getByTestId("media-item-details-header-creator-line"),
+		).toHaveClass("text-foreground");
+		expect(
+			screen.getByTestId("media-item-details-header-creator-line"),
+		).not.toHaveClass("text-white/80", "text-muted-foreground");
+	});
+
 	it("renders nothing when there is no creator or series", () => {
 		const { container } = render(
 			<MediaItemDetailsHeaderCreatorLine

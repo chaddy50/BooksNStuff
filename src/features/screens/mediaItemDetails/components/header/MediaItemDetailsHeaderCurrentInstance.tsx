@@ -40,7 +40,7 @@ export function MediaItemDetailsHeaderCurrentInstance(
 			type="button"
 			onClick={onClick}
 			aria-label={t(getLogProgressLabelKey(mediaItemType, true) as never)}
-			className="flex flex-col gap-1.5 rounded-md border border-white/20 bg-white/10 px-4 py-2.5 text-left text-white transition-colors hover:bg-white/15 overflow-hidden -mb-px"
+			className="flex flex-col gap-1.5 rounded-md border border-border bg-accent/50 px-4 py-2.5 text-left text-foreground transition-colors hover:bg-accent overflow-hidden -mb-px"
 		>
 			<div className="flex flex-wrap items-center gap-2 text-sm">
 				{metaLabels.map((label) => (

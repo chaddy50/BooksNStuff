@@ -75,6 +75,23 @@ describe("MediaItemDetailsHeaderCurrentInstance", () => {
 		expect(screen.getByRole("progressbar")).not.toHaveClass("h-2.5");
 	});
 
+	it("uses theme-aware colors instead of hardcoded white ones", () => {
+		renderCurrentInstance();
+
+		const button = screen.getByRole("button");
+		expect(button).toHaveClass(
+			"text-foreground",
+			"border-border",
+			"bg-accent/50",
+		);
+		expect(button).not.toHaveClass(
+			"text-white",
+			"border-white/20",
+			"bg-white/10",
+			"hover:bg-white/15",
+		);
+	});
+
 	it("calls onClick when clicked", () => {
 		const onClick = vi.fn();
 		renderCurrentInstance({}, onClick);

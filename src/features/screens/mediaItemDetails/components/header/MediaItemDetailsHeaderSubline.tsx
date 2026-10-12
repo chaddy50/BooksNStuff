@@ -40,7 +40,7 @@ export function MediaItemDetailsHeaderSubline(
 
 	return (
 		<p
-			className="text-white/80 text-sm"
+			className="text-foreground text-sm"
 			data-testid="media-item-details-header-subline"
 		>
 			{segments.map(({ key, node }, index) => (
