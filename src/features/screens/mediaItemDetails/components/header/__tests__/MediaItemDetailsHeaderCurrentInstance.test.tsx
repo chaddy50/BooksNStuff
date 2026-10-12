@@ -46,7 +46,7 @@ describe("MediaItemDetailsHeaderCurrentInstance", () => {
 			consumptionInfo: { method: "ebook" },
 		});
 
-		expect(screen.getByText("Jan 01, 2026 – Present")).toBeInTheDocument();
+		expect(screen.getByText("Started Jan 01, 2026")).toBeInTheDocument();
 		expect(
 			screen.getByText("mediaItemDetails.progressComplete"),
 		).toBeInTheDocument();
@@ -60,10 +60,20 @@ describe("MediaItemDetailsHeaderCurrentInstance", () => {
 			consumptionInfo: null,
 		});
 
-		expect(screen.getByText("Jan 01, 2026 – Present")).toBeInTheDocument();
+		expect(screen.getByText("Started Jan 01, 2026")).toBeInTheDocument();
 		expect(
 			screen.queryByText("mediaItemDetails.progressComplete"),
 		).not.toBeInTheDocument();
+	});
+
+	it("shows a · separator between each of the three meta labels", () => {
+		renderCurrentInstance({
+			startedAt: "2026-01-01",
+			progressPercent: 42,
+			consumptionInfo: { method: "ebook" },
+		});
+
+		expect(screen.getAllByText("·")).toHaveLength(2);
 	});
 
 	it("renders a thinner progress bar than the default", () => {

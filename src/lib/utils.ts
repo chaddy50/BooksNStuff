@@ -105,7 +105,7 @@ export function formatDateRange(
 	if (start && end) {
 		return `${start} – ${end}`;
 	} else if (start) {
-		return `${start} – Present`;
+		return `Started ${start}`;
 	} else if (end) {
 		return end;
 	} else {
