@@ -76,6 +76,74 @@ describe("fetchInProgressItems", () => {
 		expect(items).toHaveLength(1);
 		expect(items[0].title).toBe("Mine");
 	});
+
+	it("orders items by how recently they were started, most recent first", async () => {
+		const olderStartId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			title: "Alpha",
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		await insertInstance({
+			mediaItemId: olderStartId,
+			startedAt: "2024-01-01",
+		});
+
+		const newerStartId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			title: "Zeta",
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		await insertInstance({
+			mediaItemId: newerStartId,
+			startedAt: "2024-06-01",
+		});
+
+		const items = await fetchInProgressItems(USER_A);
+
+		expect(items.map((item) => item.title)).toEqual(["Zeta", "Alpha"]);
+	});
+
+	it("ranks a started item ahead of one with no unfinished instance", async () => {
+		await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			title: "Alpha",
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+
+		const startedId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			title: "Zeta",
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		await insertInstance({ mediaItemId: startedId, startedAt: "2024-01-01" });
+
+		const items = await fetchInProgressItems(USER_A);
+
+		expect(items.map((item) => item.title)).toEqual(["Zeta", "Alpha"]);
+	});
+
+	it("falls back to alphabetical order among items with no unfinished instance", async () => {
+		await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			title: "Zeta",
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			title: "Alpha",
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+
+		const items = await fetchInProgressItems(USER_A);
+
+		expect(items.map((item) => item.title)).toEqual(["Alpha", "Zeta"]);
+	});
 });
 
 /** Inside the fetcher's 30-day recency window, whenever the suite happens to run. */
