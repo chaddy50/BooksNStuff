@@ -7,6 +7,7 @@ import {
 	inArray,
 	isNotNull,
 	ne,
+	type SQL,
 	sql,
 } from "drizzle-orm";
 
@@ -17,8 +18,24 @@ import { fetchCurrentProgressByMediaItemId } from "#/lib/queries/progressQuery.s
 import { fetchLatestRatingsByMediaItemId } from "#/lib/queries/ratingsQuery.server";
 import { findLastIndexWhere } from "#/lib/utils";
 
+/**
+ * The currently unfinished instance of each item, as a lateral join — used to
+ * order in-progress items by how recently the user started them.
+ */
+function buildCurrentInstanceLateral(): SQL {
+	return sql`LATERAL (
+		SELECT ${mediaItemInstances.startedAt} AS started_at
+		FROM ${mediaItemInstances}
+		WHERE ${mediaItemInstances.mediaItemId} = ${mediaItems.id}
+			AND ${mediaItemInstances.startedAt} IS NOT NULL
+			AND ${mediaItemInstances.completedAt} IS NULL
+		ORDER BY ${mediaItemInstances.id} DESC
+		LIMIT 1
+	) AS current_instance`;
+}
+
 export async function fetchInProgressItems(userId: string) {
-	return db
+	return await db
 		.select({
 			id: mediaItems.id,
 			status: mediaItems.status,
@@ -31,13 +48,17 @@ export async function fetchInProgressItems(userId: string) {
 		})
 		.from(mediaItems)
 		.leftJoin(series, eq(mediaItems.seriesId, series.id))
+		.leftJoin(buildCurrentInstanceLateral(), sql`true`)
 		.where(
 			and(
 				eq(mediaItems.userId, userId),
 				eq(mediaItems.status, MediaItemStatus.IN_PROGRESS),
 			),
 		)
-		.orderBy(asc(mediaItems.sortTitle));
+		.orderBy(
+			sql`current_instance.started_at DESC NULLS LAST`,
+			asc(mediaItems.sortTitle),
+		);
 }
 
 export async function fetchRecentlyFinishedItems(userId: string) {
