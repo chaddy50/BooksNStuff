@@ -35,7 +35,7 @@ function buildCurrentInstanceLateral(): SQL {
 }
 
 export async function fetchInProgressItems(userId: string) {
-	return db
+	return await db
 		.select({
 			id: mediaItems.id,
 			status: mediaItems.status,
