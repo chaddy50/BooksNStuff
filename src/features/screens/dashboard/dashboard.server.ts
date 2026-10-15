@@ -16,7 +16,7 @@ import { mediaItemInstances, mediaItems, series } from "#/database/schema";
 import { MediaItemStatus } from "#/lib/enums";
 import { fetchCurrentProgressByMediaItemId } from "#/lib/queries/progressQuery.server";
 import { fetchLatestRatingsByMediaItemId } from "#/lib/queries/ratingsQuery.server";
-import { findLastIndexWhere } from "#/lib/utils";
+import { findFirstMatchAfterIndex, findLastIndexWhere } from "#/lib/utils";
 
 /**
  * The currently unfinished instance of each item, as a lateral join — used to
@@ -231,9 +231,11 @@ export async function fetchNextInSeriesItems(
 			continue;
 		}
 
-		const nextItem = items.slice(lastActiveIndex + 1).find((item) => {
-			return item.status === MediaItemStatus.BACKLOG;
-		});
+		const nextItem = findFirstMatchAfterIndex(
+			items,
+			lastActiveIndex,
+			(item) => item.status === MediaItemStatus.BACKLOG,
+		);
 		if (nextItem) {
 			nextInSeriesItems.push(nextItem);
 		}
