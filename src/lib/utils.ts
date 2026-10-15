@@ -20,6 +20,14 @@ export function findLastIndexWhere<T>(
 	return lastIndex;
 }
 
+export function findFirstMatchAfterIndex<T>(
+	items: T[],
+	afterIndex: number,
+	predicate: (item: T) => boolean,
+): T | undefined {
+	return items.slice(afterIndex + 1).find(predicate);
+}
+
 /**
  * Structural comparison for plain data — primitives, arrays, and plain objects.
  * Object key order is ignored. `Date`, `Map`, `Set`, and class instances are out
