@@ -15,6 +15,7 @@ import {
 } from "#/database/schema";
 import { creatorMetadataKey } from "#/lib/creator";
 import type { MediaItemType } from "#/lib/enums";
+import { parseRatingColumn } from "#/lib/queries/ratingsQuery.server";
 import { syncSeriesStatus } from "#/lib/queries/seriesQuery.server";
 import { inferStatusAfterInstanceEdit } from "./mediaItemDetails";
 import { getRelatedMediaItems } from "./relatedItems.server";
@@ -88,7 +89,7 @@ export async function getMediaItemDetailsForUser(id: number, userId: string) {
 		tags: itemTags.map((t) => t.name),
 		instances: instances.map((i) => ({
 			...i,
-			rating: parseFloat(i.rating ?? "") || 0,
+			rating: parseRatingColumn(i.rating),
 		})),
 		relatedItems: await getRelatedMediaItems(id, userId),
 	};

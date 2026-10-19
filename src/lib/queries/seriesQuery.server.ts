@@ -22,7 +22,10 @@ import {
 	type MediaItemType,
 	NextItemStatus,
 } from "#/lib/enums";
-import { fetchLatestRatingsByMediaItemId } from "#/lib/queries/ratingsQuery.server";
+import {
+	fetchLatestRatingsByMediaItemId,
+	parseRatingColumn,
+} from "#/lib/queries/ratingsQuery.server";
 import { inferSeriesStatus } from "#/lib/queries/seriesStatus";
 import { MAX_QUERY_LIMIT } from "#/lib/queries/types";
 import { findLastIndexWhere } from "#/lib/utils";
@@ -148,7 +151,7 @@ export async function runSeriesQuery(
 
 	const items = pageRows.map((s) => ({
 		...s,
-		rating: parseFloat(s.rating ?? "") || 0,
+		rating: parseRatingColumn(s.rating),
 	}));
 
 	return { items, hasMore };

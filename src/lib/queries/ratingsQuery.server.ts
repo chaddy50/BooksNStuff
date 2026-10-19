@@ -5,6 +5,11 @@ import { mediaItemInstances } from "#/database/schema";
 
 export type LatestRating = { rating: number; completedAt: string | null };
 
+/** Postgres numeric columns arrive as strings; missing or invalid values become 0. */
+export function parseRatingColumn(value: string | null | undefined): number {
+	return parseFloat(value ?? "") || 0;
+}
+
 /**
  * Each media item's most recent completed instance, keyed by media item ID.
  * An item with no completed instance is simply absent from the map.
@@ -35,7 +40,7 @@ export async function fetchLatestRatingsByMediaItemId(
 		latestRatings.map((row) => [
 			row.mediaItemId,
 			{
-				rating: parseFloat(row.rating ?? "") || 0,
+				rating: parseRatingColumn(row.rating),
 				completedAt: row.completedAt,
 			},
 		]),
