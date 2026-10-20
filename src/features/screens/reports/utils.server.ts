@@ -32,8 +32,8 @@ export function rowToCustomReport(
 
 export function getStartDateFromMonthCount(monthCount: number): string {
 	const startDate = new Date();
-	startDate.setMonth(startDate.getMonth() - (monthCount - 1));
 	startDate.setDate(1);
+	startDate.setMonth(startDate.getMonth() - (monthCount - 1));
 	return startDate.toISOString().slice(0, 10);
 }
 
