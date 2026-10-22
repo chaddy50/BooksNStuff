@@ -259,6 +259,14 @@ export async function syncSeriesStatus(seriesId: number, userId: string) {
 		seriesUpdates.nextItemStatus = null;
 	} else if (newStatus === MediaItemStatus.WAITING_FOR_NEXT_RELEASE) {
 		seriesUpdates.nextItemStatus = NextItemStatus.WAITING_FOR_RELEASE;
+	} else {
+		const [current] = await db
+			.select({ nextItemStatus: series.nextItemStatus })
+			.from(series)
+			.where(and(eq(series.id, seriesId), eq(series.userId, userId)));
+		if (current?.nextItemStatus === NextItemStatus.WAITING_FOR_RELEASE) {
+			seriesUpdates.nextItemStatus = null;
+		}
 	}
 
 	await db
