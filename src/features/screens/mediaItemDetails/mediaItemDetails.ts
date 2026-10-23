@@ -26,24 +26,14 @@ import {
 	syncSeriesStatus,
 } from "#/lib/queries/seriesQuery.server";
 
-export function inferStatusAfterInstanceEdit(
-	startedAt?: string | null,
-	completedAt?: string | null,
-) {
-	if (completedAt) return MediaItemStatus.COMPLETED;
-	if (startedAt) return MediaItemStatus.IN_PROGRESS;
-	return null;
-}
-
 type InstanceDateRow = { startedAt: string | null; completedAt: string | null };
 
-export function inferStatusAfterInstanceDelete(
-	remainingInstances: InstanceDateRow[],
-) {
-	if (remainingInstances.some((i) => i.startedAt && !i.completedAt)) {
+/** Derives a media item's status from the dates across all of its instances. */
+export function inferStatusFromInstances(instances: InstanceDateRow[]) {
+	if (instances.some((i) => i.startedAt && !i.completedAt)) {
 		return MediaItemStatus.IN_PROGRESS;
 	}
-	if (remainingInstances.some((i) => i.completedAt)) {
+	if (instances.some((i) => i.completedAt)) {
 		return MediaItemStatus.COMPLETED;
 	}
 	return MediaItemStatus.BACKLOG;
@@ -226,7 +216,7 @@ export const deleteInstance = createServerFn({ method: "POST" })
 
 		await db
 			.update(mediaItems)
-			.set({ status: inferStatusAfterInstanceDelete(remainingInstances) })
+			.set({ status: inferStatusFromInstances(remainingInstances) })
 			.where(
 				and(
 					eq(mediaItems.id, instanceBeingDeleted.mediaItemId),

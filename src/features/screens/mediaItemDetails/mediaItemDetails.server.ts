@@ -16,7 +16,7 @@ import {
 import { creatorMetadataKey } from "#/lib/creator";
 import type { MediaItemType } from "#/lib/enums";
 import { syncSeriesStatus } from "#/lib/queries/seriesQuery.server";
-import { inferStatusAfterInstanceEdit } from "./mediaItemDetails";
+import { inferStatusFromInstances } from "./mediaItemDetails";
 import { getRelatedMediaItems } from "./relatedItems.server";
 
 /**
@@ -135,7 +135,7 @@ export async function saveInstanceForUser(
 	data: SaveInstanceInput,
 	userId: string,
 ): Promise<void> {
-	const { mediaItemId, instanceId, startedAt, completedAt } = data;
+	const { mediaItemId, instanceId } = data;
 
 	const [item] = await db
 		.select({ seriesId: mediaItems.seriesId })
@@ -158,15 +158,18 @@ export async function saveInstanceForUser(
 		await db.insert(mediaItemInstances).values({ mediaItemId, ...values });
 	}
 
-	const newStatus = inferStatusAfterInstanceEdit(startedAt, completedAt);
-	if (newStatus) {
-		await db
-			.update(mediaItems)
-			.set({ status: newStatus })
-			.where(
-				and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)),
-			);
-	}
+	const instances = await db
+		.select({
+			startedAt: mediaItemInstances.startedAt,
+			completedAt: mediaItemInstances.completedAt,
+		})
+		.from(mediaItemInstances)
+		.where(eq(mediaItemInstances.mediaItemId, mediaItemId));
+
+	await db
+		.update(mediaItems)
+		.set({ status: inferStatusFromInstances(instances) })
+		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
 
 	if (item.seriesId) {
 		await syncSeriesStatus(item.seriesId, userId);

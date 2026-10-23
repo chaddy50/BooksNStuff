@@ -12,7 +12,7 @@ vi.mock("#/features/screens/auth/session", () => ({
 
 import { eq } from "drizzle-orm";
 import { mediaItemInstances, mediaItems, series } from "#/database/schema";
-import { MediaItemType } from "#/lib/enums";
+import { MediaItemStatus, MediaItemType } from "#/lib/enums";
 import { testDb } from "#/tests/integration/db";
 import {
 	insertCreator,
@@ -470,5 +470,52 @@ describe("saveInstanceForUser / getMediaItemDetailsForUser progress", () => {
 
 		const details = await getMediaItemDetailsForUser(itemB, USER_B);
 		expect(details.instances[0].progressPercent).toBeNull();
+	});
+
+	it("reverts the item to BACKLOG when the only instance's dates are cleared", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.COMPLETED,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+			completedAt: "2024-01-15",
+		});
+
+		await saveInstanceForUser({ mediaItemId: itemId, instanceId }, USER_A);
+
+		expect((await readItem(itemId))?.status).toBe(MediaItemStatus.BACKLOG);
+	});
+
+	it("keeps the item IN_PROGRESS when editing an older completed instance while a newer one is unfinished", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		const olderInstanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2023-01-01",
+			completedAt: "2023-01-15",
+		});
+		await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+		});
+
+		await saveInstanceForUser(
+			{
+				mediaItemId: itemId,
+				instanceId: olderInstanceId,
+				startedAt: "2023-01-01",
+				completedAt: "2023-01-15",
+				rating: "4",
+			},
+			USER_A,
+		);
+
+		expect((await readItem(itemId))?.status).toBe(MediaItemStatus.IN_PROGRESS);
 	});
 });
