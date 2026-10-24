@@ -2,8 +2,25 @@ import { describe, expect, it } from "vitest";
 import {
 	findFirstMatchAfterIndex,
 	formatDateRange,
+	getLocalDateString,
 	isDeepEqual,
 } from "../utils";
+
+describe("getLocalDateString", () => {
+	it("formats the date using local year, month, and day", () => {
+		expect(getLocalDateString(new Date(2024, 0, 15))).toBe("2024-01-15");
+	});
+
+	it("pads single-digit months and days", () => {
+		expect(getLocalDateString(new Date(2024, 2, 3))).toBe("2024-03-03");
+	});
+
+	it("does not shift the date across a UTC day boundary", () => {
+		// 11pm local time on Dec 31 is already Jan 1 in UTC timezones ahead of local time.
+		const lateNewYearsEve = new Date(2024, 11, 31, 23, 0, 0);
+		expect(getLocalDateString(lateNewYearsEve)).toBe("2024-12-31");
+	});
+});
 
 describe("formatDateRange", () => {
 	it("returns null when both are null", () => {

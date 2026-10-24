@@ -29,6 +29,7 @@ import {
 } from "#/database/schema";
 import { MediaItemStatus, PurchaseStatus } from "#/lib/enums";
 import { BLANK_FILTER_VALUE } from "#/lib/genres/constants";
+import { parseRatingColumn } from "#/lib/queries/ratingsQuery.server";
 import { syncSeriesStatus } from "#/lib/queries/seriesQuery.server";
 import {
 	type ItemQueryItem,
@@ -585,7 +586,7 @@ function toItemQueryItem({
 	latestRating,
 	...item
 }: ItemQueryRow): ItemQueryItem {
-	return { ...item, rating: parseFloat(latestRating ?? "") || 0 };
+	return { ...item, rating: parseRatingColumn(latestRating) };
 }
 
 /**
