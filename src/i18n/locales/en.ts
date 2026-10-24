@@ -60,6 +60,8 @@ export const en = {
 		loading: "Loading...",
 		save: "Save",
 		cancel: "Cancel",
+		confirmDelete: "Yes, Delete",
+		deleting: "Deleting...",
 	},
 	unsavedChanges: {
 		title: "Unsaved Changes",
@@ -93,6 +95,10 @@ export const en = {
 		progress: "Progress %",
 		progressComplete: "{{percent}}% complete",
 		removeFromLibrary: "Remove from Library",
+		deleteTitle: "Delete this item?",
+		deleteDescription:
+			'Remove "{{title}}" from your library? This can\'t be undone.',
+		deleteFailed: "Couldn't remove this item. Please try again.",
 		overview: "Overview",
 		startReading: "Start Reading",
 		startWatching: "Start Watching",
@@ -178,6 +184,10 @@ export const en = {
 		ongoing: "Ongoing",
 		edit: "Edit Series",
 		delete: "Delete Series",
+		deleteTitle: "Delete this series?",
+		deleteDescription:
+			'Delete "{{name}}"? Items already in your library will stay, but will no longer be grouped as this series.',
+		deleteFailed: "Couldn't delete this series. Please try again.",
 		missingItems: "Not in Your Library",
 		missingItemsCount_one: "{{count}} item",
 		missingItemsCount_other: "{{count}} items",

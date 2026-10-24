@@ -8,8 +8,9 @@ vi.mock("react-i18next", () => ({
 
 const navigate = vi.fn();
 let searchParams: { tab?: string } = {};
-let loaderData: { id: number; instances: unknown[] } = {
+let loaderData: { id: number; title: string; instances: unknown[] } = {
 	id: 7,
+	title: "Test Item",
 	instances: [],
 };
 
@@ -74,11 +75,19 @@ function clickRemoveFromLibrary() {
 	fireEvent.click(screen.getByText("mediaItemDetails.removeFromLibrary"));
 }
 
+function confirmDelete() {
+	fireEvent.click(screen.getByText("common.confirmDelete"));
+}
+
+function cancelDelete() {
+	fireEvent.click(screen.getByText("common.cancel"));
+}
+
 afterEach(cleanup);
 beforeEach(() => {
 	vi.clearAllMocks();
 	searchParams = {};
-	loaderData = { id: 7, instances: [] };
+	loaderData = { id: 7, title: "Test Item", instances: [] };
 });
 
 describe("MediaItemDetailsScreen", () => {
@@ -141,6 +150,35 @@ describe("MediaItemDetailsScreen", () => {
 		expect(screen.getByTestId("history")).toHaveTextContent("42");
 	});
 
+	it("opens the confirmation dialog without deleting immediately", async () => {
+		const { removeFromLibrary } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		render(<MediaItemDetailsScreen />);
+
+		clickRemoveFromLibrary();
+
+		expect(
+			screen.getByText("mediaItemDetails.deleteTitle"),
+		).toBeInTheDocument();
+		expect(removeFromLibrary).not.toHaveBeenCalled();
+	});
+
+	it("closes the dialog without deleting when cancel is clicked", async () => {
+		const { removeFromLibrary } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		render(<MediaItemDetailsScreen />);
+
+		clickRemoveFromLibrary();
+		cancelDelete();
+
+		expect(
+			screen.queryByText("mediaItemDetails.deleteTitle"),
+		).not.toBeInTheDocument();
+		expect(removeFromLibrary).not.toHaveBeenCalled();
+	});
+
 	// The server fn is keyed on the item now, not on a separate metadata row.
 	it("removes by mediaItemId, never by metadataId", async () => {
 		const { removeFromLibrary } = await import(
@@ -150,6 +188,7 @@ describe("MediaItemDetailsScreen", () => {
 		render(<MediaItemDetailsScreen />);
 
 		clickRemoveFromLibrary();
+		confirmDelete();
 
 		expect(removeFromLibrary).toHaveBeenCalledWith({
 			data: { mediaItemId: 7 },
@@ -166,23 +205,24 @@ describe("MediaItemDetailsScreen", () => {
 		render(<MediaItemDetailsScreen />);
 
 		clickRemoveFromLibrary();
+		confirmDelete();
 
 		await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/" }));
 	});
 
-	it("does not navigate when the delete fails", async () => {
+	it("shows an error and does not navigate when the delete fails", async () => {
 		const { removeFromLibrary } = await import(
 			"#/features/screens/mediaItemDetails/mediaItemDetails"
 		);
 		vi.mocked(removeFromLibrary).mockRejectedValue(new Error("network down"));
-		const ignoreRejection = () => {};
-		process.on("unhandledRejection", ignoreRejection);
 		render(<MediaItemDetailsScreen />);
 
 		clickRemoveFromLibrary();
+		confirmDelete();
 
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		await vi.waitFor(() =>
+			expect(screen.getByRole("alert")).toBeInTheDocument(),
+		);
 		expect(navigate).not.toHaveBeenCalledWith({ to: "/" });
-		process.off("unhandledRejection", ignoreRejection);
 	});
 });
