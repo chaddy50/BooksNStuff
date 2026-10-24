@@ -49,6 +49,7 @@ let viewSearch: Omit<FilterAndSortOptions, "sortBy" | "sortDirection"> = {};
 let historyEntryKey = "entry-1";
 
 const routerInvalidate = vi.fn();
+const historyBack = vi.fn();
 
 vi.mock("@tanstack/react-router", () => ({
 	getRouteApi: () => ({
@@ -57,7 +58,7 @@ vi.mock("@tanstack/react-router", () => ({
 	}),
 	useRouter: () => ({
 		invalidate: routerInvalidate,
-		history: { back: vi.fn() },
+		history: { back: historyBack },
 		state: { location: { state: { __TSR_key: historyEntryKey } } },
 	}),
 }));
@@ -125,7 +126,11 @@ vi.mock(
 );
 
 vi.mock("#/features/screens/customView/EditViewDialog", () => ({
-	EditViewDialog: () => null,
+	EditViewDialog: (props: { onDelete: () => void }) => (
+		<button type="button" onClick={props.onDelete}>
+			deleteView
+		</button>
+	),
 }));
 // Renders the action slot so the reorder toggle is reachable.
 vi.mock("#/features/navigation/topBar/TopBar", () => ({
@@ -205,7 +210,9 @@ vi.mock("#/components/hooks/useInfiniteScroll", () => ({
 }));
 
 afterEach(cleanup);
-beforeEach(() => {
+beforeEach(async () => {
+	const { deleteView } = await import("#/features/screens/customView/view");
+	vi.mocked(deleteView).mockReset();
 	view = { id: 1, name: "Owned books", subject: "items" };
 	stats = EMPTY_STATS;
 	viewSearch = {};
@@ -221,6 +228,7 @@ beforeEach(() => {
 	capturedShouldShowStatus = undefined;
 	wasMediaItemListRendered = false;
 	loaderResults = { items: [], hasMore: false };
+	historyBack.mockClear();
 	routerInvalidate.mockClear();
 	// The real invalidate refetches, then commits new loader data.
 	routerInvalidate.mockImplementation(async () => {
@@ -959,5 +967,64 @@ describe("ViewScreen paging with an active filter override", () => {
 				limit: 20,
 			},
 		});
+	});
+});
+
+describe("ViewScreen delete flow", () => {
+	function clickDeleteView() {
+		fireEvent.click(screen.getByText("deleteView"));
+	}
+
+	function confirmDelete() {
+		fireEvent.click(screen.getByText("common.confirmDelete"));
+	}
+
+	function cancelDelete() {
+		fireEvent.click(screen.getByText("common.cancel"));
+	}
+
+	it("opens the confirmation dialog without deleting immediately", async () => {
+		const { deleteView } = await import("#/features/screens/customView/view");
+		render(<ViewScreen />);
+
+		clickDeleteView();
+
+		expect(screen.getByText("views.deleteTitle")).toBeInTheDocument();
+		expect(deleteView).not.toHaveBeenCalled();
+	});
+
+	it("closes the dialog without deleting when cancel is clicked", async () => {
+		const { deleteView } = await import("#/features/screens/customView/view");
+		render(<ViewScreen />);
+
+		clickDeleteView();
+		cancelDelete();
+
+		expect(screen.queryByText("views.deleteTitle")).not.toBeInTheDocument();
+		expect(deleteView).not.toHaveBeenCalled();
+	});
+
+	it("deletes the view and goes back when confirmed", async () => {
+		const { deleteView } = await import("#/features/screens/customView/view");
+		vi.mocked(deleteView).mockResolvedValue(undefined);
+		render(<ViewScreen />);
+
+		clickDeleteView();
+		confirmDelete();
+
+		await waitFor(() => expect(historyBack).toHaveBeenCalled());
+		expect(deleteView).toHaveBeenCalledWith({ data: { id: 1 } });
+	});
+
+	it("shows an error and does not go back when the delete fails", async () => {
+		const { deleteView } = await import("#/features/screens/customView/view");
+		vi.mocked(deleteView).mockRejectedValue(new Error("network down"));
+		render(<ViewScreen />);
+
+		clickDeleteView();
+		confirmDelete();
+
+		await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+		expect(historyBack).not.toHaveBeenCalled();
 	});
 });
