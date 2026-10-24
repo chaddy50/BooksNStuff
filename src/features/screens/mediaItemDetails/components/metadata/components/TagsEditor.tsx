@@ -90,27 +90,23 @@ export function TagsEditor({
 		}
 	}
 
+	function closeSuggestions() {
+		setIsShowingSuggestions(false);
+	}
+
+	const keyDownHandlers: Record<string, () => void> = {
+		ArrowDown: highlightNextSuggestion,
+		ArrowUp: highlightPreviousSuggestion,
+		Enter: addHighlightedOrTypedTag,
+		",": addHighlightedOrTypedTag,
+		Escape: closeSuggestions,
+	};
+
 	function handleInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-		switch (event.key) {
-			case "ArrowDown":
-				event.preventDefault();
-				highlightNextSuggestion();
-				break;
-			case "ArrowUp":
-				event.preventDefault();
-				highlightPreviousSuggestion();
-				break;
-			case "Enter":
-			case ",":
-				event.preventDefault();
-				addHighlightedOrTypedTag();
-				break;
-			case "Escape":
-				setIsShowingSuggestions(false);
-				break;
-			default:
-				break;
-		}
+		const handleKey = keyDownHandlers[event.key];
+		if (!handleKey) return;
+		event.preventDefault();
+		handleKey();
 	}
 
 	return (
