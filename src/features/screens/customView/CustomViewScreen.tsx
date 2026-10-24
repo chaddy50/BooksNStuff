@@ -3,6 +3,8 @@ import { getRouteApi, useRouter } from "@tanstack/react-router";
 import { ArrowUpDown, Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { DeleteConfirmationDialog } from "#/components/DeleteConfirmationDialog";
+import { useDeleteConfirmation } from "#/components/hooks/useDeleteConfirmation";
 import { useInfiniteScroll } from "#/components/hooks/useInfiniteScroll";
 import { useListCacheKey } from "#/components/hooks/useListCacheKey";
 import { InfiniteScrollLoader } from "#/components/InfiniteScrollLoader";
@@ -50,7 +52,14 @@ export function ViewScreen() {
 	const { t } = useTranslation();
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 	const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
-	const [_isDeleting, setIsDeleting] = useState(false);
+	const deleteConfirmation = useDeleteConfirmation({
+		onDelete: async () => {
+			await deleteView({ data: { id: view.id } });
+			await queryClient.invalidateQueries({ queryKey: ["views"] });
+			router.history.back();
+		},
+		failureMessage: t("views.deleteFailed"),
+	});
 	const [isReordering, setIsReordering] = useState(false);
 	const [orderItems, setOrderItems] = useState<ItemQueryItem[] | null>(null);
 	const [isReorderPending, setIsReorderPending] = useState(false);
@@ -121,17 +130,6 @@ export function ViewScreen() {
 		setIsReordering(false);
 		setOrderItems(null);
 	}, [isFinishingReorder, paginatedResults.items]);
-
-	async function handleDelete() {
-		setIsDeleting(true);
-		try {
-			await deleteView({ data: { id: view.id } });
-			await queryClient.invalidateQueries({ queryKey: ["views"] });
-			router.history.back();
-		} finally {
-			setIsDeleting(false);
-		}
-	}
 
 	function handleUpdated() {
 		router.invalidate();
@@ -299,7 +297,17 @@ export function ViewScreen() {
 				isOpen={isEditDialogOpen}
 				onClose={() => setIsEditDialogOpen(false)}
 				onUpdated={handleUpdated}
-				onDelete={handleDelete}
+				onDelete={deleteConfirmation.requestDelete}
+			/>
+
+			<DeleteConfirmationDialog
+				isOpen={deleteConfirmation.isDialogOpen}
+				title={t("views.deleteTitle")}
+				description={t("views.deleteDescription", { name: view.name })}
+				isDeleting={deleteConfirmation.isDeleting}
+				errorMessage={deleteConfirmation.errorMessage}
+				onCancel={deleteConfirmation.cancelDelete}
+				onConfirm={deleteConfirmation.confirmDelete}
 			/>
 		</div>
 	);

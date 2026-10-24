@@ -112,11 +112,39 @@ describe("ViewGroupDialog", () => {
 		expect(createViewGroupMock).not.toHaveBeenCalled();
 	});
 
-	it("deletes a group and refreshes the views it hands back", async () => {
+	it("opens a confirmation dialog without deleting immediately", () => {
+		renderDialog(GROUP);
+
+		fireEvent.click(screen.getByRole("button", { name: /deleteGroup/ }));
+
+		expect(screen.getByText("viewGroups.deleteTitle")).toBeInTheDocument();
+		expect(deleteViewGroupMock).not.toHaveBeenCalled();
+	});
+
+	it("closes the confirmation dialog without deleting when cancelled", () => {
+		renderDialog(GROUP);
+
+		fireEvent.click(screen.getByRole("button", { name: /deleteGroup/ }));
+		const cancelButtons = screen.getAllByRole("button", {
+			name: "common.cancel",
+		});
+		fireEvent.click(cancelButtons[cancelButtons.length - 1]);
+
+		expect(
+			screen.queryByText("viewGroups.deleteTitle"),
+		).not.toBeInTheDocument();
+		expect(deleteViewGroupMock).not.toHaveBeenCalled();
+		expect(onClose).not.toHaveBeenCalled();
+	});
+
+	it("deletes a group and refreshes the views it hands back when confirmed", async () => {
 		const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
 		renderDialog(GROUP);
 
 		fireEvent.click(screen.getByRole("button", { name: /deleteGroup/ }));
+		fireEvent.click(
+			screen.getByRole("button", { name: "common.confirmDelete" }),
+		);
 
 		await waitFor(() =>
 			expect(deleteViewGroupMock).toHaveBeenCalledWith({ data: { id: 3 } }),
@@ -127,6 +155,21 @@ describe("ViewGroupDialog", () => {
 		expect(invalidateQueries).toHaveBeenCalledWith({
 			queryKey: ["viewGroups"],
 		});
+	});
+
+	it("reports a delete that failed without closing", async () => {
+		deleteViewGroupMock.mockRejectedValue(new Error("nope"));
+		renderDialog(GROUP);
+
+		fireEvent.click(screen.getByRole("button", { name: /deleteGroup/ }));
+		fireEvent.click(
+			screen.getByRole("button", { name: "common.confirmDelete" }),
+		);
+
+		expect(await screen.findByRole("alert")).toHaveTextContent(
+			"viewGroups.deleteFailed",
+		);
+		expect(onClose).not.toHaveBeenCalled();
 	});
 
 	it("will not save a blank name", () => {
