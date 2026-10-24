@@ -22,6 +22,7 @@ import {
 import {
 	fetchLatestRatingsByMediaItemId,
 	getLatestRating,
+	parseRatingColumn,
 } from "#/lib/queries/ratingsQuery.server";
 
 export const getSeriesListByType = createServerFn({ method: "GET" })
@@ -73,7 +74,7 @@ export const getSeriesDetails = createServerFn({ method: "GET" })
 		if (items.length === 0) {
 			return {
 				...row,
-				rating: parseFloat(row.rating ?? "") || 0,
+				rating: parseRatingColumn(row.rating),
 				items: [],
 			};
 		}
@@ -86,7 +87,7 @@ export const getSeriesDetails = createServerFn({ method: "GET" })
 
 		return {
 			...row,
-			rating: parseFloat(row.rating ?? "") || 0,
+			rating: parseRatingColumn(row.rating),
 			items: items.map((item) => ({
 				...item,
 				...getLatestRating(item.id, latestRatings),
