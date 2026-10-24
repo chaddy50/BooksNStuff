@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("#/database/index", () => ({ db: {} }));
 vi.mock("#/features/screens/auth", () => ({ auth: {} }));
@@ -7,7 +7,28 @@ vi.mock("#/features/screens/auth/session", () => ({
 	getRequiredUser: vi.fn(),
 }));
 
-import { buildMonthRange } from "../utils.server";
+import { buildMonthRange, getStartDateFromMonthCount } from "../utils.server";
+
+describe("getStartDateFromMonthCount", () => {
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it("does not skip a month when today is near the end of a shorter month", () => {
+		vi.setSystemTime(new Date("2024-03-31T12:00:00Z"));
+		expect(getStartDateFromMonthCount(2)).toBe("2024-02-01");
+	});
+
+	it("does not skip a month when subtracting across a year boundary", () => {
+		vi.setSystemTime(new Date("2024-10-31T12:00:00Z"));
+		expect(getStartDateFromMonthCount(12)).toBe("2023-11-01");
+	});
+
+	it("returns the first of the current month when monthCount is 1", () => {
+		vi.setSystemTime(new Date("2024-03-31T12:00:00Z"));
+		expect(getStartDateFromMonthCount(1)).toBe("2024-03-01");
+	});
+});
 
 describe("buildMonthRange", () => {
 	describe("month range generation", () => {
