@@ -21,8 +21,10 @@ export function getConsumptionLabel(
 
 export function getProgressLabel(
 	progressPercent: number | null,
+	completedAt: string | null,
 	t: (key: string, options?: Record<string, unknown>) => string,
 ): string | null {
+	if (completedAt != null) return null;
 	if (progressPercent == null) return null;
 	return t("mediaItemDetails.progressComplete", { percent: progressPercent });
 }
@@ -45,6 +47,7 @@ export function InstanceRow({
 	);
 	const progressLabel = getProgressLabel(
 		instance.progressPercent,
+		instance.completedAt,
 		t as (key: string, options?: Record<string, unknown>) => string,
 	);
 	const metaLabels = [dateRange, consumptionLabel, progressLabel].filter(

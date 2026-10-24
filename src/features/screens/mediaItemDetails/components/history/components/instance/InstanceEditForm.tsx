@@ -364,23 +364,25 @@ export function InstanceEditForm({
 					/>
 				</div>
 			</div>
-			<div className="flex flex-col gap-1.5">
-				<label
-					className="text-sm text-muted-foreground"
-					htmlFor={progressPercentId}
-				>
-					{t("mediaItemDetails.progress")}
-				</label>
-				<Input
-					id={progressPercentId}
-					type="number"
-					min={0}
-					max={100}
-					value={progressPercent}
-					onChange={(e) => setProgressPercent(e.target.value)}
-					className="w-16 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-				/>
-			</div>
+			{!completedAt && (
+				<div className="flex flex-col gap-1.5">
+					<label
+						className="text-sm text-muted-foreground"
+						htmlFor={progressPercentId}
+					>
+						{t("mediaItemDetails.progress")}
+					</label>
+					<Input
+						id={progressPercentId}
+						type="number"
+						min={0}
+						max={100}
+						value={progressPercent}
+						onChange={(e) => setProgressPercent(e.target.value)}
+						className="w-16 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+					/>
+				</div>
+			)}
 			{dateError && (
 				<p className="text-sm text-destructive" data-testid="date-error">
 					{dateError}

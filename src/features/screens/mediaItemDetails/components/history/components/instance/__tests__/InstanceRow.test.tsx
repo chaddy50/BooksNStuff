@@ -153,6 +153,18 @@ describe("InstanceRow", () => {
 		).not.toBeInTheDocument();
 	});
 
+	it("shows no progress percentage once the instance is completed", () => {
+		renderInstanceRow({
+			progressPercent: 100,
+			startedAt: "2026-01-01",
+			completedAt: "2026-01-15",
+		});
+
+		expect(
+			screen.queryByText("mediaItemDetails.progressComplete"),
+		).not.toBeInTheDocument();
+	});
+
 	it("shows a season review's fiction rating categories", () => {
 		renderInstanceRow({
 			seasonReviews: [

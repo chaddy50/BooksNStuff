@@ -30,6 +30,7 @@ export function MediaItemDetailsHeaderCurrentInstance(
 	);
 	const progressLabel = getProgressLabel(
 		instance.progressPercent,
+		instance.completedAt,
 		t as (key: string, options?: Record<string, unknown>) => string,
 	);
 	const metaLabels = [dateRange, consumptionLabel, progressLabel].filter(
