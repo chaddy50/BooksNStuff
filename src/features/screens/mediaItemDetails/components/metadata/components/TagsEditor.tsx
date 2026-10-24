@@ -62,12 +62,14 @@ export function TagsEditor({
 	}
 
 	function highlightNextSuggestion() {
+		if (!canNavigateSuggestions()) return;
 		setHighlightedSuggestionIndex((current) =>
 			current === null ? 0 : (current + 1) % suggestions.length,
 		);
 	}
 
 	function highlightPreviousSuggestion() {
+		if (!canNavigateSuggestions()) return;
 		setHighlightedSuggestionIndex((current) =>
 			current === null
 				? suggestions.length - 1
@@ -91,16 +93,12 @@ export function TagsEditor({
 	function handleInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
 		switch (event.key) {
 			case "ArrowDown":
-				if (canNavigateSuggestions()) {
-					event.preventDefault();
-					highlightNextSuggestion();
-				}
+				event.preventDefault();
+				highlightNextSuggestion();
 				break;
 			case "ArrowUp":
-				if (canNavigateSuggestions()) {
-					event.preventDefault();
-					highlightPreviousSuggestion();
-				}
+				event.preventDefault();
+				highlightPreviousSuggestion();
 				break;
 			case "Enter":
 			case ",":
@@ -109,6 +107,8 @@ export function TagsEditor({
 				break;
 			case "Escape":
 				setIsShowingSuggestions(false);
+				break;
+			default:
 				break;
 		}
 	}
