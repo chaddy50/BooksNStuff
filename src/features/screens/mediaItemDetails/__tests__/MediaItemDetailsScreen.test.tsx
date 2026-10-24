@@ -124,6 +124,7 @@ describe("MediaItemDetailsScreen", () => {
 			params: { mediaItemId: "7" },
 			search: { tab: "history" },
 			resetScroll: false,
+			replace: true,
 		});
 	});
 
@@ -137,6 +138,7 @@ describe("MediaItemDetailsScreen", () => {
 			params: { mediaItemId: "7" },
 			search: { tab: "history" },
 			resetScroll: false,
+			replace: true,
 		});
 	});
 
