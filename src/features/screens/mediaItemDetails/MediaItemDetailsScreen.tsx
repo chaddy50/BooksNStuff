@@ -44,6 +44,7 @@ export function MediaItemDetailsScreen() {
 			params: { mediaItemId: String(mediaItemDetails.id) },
 			search: { tab: tabId },
 			resetScroll: false,
+			replace: true,
 		});
 	}
 
