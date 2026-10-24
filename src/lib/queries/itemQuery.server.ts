@@ -29,6 +29,7 @@ import {
 } from "#/database/schema";
 import { MediaItemStatus, PurchaseStatus } from "#/lib/enums";
 import { BLANK_FILTER_VALUE } from "#/lib/genres/constants";
+import { parseProgressPercentColumn } from "#/lib/queries/progressQuery.server";
 import { parseRatingColumn } from "#/lib/queries/ratingsQuery.server";
 import { syncSeriesStatus } from "#/lib/queries/seriesQuery.server";
 import {
@@ -474,9 +475,10 @@ export async function transitionReleasedItems(userId: string) {
 // Private helpers
 // ---------------------------------------------------------------------------
 
-/** A row as it comes back from the select, before the rating is parsed. */
-type ItemQueryRow = Omit<ItemQueryItem, "rating"> & {
+/** A row as it comes back from the select, before the rating/progress are parsed. */
+type ItemQueryRow = Omit<ItemQueryItem, "rating" | "progressPercent"> & {
 	latestRating: string | null;
+	progressPercentRaw: string | null;
 };
 
 /**
@@ -513,7 +515,7 @@ function buildItemSelectQuery(
 			genreName: genres.name,
 			latestRating: sql<string | null>`latest_instance.latest_rating`,
 			completedAt: sql<string | null>`latest_instance.latest_completed_at`,
-			progressPercent: sql<number | null>`current_progress.progress_percent`,
+			progressPercentRaw: sql<string | null>`current_progress.progress_percent`,
 		})
 		.from(mediaItems)
 		.leftJoin(series, eq(mediaItems.seriesId, series.id))
@@ -584,9 +586,14 @@ function resolveItemSortField(
 
 function toItemQueryItem({
 	latestRating,
+	progressPercentRaw,
 	...item
 }: ItemQueryRow): ItemQueryItem {
-	return { ...item, rating: parseRatingColumn(latestRating) };
+	return {
+		...item,
+		rating: parseRatingColumn(latestRating),
+		progressPercent: parseProgressPercentColumn(progressPercentRaw),
+	};
 }
 
 /**

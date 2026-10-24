@@ -980,7 +980,7 @@ describe("LATERAL join for current progress", () => {
 		await insertInstance({
 			mediaItemId: itemId,
 			startedAt: "2024-01-01",
-			progressPercent: 42,
+			progressPercent: "42",
 		});
 
 		const result = await runItemQuery({}, USER);

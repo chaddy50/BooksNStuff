@@ -15,6 +15,7 @@ import {
 } from "#/database/schema";
 import { creatorMetadataKey } from "#/lib/creator";
 import type { MediaItemType } from "#/lib/enums";
+import { parseProgressPercentColumn } from "#/lib/queries/progressQuery.server";
 import { parseRatingColumn } from "#/lib/queries/ratingsQuery.server";
 import { syncSeriesStatus } from "#/lib/queries/seriesQuery.server";
 import { inferStatusFromInstances } from "./mediaItemDetails";
@@ -90,6 +91,7 @@ export async function getMediaItemDetailsForUser(id: number, userId: string) {
 		instances: instances.map((i) => ({
 			...i,
 			rating: parseRatingColumn(i.rating),
+			progressPercent: parseProgressPercentColumn(i.progressPercent),
 		})),
 		relatedItems: await getRelatedMediaItems(id, userId),
 	};
@@ -103,7 +105,7 @@ export type SaveInstanceInput = {
 	reviewText?: string;
 	startedAt?: string;
 	completedAt?: string;
-	progressPercent?: number | null;
+	progressPercent?: string;
 	seasonReviews?: SeasonReview[];
 	consumptionInfo?: { method: string; controlMethod?: string };
 };

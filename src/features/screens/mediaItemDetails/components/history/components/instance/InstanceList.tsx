@@ -46,6 +46,10 @@ export function InstanceList(props: InstanceListProps) {
 		mediaItemType === MediaItemType.TV_SHOW
 			? (mediaItemDetails.metadata as { seasons?: number })?.seasons
 			: undefined;
+	const pageCount =
+		mediaItemType === MediaItemType.BOOK
+			? (mediaItemDetails.metadata as { pageCount?: number })?.pageCount
+			: undefined;
 
 	return (
 		<div className="flex flex-col gap-3">
@@ -55,6 +59,7 @@ export function InstanceList(props: InstanceListProps) {
 					mediaItemId={mediaItemDetails.id}
 					mediaItemType={mediaItemType}
 					totalSeasons={totalSeasons}
+					pageCount={pageCount}
 					onSave={onInstanceSaved}
 					onCancel={() => setIdBeingEdited(null)}
 				/>
@@ -69,6 +74,7 @@ export function InstanceList(props: InstanceListProps) {
 						mediaItemId={mediaItemDetails.id}
 						mediaItemType={mediaItemType}
 						totalSeasons={totalSeasons}
+						pageCount={pageCount}
 						onSave={onInstanceSaved}
 						onCancel={() => setIdBeingEdited(null)}
 					/>

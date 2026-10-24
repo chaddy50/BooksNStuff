@@ -40,6 +40,7 @@ interface InstanceEditFormProps {
 	mediaItemId: number;
 	mediaItemType: MediaItemType;
 	totalSeasons?: number;
+	pageCount?: number;
 	onSave: () => void;
 	onCancel: () => void;
 	ref?: Ref<InstanceEditFormHandle>;
@@ -52,7 +53,7 @@ interface InstanceFormValues {
 	reviewText: string;
 	startedAt: string;
 	completedAt: string;
-	progressPercent: string;
+	progressInputValue: string;
 	consumptionInfo: ConsumptionInfo | null;
 	seasonReviews: SeasonReview[];
 }
@@ -84,14 +85,37 @@ function getInitialConsumptionInfo(
 	return { method: getDefaultMethod(mediaItemType, settings) };
 }
 
-function formatProgressPercentInput(
-	progressPercent: number | null | undefined,
-): string {
-	return progressPercent != null ? String(progressPercent) : "";
+function percentToPageNumber(
+	progressPercent: number,
+	pageCount: number,
+): number {
+	return Math.round((progressPercent / 100) * pageCount);
 }
 
-function parseProgressPercentInput(value: string): number | undefined {
-	return value ? Number(value) : undefined;
+function pageNumberToPercent(pageNumber: number, pageCount: number): number {
+	return Math.min(100, Math.max(0, (pageNumber / pageCount) * 100));
+}
+
+function formatProgressInputValue(
+	progressPercent: number | null | undefined,
+	pageCount: number | undefined,
+): string {
+	if (progressPercent == null) return "";
+	return pageCount
+		? String(percentToPageNumber(progressPercent, pageCount))
+		: String(progressPercent);
+}
+
+function parseProgressInputValue(
+	value: string,
+	pageCount: number | undefined,
+): string | undefined {
+	if (!value) return undefined;
+	const parsedValue = Number(value);
+	const percent = pageCount
+		? pageNumberToPercent(parsedValue, pageCount)
+		: parsedValue;
+	return percent.toFixed(4);
 }
 
 export function InstanceEditForm({
@@ -99,6 +123,7 @@ export function InstanceEditForm({
 	mediaItemId,
 	mediaItemType,
 	totalSeasons,
+	pageCount,
 	onSave,
 	onCancel,
 	ref,
@@ -117,8 +142,11 @@ export function InstanceEditForm({
 			(instance === undefined ? getLocalDateString(new Date()) : ""),
 	);
 	const [completedAt, setCompletedAt] = useState(instance?.completedAt ?? "");
-	const [progressPercent, setProgressPercent] = useState(
-		formatProgressPercentInput(instance?.progressPercent),
+	const isPageBasedProgress =
+		mediaItemType === MediaItemType.BOOK && !!pageCount && pageCount > 0;
+	const effectivePageCount = isPageBasedProgress ? pageCount : undefined;
+	const [progressInputValue, setProgressInputValue] = useState(
+		formatProgressInputValue(instance?.progressPercent, effectivePageCount),
 	);
 	const [consumptionInfo, setConsumptionInfo] =
 		useState<ConsumptionInfo | null>(
@@ -135,7 +163,7 @@ export function InstanceEditForm({
 		reviewText,
 		startedAt,
 		completedAt,
-		progressPercent,
+		progressInputValue,
 		consumptionInfo,
 		seasonReviews,
 	};
@@ -191,7 +219,10 @@ export function InstanceEditForm({
 	const completedAtId = useId();
 	const progressPercentId = useId();
 	const reviewTextId = useId();
-	const parsedProgressPercent = parseProgressPercentInput(progressPercent);
+	const parsedProgressPercent = parseProgressInputValue(
+		progressInputValue,
+		effectivePageCount,
+	);
 
 	const usedSeasons = new Set(seasonReviews.map((r) => r.season));
 	const nextAvailableSeason = totalSeasons
@@ -369,17 +400,26 @@ export function InstanceEditForm({
 					className="text-sm text-muted-foreground"
 					htmlFor={progressPercentId}
 				>
-					{t("mediaItemDetails.progress")}
+					{t(
+						isPageBasedProgress
+							? "mediaItemDetails.page"
+							: "mediaItemDetails.progress",
+					)}
 				</label>
-				<Input
-					id={progressPercentId}
-					type="number"
-					min={0}
-					max={100}
-					value={progressPercent}
-					onChange={(e) => setProgressPercent(e.target.value)}
-					className="w-16 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-				/>
+				<div className="flex items-center gap-1.5">
+					<Input
+						id={progressPercentId}
+						type="number"
+						min={0}
+						max={isPageBasedProgress ? pageCount : 100}
+						value={progressInputValue}
+						onChange={(e) => setProgressInputValue(e.target.value)}
+						className="w-16 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+					/>
+					{isPageBasedProgress && (
+						<span className="text-sm text-muted-foreground">/ {pageCount}</span>
+					)}
+				</div>
 			</div>
 			{dateError && (
 				<p className="text-sm text-destructive" data-testid="date-error">

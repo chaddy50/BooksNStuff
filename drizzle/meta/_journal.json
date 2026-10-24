@@ -295,6 +295,13 @@
       "when": 1791667534012,
       "tag": "0041_add_media_item_instances_progress_percent",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1792806468319,
+      "tag": "0042_fearless_slyde",
+      "breakpoints": true
     }
   ]
 }

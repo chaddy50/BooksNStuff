@@ -91,7 +91,7 @@ describe("getRelatedMediaItems", () => {
 		await insertInstance({
 			mediaItemId: movie,
 			startedAt: "2024-01-01",
-			progressPercent: 65,
+			progressPercent: "65",
 		});
 
 		const related = await getRelatedMediaItems(book, USER_A);

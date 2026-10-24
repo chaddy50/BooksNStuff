@@ -3,6 +3,13 @@ import { and, desc, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "#/database/index";
 import { mediaItemInstances } from "#/database/schema";
 
+/** Postgres numeric columns arrive as strings; null means no progress recorded. */
+export function parseProgressPercentColumn(
+	value: string | null | undefined,
+): number | null {
+	return value != null ? parseFloat(value) : null;
+}
+
 /**
  * Each media item's currently unfinished instance's progressPercent, keyed by
  * media item id. An item with no unfinished instance is simply absent from
@@ -31,7 +38,10 @@ export async function fetchCurrentProgressByMediaItemId(
 		.orderBy(mediaItemInstances.mediaItemId, desc(mediaItemInstances.id));
 
 	return new Map(
-		currentProgress.map((row) => [row.mediaItemId, row.progressPercent]),
+		currentProgress.map((row) => [
+			row.mediaItemId,
+			parseProgressPercentColumn(row.progressPercent),
+		]),
 	);
 }
 

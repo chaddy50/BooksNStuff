@@ -429,12 +429,31 @@ describe("saveInstanceForUser / getMediaItemDetailsForUser progress", () => {
 		});
 
 		await saveInstanceForUser(
-			{ mediaItemId: itemId, instanceId, progressPercent: 42 },
+			{ mediaItemId: itemId, instanceId, progressPercent: "42" },
 			USER_A,
 		);
 
 		const details = await getMediaItemDetailsForUser(itemId, USER_A);
 		expect(details.instances[0].progressPercent).toBe(42);
+	});
+
+	it("round-trips a fractional progressPercent without losing precision", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+		});
+
+		await saveInstanceForUser(
+			{ mediaItemId: itemId, instanceId, progressPercent: "41.6667" },
+			USER_A,
+		);
+
+		const details = await getMediaItemDetailsForUser(itemId, USER_A);
+		expect(details.instances[0].progressPercent).toBe(41.6667);
 	});
 
 	it("clears progressPercent back to null when omitted on a later save", async () => {
@@ -445,7 +464,7 @@ describe("saveInstanceForUser / getMediaItemDetailsForUser progress", () => {
 		const instanceId = await insertInstance({
 			mediaItemId: itemId,
 			startedAt: "2024-01-01",
-			progressPercent: 42,
+			progressPercent: "42",
 		});
 
 		await saveInstanceForUser({ mediaItemId: itemId, instanceId }, USER_A);
@@ -463,7 +482,7 @@ describe("saveInstanceForUser / getMediaItemDetailsForUser progress", () => {
 
 		await expect(
 			saveInstanceForUser(
-				{ mediaItemId: itemB, instanceId, progressPercent: 90 },
+				{ mediaItemId: itemB, instanceId, progressPercent: "90" },
 				USER_A,
 			),
 		).rejects.toThrow("Media item not found");

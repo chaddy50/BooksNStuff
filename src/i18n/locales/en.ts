@@ -91,6 +91,7 @@ export const en = {
 		started: "Started",
 		completed: "Completed",
 		progress: "Progress %",
+		page: "Page",
 		progressComplete: "{{percent}}% complete",
 		removeFromLibrary: "Remove from Library",
 		overview: "Overview",

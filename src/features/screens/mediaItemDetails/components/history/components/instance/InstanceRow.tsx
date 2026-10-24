@@ -24,7 +24,9 @@ export function getProgressLabel(
 	t: (key: string, options?: Record<string, unknown>) => string,
 ): string | null {
 	if (progressPercent == null) return null;
-	return t("mediaItemDetails.progressComplete", { percent: progressPercent });
+	return t("mediaItemDetails.progressComplete", {
+		percent: Math.round(progressPercent),
+	});
 }
 
 export function InstanceRow({
