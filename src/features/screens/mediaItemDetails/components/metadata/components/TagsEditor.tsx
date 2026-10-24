@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { Input } from "#/components/ui/input";
 import { getTags } from "#/lib/tags";
+import { cn } from "#/lib/utils";
 
 interface TagsEditorProps {
 	pendingTags: string[];
@@ -20,6 +21,9 @@ export function TagsEditor({
 
 	const [inputValue, setInputValue] = useState("");
 	const [isShowingSuggestions, setIsShowingSuggestions] = useState(false);
+	const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState<
+		number | null
+	>(null);
 
 	const { data: allUserTags = [] } = useQuery({
 		queryKey: ["tags"],
@@ -34,13 +38,17 @@ export function TagsEditor({
 				!pendingTags.includes(name),
 		);
 
-	function addTag(name: string) {
+	function addTag(
+		name: string,
+		options: { shouldKeepSuggestionsOpen?: boolean } = {},
+	) {
 		const trimmed = name.trim();
 		if (trimmed && !pendingTags.includes(trimmed)) {
 			onPendingTagsChange([...pendingTags, trimmed]);
 		}
 		setInputValue("");
-		setIsShowingSuggestions(false);
+		setIsShowingSuggestions(options.shouldKeepSuggestionsOpen ?? false);
+		setHighlightedSuggestionIndex(null);
 		inputRef.current?.focus();
 		inputRef.current?.scrollIntoView({ block: "nearest" });
 	}
@@ -50,9 +58,32 @@ export function TagsEditor({
 	}
 
 	function handleInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-		if (event.key === "Enter" || event.key === ",") {
+		if (event.key === "ArrowDown") {
+			if (isShowingSuggestions && suggestions.length > 0) {
+				event.preventDefault();
+				setHighlightedSuggestionIndex((current) =>
+					current === null ? 0 : (current + 1) % suggestions.length,
+				);
+			}
+		} else if (event.key === "ArrowUp") {
+			if (isShowingSuggestions && suggestions.length > 0) {
+				event.preventDefault();
+				setHighlightedSuggestionIndex((current) =>
+					current === null
+						? suggestions.length - 1
+						: (current - 1 + suggestions.length) % suggestions.length,
+				);
+			}
+		} else if (event.key === "Enter" || event.key === ",") {
 			event.preventDefault();
-			if (inputValue.trim()) {
+			if (
+				highlightedSuggestionIndex !== null &&
+				suggestions[highlightedSuggestionIndex]
+			) {
+				addTag(suggestions[highlightedSuggestionIndex], {
+					shouldKeepSuggestionsOpen: true,
+				});
+			} else if (inputValue.trim()) {
 				addTag(inputValue);
 			}
 		} else if (event.key === "Escape") {
@@ -94,6 +125,7 @@ export function TagsEditor({
 					onChange={(e) => {
 						setInputValue(e.target.value);
 						setIsShowingSuggestions(true);
+						setHighlightedSuggestionIndex(null);
 					}}
 					onKeyDown={handleInputKeyDown}
 					onFocus={() => setIsShowingSuggestions(true)}
@@ -106,11 +138,15 @@ export function TagsEditor({
 				/>
 				{isShowingSuggestions && suggestions.length > 0 && (
 					<ul className="absolute z-10 bottom-full mb-1 w-full bg-popover border border-border rounded-md shadow-md max-h-40 overflow-y-auto">
-						{suggestions.map((suggestion) => (
+						{suggestions.map((suggestion, index) => (
 							<li key={suggestion}>
 								<button
 									type="button"
-									className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+									className={cn(
+										"w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground",
+										index === highlightedSuggestionIndex &&
+											"bg-accent text-accent-foreground",
+									)}
 									onMouseDown={() => addTag(suggestion)}
 								>
 									{suggestion}
