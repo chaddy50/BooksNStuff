@@ -57,37 +57,59 @@ export function TagsEditor({
 		onPendingTagsChange(pendingTags.filter((tag) => tag !== name));
 	}
 
+	function canNavigateSuggestions() {
+		return isShowingSuggestions && suggestions.length > 0;
+	}
+
+	function highlightNextSuggestion() {
+		setHighlightedSuggestionIndex((current) =>
+			current === null ? 0 : (current + 1) % suggestions.length,
+		);
+	}
+
+	function highlightPreviousSuggestion() {
+		setHighlightedSuggestionIndex((current) =>
+			current === null
+				? suggestions.length - 1
+				: (current - 1 + suggestions.length) % suggestions.length,
+		);
+	}
+
+	function addHighlightedOrTypedTag() {
+		if (
+			highlightedSuggestionIndex !== null &&
+			suggestions[highlightedSuggestionIndex]
+		) {
+			addTag(suggestions[highlightedSuggestionIndex], {
+				shouldKeepSuggestionsOpen: true,
+			});
+		} else if (inputValue.trim()) {
+			addTag(inputValue);
+		}
+	}
+
 	function handleInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-		if (event.key === "ArrowDown") {
-			if (isShowingSuggestions && suggestions.length > 0) {
+		switch (event.key) {
+			case "ArrowDown":
+				if (canNavigateSuggestions()) {
+					event.preventDefault();
+					highlightNextSuggestion();
+				}
+				break;
+			case "ArrowUp":
+				if (canNavigateSuggestions()) {
+					event.preventDefault();
+					highlightPreviousSuggestion();
+				}
+				break;
+			case "Enter":
+			case ",":
 				event.preventDefault();
-				setHighlightedSuggestionIndex((current) =>
-					current === null ? 0 : (current + 1) % suggestions.length,
-				);
-			}
-		} else if (event.key === "ArrowUp") {
-			if (isShowingSuggestions && suggestions.length > 0) {
-				event.preventDefault();
-				setHighlightedSuggestionIndex((current) =>
-					current === null
-						? suggestions.length - 1
-						: (current - 1 + suggestions.length) % suggestions.length,
-				);
-			}
-		} else if (event.key === "Enter" || event.key === ",") {
-			event.preventDefault();
-			if (
-				highlightedSuggestionIndex !== null &&
-				suggestions[highlightedSuggestionIndex]
-			) {
-				addTag(suggestions[highlightedSuggestionIndex], {
-					shouldKeepSuggestionsOpen: true,
-				});
-			} else if (inputValue.trim()) {
-				addTag(inputValue);
-			}
-		} else if (event.key === "Escape") {
-			setIsShowingSuggestions(false);
+				addHighlightedOrTypedTag();
+				break;
+			case "Escape":
+				setIsShowingSuggestions(false);
+				break;
 		}
 	}
 
