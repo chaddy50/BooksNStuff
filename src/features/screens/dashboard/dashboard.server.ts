@@ -15,7 +15,10 @@ import { db } from "#/database/index";
 import { mediaItemInstances, mediaItems, series } from "#/database/schema";
 import { MediaItemStatus } from "#/lib/enums";
 import { fetchCurrentProgressByMediaItemId } from "#/lib/queries/progressQuery.server";
-import { fetchLatestRatingsByMediaItemId } from "#/lib/queries/ratingsQuery.server";
+import {
+	fetchLatestRatingsByMediaItemId,
+	getLatestRating,
+} from "#/lib/queries/ratingsQuery.server";
 import { findLastIndexWhere } from "#/lib/utils";
 
 /**
@@ -254,7 +257,7 @@ async function attachRatings<T extends { id: number }>(
 
 	return items.map((item) => ({
 		...item,
-		rating: latestRatings.get(item.id)?.rating ?? 0,
+		rating: getLatestRating(item.id, latestRatings).rating,
 	}));
 }
 
