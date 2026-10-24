@@ -48,23 +48,25 @@ export const fetchEpisodesForFeed = createServerFn({ method: "GET" })
 		return itunes.fetchPodcastEpisodes(feedUrl);
 	});
 
+const arcMetadataSchema = z.object({
+	creator: z.string().optional(),
+	genres: z.array(z.string()).optional(),
+	feedUrl: z.string().optional(),
+	episodeNumbers: z.array(z.number()).optional(),
+	episodeTitles: z.array(z.string()).optional(),
+	episodeGuids: z.array(z.string()).optional(),
+	totalDuration: z.number().optional(),
+	firstPublishedAt: z.string().optional(),
+	lastPublishedAt: z.string().optional(),
+});
+
 export const addPodcastArc = createServerFn({ method: "POST" })
 	.inputValidator(
 		z.object({
 			podcastTitle: z.string().min(1),
 			podcastCoverImageUrl: z.string().optional(),
 			arcTitle: z.string().min(1),
-			arcMetadata: z.object({
-				creator: z.string().optional(),
-				genres: z.array(z.string()).optional(),
-				feedUrl: z.string().optional(),
-				episodeNumbers: z.array(z.number()).optional(),
-				episodeTitles: z.array(z.string()).optional(),
-				episodeGuids: z.array(z.string()).optional(),
-				totalDuration: z.number().optional(),
-				firstPublishedAt: z.string().optional(),
-				lastPublishedAt: z.string().optional(),
-			}),
+			arcMetadata: arcMetadataSchema,
 			status: z.enum(
 				Object.values(MediaItemStatus).filter(
 					(statusValue) =>
@@ -80,18 +82,6 @@ export const addPodcastArc = createServerFn({ method: "POST" })
 			user.id,
 		);
 	});
-
-const arcMetadataSchema = z.object({
-	creator: z.string().optional(),
-	genres: z.array(z.string()).optional(),
-	feedUrl: z.string().optional(),
-	episodeNumbers: z.array(z.number()).optional(),
-	episodeTitles: z.array(z.string()).optional(),
-	episodeGuids: z.array(z.string()).optional(),
-	totalDuration: z.number().optional(),
-	firstPublishedAt: z.string().optional(),
-	lastPublishedAt: z.string().optional(),
-});
 
 export const updatePodcastArcEpisodes = createServerFn({ method: "POST" })
 	.inputValidator(
