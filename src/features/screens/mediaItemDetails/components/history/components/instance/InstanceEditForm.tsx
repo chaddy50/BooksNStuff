@@ -119,6 +119,16 @@ function parseProgressInputValue(
 	return percent.toFixed(4);
 }
 
+/** A book's page count only drives progress entry when it's a known, positive number. */
+function resolveEffectivePageCount(
+	mediaItemType: MediaItemType,
+	pageCount: number | undefined,
+): number | undefined {
+	const isPageBasedProgress =
+		mediaItemType === MediaItemType.BOOK && pageCount != null && pageCount > 0;
+	return isPageBasedProgress ? pageCount : undefined;
+}
+
 export function InstanceEditForm({
 	instance,
 	mediaItemId,
@@ -143,9 +153,10 @@ export function InstanceEditForm({
 			(instance === undefined ? getLocalDateString(new Date()) : ""),
 	);
 	const [completedAt, setCompletedAt] = useState(instance?.completedAt ?? "");
-	const isPageBasedProgress =
-		mediaItemType === MediaItemType.BOOK && pageCount != null && pageCount > 0;
-	const effectivePageCount = isPageBasedProgress ? pageCount : undefined;
+	const effectivePageCount = resolveEffectivePageCount(
+		mediaItemType,
+		pageCount,
+	);
 	const [progressInputValue, setProgressInputValue] = useState(
 		formatProgressInputValue(instance?.progressPercent, effectivePageCount),
 	);
