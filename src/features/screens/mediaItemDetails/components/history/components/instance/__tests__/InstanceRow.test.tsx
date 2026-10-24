@@ -69,13 +69,17 @@ describe("getProgressLabel", () => {
 		options ? `${key}:${JSON.stringify(options)}` : key;
 
 	it("returns null when progressPercent is null", () => {
-		expect(getProgressLabel(null, tWithOptions)).toBeNull();
+		expect(getProgressLabel(null, null, tWithOptions)).toBeNull();
 	});
 
 	it("rounds a fractional percent for display", () => {
-		expect(getProgressLabel(46.875, tWithOptions)).toBe(
+		expect(getProgressLabel(46.875, null, tWithOptions)).toBe(
 			'mediaItemDetails.progressComplete:{"percent":47}',
 		);
+	});
+
+	it("returns null once the instance is completed, even with a percent", () => {
+		expect(getProgressLabel(46.875, "2024-01-15", tWithOptions)).toBeNull();
 	});
 });
 
@@ -163,6 +167,18 @@ describe("InstanceRow", () => {
 
 	it("shows no progress percentage when the instance has none", () => {
 		renderInstanceRow({ progressPercent: null });
+
+		expect(
+			screen.queryByText("mediaItemDetails.progressComplete"),
+		).not.toBeInTheDocument();
+	});
+
+	it("shows no progress percentage once the instance is completed", () => {
+		renderInstanceRow({
+			progressPercent: 100,
+			startedAt: "2026-01-01",
+			completedAt: "2026-01-15",
+		});
 
 		expect(
 			screen.queryByText("mediaItemDetails.progressComplete"),

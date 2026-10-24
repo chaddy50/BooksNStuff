@@ -1,4 +1,4 @@
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { db } from "#/database/index";
 import {
@@ -14,7 +14,7 @@ import {
 	tags,
 } from "#/database/schema";
 import { creatorMetadataKey } from "#/lib/creator";
-import type { MediaItemType } from "#/lib/enums";
+import { MediaItemStatus, type MediaItemType } from "#/lib/enums";
 import { parseProgressPercentColumn } from "#/lib/queries/progressQuery.server";
 import { parseRatingColumn } from "#/lib/queries/ratingsQuery.server";
 import { syncSeriesStatus } from "#/lib/queries/seriesQuery.server";
@@ -120,6 +120,7 @@ function undefinedToNull<T>(value: T | undefined): T | null {
 }
 
 function buildInstanceValues(data: SaveInstanceInput) {
+	const completedAt = emptyToNull(data.completedAt);
 	return {
 		rating: undefinedToNull(data.rating),
 		fictionRating: undefinedToNull(data.fictionRating),
@@ -129,8 +130,10 @@ function buildInstanceValues(data: SaveInstanceInput) {
 		) as ConsumptionInfo | null,
 		reviewText: emptyToNull(data.reviewText),
 		startedAt: emptyToNull(data.startedAt),
-		completedAt: emptyToNull(data.completedAt),
-		progressPercent: undefinedToNull(data.progressPercent),
+		completedAt,
+		progressPercent: completedAt
+			? "100.0000"
+			: undefinedToNull(data.progressPercent),
 	};
 }
 
@@ -172,6 +175,71 @@ export async function saveInstanceForUser(
 	await db
 		.update(mediaItems)
 		.set({ status: inferStatusFromInstances(instances) })
+		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
+
+	if (item.seriesId) {
+		await syncSeriesStatus(item.seriesId, userId);
+	}
+}
+
+async function requireOwnedMediaItem(mediaItemId: number, userId: string) {
+	const [item] = await db
+		.select({ seriesId: mediaItems.seriesId })
+		.from(mediaItems)
+		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
+	if (!item) throw new Error("Media item not found");
+	return item;
+}
+
+async function findUnfinishedInstance(mediaItemId: number) {
+	const [instance] = await db
+		.select({ id: mediaItemInstances.id })
+		.from(mediaItemInstances)
+		.where(
+			and(
+				eq(mediaItemInstances.mediaItemId, mediaItemId),
+				isNotNull(mediaItemInstances.startedAt),
+				isNull(mediaItemInstances.completedAt),
+			),
+		)
+		.orderBy(desc(mediaItemInstances.id))
+		.limit(1);
+	return instance ?? null;
+}
+
+async function startInstanceIfNeeded(mediaItemId: number, today: string) {
+	const existingUnfinishedInstance = await findUnfinishedInstance(mediaItemId);
+	if (existingUnfinishedInstance) return;
+	await db.insert(mediaItemInstances).values({ mediaItemId, startedAt: today });
+}
+
+async function completeUnfinishedInstance(mediaItemId: number, today: string) {
+	const unfinishedInstance = await findUnfinishedInstance(mediaItemId);
+	if (!unfinishedInstance) return;
+	await db
+		.update(mediaItemInstances)
+		.set({ completedAt: today, progressPercent: "100.0000" })
+		.where(eq(mediaItemInstances.id, unfinishedInstance.id));
+}
+
+export async function updateMediaItemStatusForUser(
+	mediaItemId: number,
+	status: MediaItemStatus,
+	userId: string,
+): Promise<void> {
+	const item = await requireOwnedMediaItem(mediaItemId, userId);
+
+	const today = new Date().toISOString().slice(0, 10);
+
+	if (status === MediaItemStatus.IN_PROGRESS) {
+		await startInstanceIfNeeded(mediaItemId, today);
+	} else if (status === MediaItemStatus.COMPLETED) {
+		await completeUnfinishedInstance(mediaItemId, today);
+	}
+
+	await db
+		.update(mediaItems)
+		.set({ status })
 		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
 
 	if (item.seriesId) {

@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "#/database/index";
@@ -18,6 +18,7 @@ import {
 	updateMediaItemCreator as updateMediaItemCreatorForUser,
 	updateMediaItemMetadata as updateMediaItemMetadataForUser,
 	updateMediaItemSeries as updateMediaItemSeriesForUser,
+	updateMediaItemStatusForUser,
 } from "#/features/screens/mediaItemDetails/mediaItemDetails.server";
 import { MediaItemStatus, NextItemStatus, PurchaseStatus } from "#/lib/enums";
 import { transitionReleasedItems } from "#/lib/queries/itemQuery.server";
@@ -71,31 +72,6 @@ export const getMediaItemDetails = createServerFn({ method: "GET" })
 
 export type MediaItemDetails = Awaited<ReturnType<typeof getMediaItemDetails>>;
 
-async function requireOwnedMediaItem(mediaItemId: number, userId: string) {
-	const [item] = await db
-		.select({ seriesId: mediaItems.seriesId })
-		.from(mediaItems)
-		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
-	if (!item) throw new Error("Media item not found");
-	return item;
-}
-
-async function findUnfinishedInstance(mediaItemId: number) {
-	const [instance] = await db
-		.select({ id: mediaItemInstances.id })
-		.from(mediaItemInstances)
-		.where(
-			and(
-				eq(mediaItemInstances.mediaItemId, mediaItemId),
-				isNotNull(mediaItemInstances.startedAt),
-				isNull(mediaItemInstances.completedAt),
-			),
-		)
-		.orderBy(desc(mediaItemInstances.id))
-		.limit(1);
-	return instance ?? null;
-}
-
 export const updateMediaItemStatus = createServerFn({ method: "POST" })
 	.inputValidator(
 		z.object({
@@ -105,39 +81,7 @@ export const updateMediaItemStatus = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data: { mediaItemId, status } }) => {
 		const user = await getLoggedInUser();
-		const item = await requireOwnedMediaItem(mediaItemId, user.id);
-
-		const today = new Date().toISOString().slice(0, 10);
-
-		if (status === MediaItemStatus.IN_PROGRESS) {
-			const existingUnfinishedInstance =
-				await findUnfinishedInstance(mediaItemId);
-			if (!existingUnfinishedInstance) {
-				await db.insert(mediaItemInstances).values({
-					mediaItemId,
-					startedAt: today,
-				});
-			}
-		} else if (status === MediaItemStatus.COMPLETED) {
-			const unfinishedInstance = await findUnfinishedInstance(mediaItemId);
-			if (unfinishedInstance) {
-				await db
-					.update(mediaItemInstances)
-					.set({ completedAt: today })
-					.where(eq(mediaItemInstances.id, unfinishedInstance.id));
-			}
-		}
-
-		await db
-			.update(mediaItems)
-			.set({ status })
-			.where(
-				and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, user.id)),
-			);
-
-		if (item.seriesId) {
-			await syncSeriesStatus(item.seriesId, user.id);
-		}
+		await updateMediaItemStatusForUser(mediaItemId, status, user.id);
 	});
 
 const fictionRatingSchema = z.object({

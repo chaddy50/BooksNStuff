@@ -149,6 +149,86 @@ describe("InstanceEditForm", () => {
 		).toBeUndefined();
 	});
 
+	it("hides the progress field for an instance that already has a completed date", () => {
+		render(
+			<InstanceEditForm
+				{...baseProps}
+				instance={{
+					id: 42,
+					rating: 0,
+					fictionRating: null,
+					seasonReviews: null,
+					consumptionInfo: null,
+					reviewText: null,
+					progressPercent: 100,
+					startedAt: "2024-01-01",
+					completedAt: "2024-01-15",
+				}}
+			/>,
+		);
+
+		expect(
+			screen.queryByLabelText("mediaItemDetails.progress"),
+		).not.toBeInTheDocument();
+	});
+
+	it("hides the progress field as soon as a completed date is typed in", () => {
+		render(
+			<InstanceEditForm
+				{...baseProps}
+				instance={{
+					id: 42,
+					rating: 0,
+					fictionRating: null,
+					seasonReviews: null,
+					consumptionInfo: null,
+					reviewText: null,
+					progressPercent: 55,
+					startedAt: "2024-01-01",
+					completedAt: null,
+				}}
+			/>,
+		);
+		expect(
+			screen.getByLabelText("mediaItemDetails.progress"),
+		).toBeInTheDocument();
+
+		fireEvent.change(screen.getByLabelText("mediaItemDetails.completed"), {
+			target: { value: "2024-01-15" },
+		});
+
+		expect(
+			screen.queryByLabelText("mediaItemDetails.progress"),
+		).not.toBeInTheDocument();
+	});
+
+	it("shows the progress field again after the completed date is cleared", () => {
+		render(
+			<InstanceEditForm
+				{...baseProps}
+				instance={{
+					id: 42,
+					rating: 0,
+					fictionRating: null,
+					seasonReviews: null,
+					consumptionInfo: null,
+					reviewText: null,
+					progressPercent: 100,
+					startedAt: "2024-01-01",
+					completedAt: "2024-01-15",
+				}}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText("mediaItemDetails.completed"), {
+			target: { value: "" },
+		});
+
+		expect(
+			screen.getByLabelText("mediaItemDetails.progress"),
+		).toBeInTheDocument();
+	});
+
 	describe("page-based progress entry for books", () => {
 		it("shows a page-number input with a total-pages suffix when pageCount is known", () => {
 			render(

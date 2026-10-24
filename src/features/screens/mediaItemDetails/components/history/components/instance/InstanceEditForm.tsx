@@ -20,6 +20,7 @@ import type {
 } from "#/database/schema";
 import { ConsumptionEditor } from "#/features/screens/mediaItemDetails/components/history/components/instance/ConsumptionEditor";
 import { getDefaultMethod } from "#/features/screens/mediaItemDetails/components/history/components/instance/consumptionUtils";
+import { ProgressField } from "#/features/screens/mediaItemDetails/components/history/components/instance/ProgressField";
 import { RatingEditor } from "#/features/screens/mediaItemDetails/components/history/components/instance/rating/RatingEditor";
 import { SeasonReviewRow } from "#/features/screens/mediaItemDetails/components/history/components/instance/SeasonReviewRow";
 import {
@@ -143,7 +144,7 @@ export function InstanceEditForm({
 	);
 	const [completedAt, setCompletedAt] = useState(instance?.completedAt ?? "");
 	const isPageBasedProgress =
-		mediaItemType === MediaItemType.BOOK && !!pageCount && pageCount > 0;
+		mediaItemType === MediaItemType.BOOK && pageCount != null && pageCount > 0;
 	const effectivePageCount = isPageBasedProgress ? pageCount : undefined;
 	const [progressInputValue, setProgressInputValue] = useState(
 		formatProgressInputValue(instance?.progressPercent, effectivePageCount),
@@ -217,7 +218,6 @@ export function InstanceEditForm({
 			: null;
 	const startedAtId = useId();
 	const completedAtId = useId();
-	const progressPercentId = useId();
 	const reviewTextId = useId();
 	const parsedProgressPercent = parseProgressInputValue(
 		progressInputValue,
@@ -395,32 +395,12 @@ export function InstanceEditForm({
 					/>
 				</div>
 			</div>
-			<div className="flex flex-col gap-1.5">
-				<label
-					className="text-sm text-muted-foreground"
-					htmlFor={progressPercentId}
-				>
-					{t(
-						isPageBasedProgress
-							? "mediaItemDetails.page"
-							: "mediaItemDetails.progress",
-					)}
-				</label>
-				<div className="flex items-center gap-1.5">
-					<Input
-						id={progressPercentId}
-						type="number"
-						min={0}
-						max={isPageBasedProgress ? pageCount : 100}
-						value={progressInputValue}
-						onChange={(e) => setProgressInputValue(e.target.value)}
-						className="w-16 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-					/>
-					{isPageBasedProgress && (
-						<span className="text-sm text-muted-foreground">/ {pageCount}</span>
-					)}
-				</div>
-			</div>
+			<ProgressField
+				completedAt={completedAt}
+				progressPercent={progressInputValue}
+				onProgressPercentChange={setProgressInputValue}
+				pageCount={effectivePageCount}
+			/>
 			{dateError && (
 				<p className="text-sm text-destructive" data-testid="date-error">
 					{dateError}

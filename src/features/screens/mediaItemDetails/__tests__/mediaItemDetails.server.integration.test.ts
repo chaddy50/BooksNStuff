@@ -28,6 +28,7 @@ import {
 	updateMediaItemCreator,
 	updateMediaItemMetadata,
 	updateMediaItemSeries,
+	updateMediaItemStatusForUser,
 } from "../mediaItemDetails.server";
 
 const USER_A = "user-a";
@@ -473,6 +474,74 @@ describe("saveInstanceForUser / getMediaItemDetailsForUser progress", () => {
 		expect(details.instances[0].progressPercent).toBeNull();
 	});
 
+	it("forces progressPercent to 100 when completedAt is saved, overriding the input value", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+		});
+
+		await saveInstanceForUser(
+			{
+				mediaItemId: itemId,
+				instanceId,
+				completedAt: "2024-01-15",
+				progressPercent: "42",
+			},
+			USER_A,
+		);
+
+		const details = await getMediaItemDetailsForUser(itemId, USER_A);
+		expect(details.instances[0].progressPercent).toBe(100);
+	});
+
+	it("keeps the given progressPercent when completedAt is not set", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+		});
+
+		await saveInstanceForUser(
+			{ mediaItemId: itemId, instanceId, progressPercent: "42" },
+			USER_A,
+		);
+
+		const details = await getMediaItemDetailsForUser(itemId, USER_A);
+		expect(details.instances[0].progressPercent).toBe(42);
+	});
+
+	it("keeps the given progressPercent when completedAt is cleared back to empty", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+			completedAt: "2024-01-15",
+		});
+
+		await saveInstanceForUser(
+			{
+				mediaItemId: itemId,
+				instanceId,
+				completedAt: "",
+				progressPercent: "42",
+			},
+			USER_A,
+		);
+
+		const details = await getMediaItemDetailsForUser(itemId, USER_A);
+		expect(details.instances[0].progressPercent).toBe(42);
+	});
+
 	it("does not update an instance belonging to another user's item", async () => {
 		const { itemB } = await seedBothUsersOwnSameItem();
 		const instanceId = await insertInstance({
@@ -536,5 +605,70 @@ describe("saveInstanceForUser / getMediaItemDetailsForUser progress", () => {
 		);
 
 		expect((await readItem(itemId))?.status).toBe(MediaItemStatus.IN_PROGRESS);
+	});
+});
+
+describe("updateMediaItemStatusForUser", () => {
+	it("sets the unfinished instance's progressPercent to 100 when completing", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+			progressPercent: "42",
+		});
+
+		await updateMediaItemStatusForUser(
+			itemId,
+			MediaItemStatus.COMPLETED,
+			USER_A,
+		);
+
+		const details = await getMediaItemDetailsForUser(itemId, USER_A);
+		const instance = details.instances.find((i) => i.id === instanceId);
+		expect(instance?.progressPercent).toBe(100);
+		expect(instance?.completedAt).not.toBeNull();
+	});
+
+	it("leaves the unfinished instance's progressPercent untouched when dropping", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+			progressPercent: "42",
+		});
+
+		await updateMediaItemStatusForUser(itemId, MediaItemStatus.DROPPED, USER_A);
+
+		const details = await getMediaItemDetailsForUser(itemId, USER_A);
+		const instance = details.instances.find((i) => i.id === instanceId);
+		expect(instance?.progressPercent).toBe(42);
+		expect(instance?.completedAt).toBeNull();
+	});
+
+	it("creates a new unfinished instance when starting an item with none", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.BACKLOG,
+		});
+
+		await updateMediaItemStatusForUser(
+			itemId,
+			MediaItemStatus.IN_PROGRESS,
+			USER_A,
+		);
+
+		const details = await getMediaItemDetailsForUser(itemId, USER_A);
+		expect(details.instances).toHaveLength(1);
+		expect(details.instances[0]?.startedAt).not.toBeNull();
+		expect(details.instances[0]?.completedAt).toBeNull();
 	});
 });
