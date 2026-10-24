@@ -77,4 +77,15 @@ describe("EditMetadataDialog", () => {
 
 		expect(screen.getAllByRole("combobox")).toHaveLength(2);
 	});
+
+	it("uses a theme-aware icon color so the trigger stays visible in light mode", () => {
+		render(<EditMetadataDialog mediaItemDetails={mediaItemDetails} />);
+
+		const trigger = screen.getByRole("button", {
+			name: "mediaItemDetails.edit",
+		});
+
+		expect(trigger.className).not.toContain("text-white");
+		expect(trigger.className).toContain("text-muted-foreground");
+	});
 });
