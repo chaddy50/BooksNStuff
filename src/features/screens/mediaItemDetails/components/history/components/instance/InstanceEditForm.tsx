@@ -28,7 +28,7 @@ import {
 	saveInstance,
 } from "#/features/screens/mediaItemDetails/mediaItemDetails";
 import { GameControlMethod, MediaItemType } from "#/lib/enums";
-import { isDeepEqual } from "#/lib/utils";
+import { getLocalDateString, isDeepEqual } from "#/lib/utils";
 
 export interface InstanceEditFormHandle {
 	hasUnsavedChanges: () => boolean;
@@ -114,7 +114,7 @@ export function InstanceEditForm({
 	const [reviewText, setReviewText] = useState(instance?.reviewText ?? "");
 	const [startedAt, setStartedAt] = useState(
 		instance?.startedAt ??
-			(instance === undefined ? new Date().toISOString().split("T")[0] : ""),
+			(instance === undefined ? getLocalDateString(new Date()) : ""),
 	);
 	const [completedAt, setCompletedAt] = useState(instance?.completedAt ?? "");
 	const [progressPercent, setProgressPercent] = useState(
