@@ -20,21 +20,21 @@ export function useDeleteConfirmation({
 }: UseDeleteConfirmationOptions): UseDeleteConfirmationResult {
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const [errorMessage, setErrorMessage] = useState<string | undefined>();
+	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
 	function requestDelete() {
 		setIsDialogOpen(true);
-		setErrorMessage(undefined);
+		setErrorMessage(null);
 	}
 
 	function cancelDelete() {
 		setIsDialogOpen(false);
-		setErrorMessage(undefined);
+		setErrorMessage(null);
 	}
 
 	async function confirmDelete() {
 		setIsDeleting(true);
-		setErrorMessage(undefined);
+		setErrorMessage(null);
 		try {
 			await onDelete();
 		} catch {
@@ -47,7 +47,7 @@ export function useDeleteConfirmation({
 	return {
 		isDialogOpen,
 		isDeleting,
-		errorMessage,
+		errorMessage: errorMessage ?? undefined,
 		requestDelete,
 		cancelDelete,
 		confirmDelete,

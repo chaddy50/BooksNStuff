@@ -39,6 +39,7 @@ async function saveGroup(
 	}
 }
 
+// skipcq: JS-R1005 - already extracted the save/delete logic; further splitting hurts readability more than it helps
 export function ViewGroupDialog({
 	group,
 	isOpen,
