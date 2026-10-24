@@ -18,7 +18,7 @@ export function SeriesCompletionBadge({
 	}
 
 	return (
-		<span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-xsecondary-foreground shrink-0">
+		<span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground shrink-0">
 			{t("seriesDetails.ongoing")}
 		</span>
 	);
