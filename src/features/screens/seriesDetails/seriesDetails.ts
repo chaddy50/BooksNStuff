@@ -15,15 +15,8 @@ import { getLoggedInUser } from "#/features/screens/auth/session";
 import { getMissingSeriesItems as getMissingSeriesItemsForUser } from "#/features/screens/seriesDetails/missingSeriesItems.server";
 import { updateSeriesMetadata as updateSeriesMetadataForUser } from "#/features/screens/seriesDetails/seriesDetails.server";
 import { MediaItemStatus, NextItemStatus } from "#/lib/enums";
-import {
-	fetchCurrentProgressByMediaItemId,
-	getCurrentProgress,
-} from "#/lib/queries/progressQuery.server";
-import {
-	fetchLatestRatingsByMediaItemId,
-	getLatestRating,
-	parseRatingColumn,
-} from "#/lib/queries/ratingsQuery.server";
+import { attachRatingsAndProgress } from "#/lib/queries/ratingsAndProgressQuery.server";
+import { parseRatingColumn } from "#/lib/queries/ratingsQuery.server";
 
 export const getSeriesListByType = createServerFn({ method: "GET" })
 	.inputValidator(z.object({ type: z.enum(mediaTypeEnum.enumValues) }))
@@ -79,20 +72,12 @@ export const getSeriesDetails = createServerFn({ method: "GET" })
 			};
 		}
 
-		const itemIds = items.map((item) => item.id);
-		const [latestRatings, currentProgress] = await Promise.all([
-			fetchLatestRatingsByMediaItemId(itemIds),
-			fetchCurrentProgressByMediaItemId(itemIds),
-		]);
+		const itemsWithRatings = await attachRatingsAndProgress(items);
 
 		return {
 			...row,
 			rating: parseRatingColumn(row.rating),
-			items: items.map((item) => ({
-				...item,
-				...getLatestRating(item.id, latestRatings),
-				progressPercent: getCurrentProgress(item.id, currentProgress),
-			})),
+			items: itemsWithRatings,
 		};
 	});
 

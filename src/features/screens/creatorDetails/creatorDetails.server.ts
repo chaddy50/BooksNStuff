@@ -7,14 +7,7 @@ import {
 	groupMediaItemTypesByCreatorMetadataKey,
 } from "#/lib/creator";
 import { computeProfileStats } from "#/lib/queries/profileStats";
-import {
-	fetchCurrentProgressByMediaItemId,
-	getCurrentProgress,
-} from "#/lib/queries/progressQuery.server";
-import {
-	fetchLatestRatingsByMediaItemId,
-	getLatestRating,
-} from "#/lib/queries/ratingsQuery.server";
+import { attachRatingsAndProgress } from "#/lib/queries/ratingsAndProgressQuery.server";
 
 /**
  * Find an existing creator row for (userId, name), or create one with the
@@ -92,16 +85,7 @@ export async function fetchCreatorDetails(creatorId: number, userId: string) {
 		return { ...row, items: [], stats: computeProfileStats([]), role };
 	}
 
-	const itemIds = items.map((item) => item.id);
-	const [latestRatings, currentProgress] = await Promise.all([
-		fetchLatestRatingsByMediaItemId(itemIds),
-		fetchCurrentProgressByMediaItemId(itemIds),
-	]);
-	const itemsWithRatings = items.map((item) => ({
-		...item,
-		...getLatestRating(item.id, latestRatings),
-		progressPercent: getCurrentProgress(item.id, currentProgress),
-	}));
+	const itemsWithRatings = await attachRatingsAndProgress(items);
 
 	return {
 		...row,
