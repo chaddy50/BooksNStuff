@@ -130,7 +130,7 @@ describe("SeriesDetailsScreen", () => {
 		const { deleteSeries } = await import(
 			"#/features/screens/seriesDetails/seriesDetails"
 		);
-		vi.mocked(deleteSeries).mockResolvedValue(undefined);
+		vi.mocked(deleteSeries).mockResolvedValue();
 		render(<SeriesDetailsScreen />);
 
 		clickDeleteSeries();

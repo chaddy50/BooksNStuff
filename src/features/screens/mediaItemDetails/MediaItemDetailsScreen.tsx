@@ -1,9 +1,9 @@
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { DeleteButton } from "#/components/DeleteButton";
 import { DeleteConfirmationDialog } from "#/components/DeleteConfirmationDialog";
+import { useDeleteConfirmation } from "#/components/hooks/useDeleteConfirmation";
 import { TopBar } from "#/features/navigation/topBar/TopBar";
 import { MediaItemDetailsHeader } from "./components/header/MediaItemDetailsHeader";
 import { History } from "./components/history/History";
@@ -25,36 +25,18 @@ export function MediaItemDetailsScreen() {
 	const { tab } = route.useSearch();
 	const { t } = useTranslation();
 	const navigate = useNavigate();
-	const [isDeleting, setIsDeleting] = useState(false);
-	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-	const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(
-		null,
-	);
+	const deleteConfirmation = useDeleteConfirmation({
+		onDelete: async () => {
+			await removeFromLibrary({ data: { mediaItemId: mediaItemDetails.id } });
+			await navigate({ to: "/" });
+		},
+		failureMessage: t("mediaItemDetails.deleteFailed"),
+	});
 	const activeTabId: MediaItemDetailsTabId = tab ?? "overview";
 
 	const editingState = useInstanceEditingState({
-		isUnsavedChangesGuardEnabled: () => !isDeleting,
+		isUnsavedChangesGuardEnabled: () => !deleteConfirmation.isDeleting,
 	});
-
-	async function handleConfirmDelete() {
-		setIsDeleting(true);
-		setDeleteErrorMessage(null);
-		try {
-			await removeFromLibrary({
-				data: { mediaItemId: mediaItemDetails.id },
-			});
-			await navigate({ to: "/" });
-		} catch {
-			setDeleteErrorMessage(t("mediaItemDetails.deleteFailed"));
-		} finally {
-			setIsDeleting(false);
-		}
-	}
-
-	function handleCancelDelete() {
-		setIsDeleteDialogOpen(false);
-		setDeleteErrorMessage(null);
-	}
 
 	function handleSelectTab(tabId: MediaItemDetailsTabId) {
 		navigate({
@@ -78,8 +60,8 @@ export function MediaItemDetailsScreen() {
 				shouldShowBackButton
 				right={
 					<DeleteButton
-						onClick={() => setIsDeleteDialogOpen(true)}
-						disabled={isDeleting}
+						onClick={deleteConfirmation.requestDelete}
+						disabled={deleteConfirmation.isDeleting}
 					>
 						{t("mediaItemDetails.removeFromLibrary")}
 					</DeleteButton>
@@ -87,15 +69,15 @@ export function MediaItemDetailsScreen() {
 			/>
 
 			<DeleteConfirmationDialog
-				isOpen={isDeleteDialogOpen}
+				isOpen={deleteConfirmation.isDialogOpen}
 				title={t("mediaItemDetails.deleteTitle")}
 				description={t("mediaItemDetails.deleteDescription", {
 					title: mediaItemDetails.title,
 				})}
-				isDeleting={isDeleting}
-				errorMessage={deleteErrorMessage ?? undefined}
-				onCancel={handleCancelDelete}
-				onConfirm={handleConfirmDelete}
+				isDeleting={deleteConfirmation.isDeleting}
+				errorMessage={deleteConfirmation.errorMessage}
+				onCancel={deleteConfirmation.cancelDelete}
+				onConfirm={deleteConfirmation.confirmDelete}
 			/>
 
 			<div

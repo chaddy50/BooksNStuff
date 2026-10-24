@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { DeleteButton } from "#/components/DeleteButton";
 import { DeleteConfirmationDialog } from "#/components/DeleteConfirmationDialog";
+import { useDeleteConfirmation } from "#/components/hooks/useDeleteConfirmation";
 import { SaveAndCancelButtons } from "#/components/SaveAndCancelButtons";
 import {
 	Dialog,
@@ -38,10 +39,18 @@ export function ViewGroupDialog({
 	const [name, setName] = useState(group?.name ?? "");
 	const [isPending, setIsPending] = useState(false);
 	const [hasFailed, setHasFailed] = useState(false);
-	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-	const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(
-		null,
-	);
+	const deleteConfirmation = useDeleteConfirmation({
+		onDelete: async () => {
+			if (!group) return;
+			await deleteViewGroup({ data: { id: group.id } });
+			// The group's views come back to the top level, so the view list is stale
+			// too, not just the group list.
+			await queryClient.invalidateQueries({ queryKey: ["viewGroups"] });
+			await queryClient.invalidateQueries({ queryKey: ["views"] });
+			onClose();
+		},
+		failureMessage: t("viewGroups.deleteFailed"),
+	});
 
 	async function handleSave() {
 		setIsPending(true);
@@ -59,34 +68,6 @@ export function ViewGroupDialog({
 			// can catch for us. Staying open with the failure shown beats closing
 			// as though the group had been saved.
 			setHasFailed(true);
-		} finally {
-			setIsPending(false);
-		}
-	}
-
-	function handleDeleteRequested() {
-		setIsDeleteDialogOpen(true);
-	}
-
-	function handleCancelDelete() {
-		setIsDeleteDialogOpen(false);
-		setDeleteErrorMessage(null);
-	}
-
-	async function handleConfirmDelete() {
-		if (!group) return;
-
-		setIsPending(true);
-		setDeleteErrorMessage(null);
-		try {
-			await deleteViewGroup({ data: { id: group.id } });
-			// The group's views come back to the top level, so the view list is stale
-			// too, not just the group list.
-			await queryClient.invalidateQueries({ queryKey: ["viewGroups"] });
-			await queryClient.invalidateQueries({ queryKey: ["views"] });
-			onClose();
-		} catch {
-			setDeleteErrorMessage(t("viewGroups.deleteFailed"));
 		} finally {
 			setIsPending(false);
 		}
@@ -121,16 +102,16 @@ export function ViewGroupDialog({
 						</p>
 					)}
 					<div className="flex items-center justify-between pt-2">
-						<div>
-							{group && (
-								<DeleteButton
-									onClick={handleDeleteRequested}
-									disabled={isPending}
-								>
-									{t("viewGroups.deleteGroup")}
-								</DeleteButton>
-							)}
-						</div>
+						{group ? (
+							<DeleteButton
+								onClick={deleteConfirmation.requestDelete}
+								disabled={isPending || deleteConfirmation.isDeleting}
+							>
+								{t("viewGroups.deleteGroup")}
+							</DeleteButton>
+						) : (
+							<span />
+						)}
 						<SaveAndCancelButtons
 							onSave={handleSave}
 							onCancel={onClose}
@@ -142,15 +123,15 @@ export function ViewGroupDialog({
 			</Dialog>
 
 			<DeleteConfirmationDialog
-				isOpen={isDeleteDialogOpen}
+				isOpen={deleteConfirmation.isDialogOpen}
 				title={t("viewGroups.deleteTitle")}
 				description={t("viewGroups.deleteDescription", {
 					name: group?.name ?? "",
 				})}
-				isDeleting={isPending}
-				errorMessage={deleteErrorMessage ?? undefined}
-				onCancel={handleCancelDelete}
-				onConfirm={handleConfirmDelete}
+				isDeleting={deleteConfirmation.isDeleting}
+				errorMessage={deleteConfirmation.errorMessage}
+				onCancel={deleteConfirmation.cancelDelete}
+				onConfirm={deleteConfirmation.confirmDelete}
 			/>
 		</>
 	);

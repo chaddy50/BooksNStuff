@@ -1006,7 +1006,7 @@ describe("ViewScreen delete flow", () => {
 
 	it("deletes the view and goes back when confirmed", async () => {
 		const { deleteView } = await import("#/features/screens/customView/view");
-		vi.mocked(deleteView).mockResolvedValue(undefined);
+		vi.mocked(deleteView).mockResolvedValue();
 		render(<ViewScreen />);
 
 		clickDeleteView();
