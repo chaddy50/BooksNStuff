@@ -3,14 +3,7 @@ import { and, asc, count, eq } from "drizzle-orm";
 import { db } from "#/database/index";
 import { type Genre, genres, mediaItems } from "#/database/schema";
 import { computeProfileStats } from "#/lib/queries/profileStats";
-import {
-	fetchCurrentProgressByMediaItemId,
-	getCurrentProgress,
-} from "#/lib/queries/progressQuery.server";
-import {
-	fetchLatestRatingsByMediaItemId,
-	getLatestRating,
-} from "#/lib/queries/ratingsQuery.server";
+import { attachRatingsAndProgress } from "#/lib/queries/ratingsAndProgressQuery.server";
 import type { TaxonomyEntry, TaxonomyMutationResult } from "#/lib/taxonomy";
 import {
 	isDuplicateNameError,
@@ -74,16 +67,7 @@ export async function fetchGenreDetails(genreId: number, userId: string) {
 		return { ...row, items: [], stats: computeProfileStats([]) };
 	}
 
-	const itemIds = items.map((item) => item.id);
-	const [latestRatings, currentProgress] = await Promise.all([
-		fetchLatestRatingsByMediaItemId(itemIds),
-		fetchCurrentProgressByMediaItemId(itemIds),
-	]);
-	const itemsWithRatings = items.map((item) => ({
-		...item,
-		...getLatestRating(item.id, latestRatings),
-		progressPercent: getCurrentProgress(item.id, currentProgress),
-	}));
+	const itemsWithRatings = await attachRatingsAndProgress(items);
 
 	return {
 		...row,
