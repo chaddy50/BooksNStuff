@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatDateRange, getLocalDateString, isDeepEqual } from "../utils";
+import {
+	findFirstMatchAfterIndex,
+	formatDateRange,
+	getLocalDateString,
+	isDeepEqual,
+} from "../utils";
 
 describe("getLocalDateString", () => {
 	it("formats the date using local year, month, and day", () => {
@@ -46,6 +51,25 @@ describe("formatDateRange", () => {
 
 	it("returns just the end date when only completedAt is set", () => {
 		expect(formatDateRange(null, "2024-06-15")).toBe("Jun 15, 2024");
+	});
+});
+
+describe("findFirstMatchAfterIndex", () => {
+	it("returns the first matching item after the given index", () => {
+		const items = [1, 2, 3, 4, 5];
+		expect(findFirstMatchAfterIndex(items, 1, (item) => item > 2)).toBe(3);
+	});
+
+	it("returns undefined when no item after the index matches", () => {
+		const items = [1, 2, 3];
+		expect(
+			findFirstMatchAfterIndex(items, 1, (item) => item > 10),
+		).toBeUndefined();
+	});
+
+	it("searches the whole array when the index is -1", () => {
+		const items = [1, 2, 3];
+		expect(findFirstMatchAfterIndex(items, -1, (item) => item === 1)).toBe(1);
 	});
 });
 

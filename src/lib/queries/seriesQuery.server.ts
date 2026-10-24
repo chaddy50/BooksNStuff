@@ -28,7 +28,7 @@ import {
 } from "#/lib/queries/ratingsQuery.server";
 import { inferSeriesStatus } from "#/lib/queries/seriesStatus";
 import { MAX_QUERY_LIMIT } from "#/lib/queries/types";
-import { findLastIndexWhere } from "#/lib/utils";
+import { findFirstMatchAfterIndex, findLastIndexWhere } from "#/lib/utils";
 
 // ---------------------------------------------------------------------------
 // runSeriesQuery
@@ -189,9 +189,11 @@ export function findNextSeriesItem(
 		return items[0] ?? null;
 	}
 
-	const nextItem = items
-		.slice(lastEngagedIndex + 1)
-		.find((item) => item.status === MediaItemStatus.BACKLOG);
+	const nextItem = findFirstMatchAfterIndex(
+		items,
+		lastEngagedIndex,
+		(item) => item.status === MediaItemStatus.BACKLOG,
+	);
 
 	return nextItem ?? null;
 }
