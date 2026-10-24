@@ -46,7 +46,7 @@ describe("useDeleteConfirmation", () => {
 	});
 
 	it("calls onDelete when confirmed", async () => {
-		const onDelete = vi.fn().mockResolvedValue(undefined);
+		const onDelete = vi.fn<() => Promise<void>>().mockResolvedValue();
 		const { result } = renderHook(() =>
 			useDeleteConfirmation({
 				onDelete,

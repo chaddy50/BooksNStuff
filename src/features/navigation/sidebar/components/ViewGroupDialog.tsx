@@ -28,6 +28,17 @@ interface ViewGroupDialogProps {
 	onClose: () => void;
 }
 
+async function saveGroup(
+	group: ViewGroup | undefined,
+	name: string,
+): Promise<void> {
+	if (group) {
+		await renameViewGroup({ data: { id: group.id, name } });
+	} else {
+		await createViewGroup({ data: { name } });
+	}
+}
+
 export function ViewGroupDialog({
 	group,
 	isOpen,
@@ -41,7 +52,9 @@ export function ViewGroupDialog({
 	const [hasFailed, setHasFailed] = useState(false);
 	const deleteConfirmation = useDeleteConfirmation({
 		onDelete: async () => {
-			if (!group) return;
+			if (!group) {
+				throw new Error("Cannot delete a group that doesn't exist");
+			}
 			await deleteViewGroup({ data: { id: group.id } });
 			// The group's views come back to the top level, so the view list is stale
 			// too, not just the group list.
@@ -56,11 +69,7 @@ export function ViewGroupDialog({
 		setIsPending(true);
 		setHasFailed(false);
 		try {
-			if (group) {
-				await renameViewGroup({ data: { id: group.id, name } });
-			} else {
-				await createViewGroup({ data: { name } });
-			}
+			await saveGroup(group, name);
 			await queryClient.invalidateQueries({ queryKey: ["viewGroups"] });
 			onClose();
 		} catch {
@@ -74,65 +83,63 @@ export function ViewGroupDialog({
 	}
 
 	return (
-		<>
-			<Dialog
-				open={isOpen}
-				onOpenChange={(open) => {
-					if (!open) onClose();
-				}}
-			>
-				<DialogContent className="max-w-sm">
-					<DialogHeader>
-						<DialogTitle>
-							{t(group ? "viewGroups.editGroup" : "viewGroups.createGroup")}
-						</DialogTitle>
-					</DialogHeader>
-					<div className="flex flex-col gap-1.5">
-						<Label htmlFor={nameInputId}>{t("viewGroups.name")}</Label>
-						<Input
-							id={nameInputId}
-							value={name}
-							onChange={(event) => setName(event.target.value)}
-							placeholder={t("viewGroups.namePlaceholder")}
-						/>
-					</div>
-					{hasFailed && (
-						<p role="alert" className="text-xs text-destructive">
-							{t("viewGroups.actionFailed")}
-						</p>
+		<Dialog
+			open={isOpen}
+			onOpenChange={(open) => {
+				if (!open) onClose();
+			}}
+		>
+			<DialogContent className="max-w-sm">
+				<DialogHeader>
+					<DialogTitle>
+						{t(group ? "viewGroups.editGroup" : "viewGroups.createGroup")}
+					</DialogTitle>
+				</DialogHeader>
+				<div className="flex flex-col gap-1.5">
+					<Label htmlFor={nameInputId}>{t("viewGroups.name")}</Label>
+					<Input
+						id={nameInputId}
+						value={name}
+						onChange={(event) => setName(event.target.value)}
+						placeholder={t("viewGroups.namePlaceholder")}
+					/>
+				</div>
+				{hasFailed && (
+					<p role="alert" className="text-xs text-destructive">
+						{t("viewGroups.actionFailed")}
+					</p>
+				)}
+				<div className="flex items-center justify-between pt-2">
+					{group ? (
+						<DeleteButton
+							onClick={deleteConfirmation.requestDelete}
+							disabled={isPending || deleteConfirmation.isDeleting}
+						>
+							{t("viewGroups.deleteGroup")}
+						</DeleteButton>
+					) : (
+						<span />
 					)}
-					<div className="flex items-center justify-between pt-2">
-						{group ? (
-							<DeleteButton
-								onClick={deleteConfirmation.requestDelete}
-								disabled={isPending || deleteConfirmation.isDeleting}
-							>
-								{t("viewGroups.deleteGroup")}
-							</DeleteButton>
-						) : (
-							<span />
-						)}
-						<SaveAndCancelButtons
-							onSave={handleSave}
-							onCancel={onClose}
-							isPending={isPending}
-							isSaveDisabled={name.trim().length === 0}
-						/>
-					</div>
-				</DialogContent>
-			</Dialog>
+					<SaveAndCancelButtons
+						onSave={handleSave}
+						onCancel={onClose}
+						isPending={isPending}
+						isSaveDisabled={name.trim().length === 0}
+					/>
+				</div>
 
-			<DeleteConfirmationDialog
-				isOpen={deleteConfirmation.isDialogOpen}
-				title={t("viewGroups.deleteTitle")}
-				description={t("viewGroups.deleteDescription", {
-					name: group?.name ?? "",
-				})}
-				isDeleting={deleteConfirmation.isDeleting}
-				errorMessage={deleteConfirmation.errorMessage}
-				onCancel={deleteConfirmation.cancelDelete}
-				onConfirm={deleteConfirmation.confirmDelete}
-			/>
-		</>
+				<DeleteConfirmationDialog
+					isOpen={deleteConfirmation.isDialogOpen}
+					title={t("viewGroups.deleteTitle")}
+					description={t("viewGroups.deleteDescription", {
+						name: group?.name ?? "",
+					})}
+					isDeleting={deleteConfirmation.isDeleting}
+					errorMessage={deleteConfirmation.errorMessage}
+					onCancel={deleteConfirmation.cancelDelete}
+					onConfirm={deleteConfirmation.confirmDelete}
+				/>
+			</DialogContent>
+		</Dialog>
 	);
 }

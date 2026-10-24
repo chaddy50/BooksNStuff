@@ -20,9 +20,7 @@ export function useDeleteConfirmation({
 }: UseDeleteConfirmationOptions): UseDeleteConfirmationResult {
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const [errorMessage, setErrorMessage] = useState<string | undefined>(
-		undefined,
-	);
+	const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
 	function requestDelete() {
 		setIsDialogOpen(true);
