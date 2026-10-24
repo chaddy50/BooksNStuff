@@ -17,6 +17,18 @@ interface InstanceListProps {
 	editorRef: Ref<InstanceEditFormHandle>;
 }
 
+function getTotalSeasons(
+	mediaItemDetails: MediaItemDetails,
+): number | undefined {
+	if (mediaItemDetails.type !== MediaItemType.TV_SHOW) return undefined;
+	return (mediaItemDetails.metadata as { seasons?: number })?.seasons;
+}
+
+function getPageCount(mediaItemDetails: MediaItemDetails): number | undefined {
+	if (mediaItemDetails.type !== MediaItemType.BOOK) return undefined;
+	return (mediaItemDetails.metadata as { pageCount?: number })?.pageCount;
+}
+
 export function InstanceList(props: InstanceListProps) {
 	const {
 		mediaItemDetails,
@@ -42,10 +54,8 @@ export function InstanceList(props: InstanceListProps) {
 	}
 
 	const mediaItemType = mediaItemDetails.type;
-	const totalSeasons =
-		mediaItemType === MediaItemType.TV_SHOW
-			? (mediaItemDetails.metadata as { seasons?: number })?.seasons
-			: undefined;
+	const totalSeasons = getTotalSeasons(mediaItemDetails);
+	const pageCount = getPageCount(mediaItemDetails);
 
 	return (
 		<div className="flex flex-col gap-3">
@@ -55,6 +65,7 @@ export function InstanceList(props: InstanceListProps) {
 					mediaItemId={mediaItemDetails.id}
 					mediaItemType={mediaItemType}
 					totalSeasons={totalSeasons}
+					pageCount={pageCount}
 					onSave={onInstanceSaved}
 					onCancel={() => setIdBeingEdited(null)}
 				/>
@@ -69,6 +80,7 @@ export function InstanceList(props: InstanceListProps) {
 						mediaItemId={mediaItemDetails.id}
 						mediaItemType={mediaItemType}
 						totalSeasons={totalSeasons}
+						pageCount={pageCount}
 						onSave={onInstanceSaved}
 						onCancel={() => setIdBeingEdited(null)}
 					/>

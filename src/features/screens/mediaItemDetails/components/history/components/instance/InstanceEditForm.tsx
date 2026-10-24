@@ -41,6 +41,7 @@ interface InstanceEditFormProps {
 	mediaItemId: number;
 	mediaItemType: MediaItemType;
 	totalSeasons?: number;
+	pageCount?: number;
 	onSave: () => void;
 	onCancel: () => void;
 	ref?: Ref<InstanceEditFormHandle>;
@@ -53,7 +54,7 @@ interface InstanceFormValues {
 	reviewText: string;
 	startedAt: string;
 	completedAt: string;
-	progressPercent: string;
+	progressInputValue: string;
 	consumptionInfo: ConsumptionInfo | null;
 	seasonReviews: SeasonReview[];
 }
@@ -85,14 +86,47 @@ function getInitialConsumptionInfo(
 	return { method: getDefaultMethod(mediaItemType, settings) };
 }
 
-function formatProgressPercentInput(
-	progressPercent: number | null | undefined,
-): string {
-	return progressPercent != null ? String(progressPercent) : "";
+function percentToPageNumber(
+	progressPercent: number,
+	pageCount: number,
+): number {
+	return Math.round((progressPercent / 100) * pageCount);
 }
 
-function parseProgressPercentInput(value: string): number | undefined {
-	return value ? Number(value) : undefined;
+function pageNumberToPercent(pageNumber: number, pageCount: number): number {
+	return Math.min(100, Math.max(0, (pageNumber / pageCount) * 100));
+}
+
+function formatProgressInputValue(
+	progressPercent: number | null | undefined,
+	pageCount: number | undefined,
+): string {
+	if (progressPercent == null) return "";
+	return pageCount
+		? String(percentToPageNumber(progressPercent, pageCount))
+		: String(progressPercent);
+}
+
+function parseProgressInputValue(
+	value: string,
+	pageCount: number | undefined,
+): string | undefined {
+	if (!value) return undefined;
+	const parsedValue = Number(value);
+	const percent = pageCount
+		? pageNumberToPercent(parsedValue, pageCount)
+		: parsedValue;
+	return percent.toFixed(4);
+}
+
+/** A book's page count only drives progress entry when it's a known, positive number. */
+function resolveEffectivePageCount(
+	mediaItemType: MediaItemType,
+	pageCount: number | undefined,
+): number | undefined {
+	const isPageBasedProgress =
+		mediaItemType === MediaItemType.BOOK && pageCount != null && pageCount > 0;
+	return isPageBasedProgress ? pageCount : undefined;
 }
 
 export function InstanceEditForm({
@@ -100,6 +134,7 @@ export function InstanceEditForm({
 	mediaItemId,
 	mediaItemType,
 	totalSeasons,
+	pageCount,
 	onSave,
 	onCancel,
 	ref,
@@ -118,8 +153,12 @@ export function InstanceEditForm({
 			(instance === undefined ? getLocalDateString(new Date()) : ""),
 	);
 	const [completedAt, setCompletedAt] = useState(instance?.completedAt ?? "");
-	const [progressPercent, setProgressPercent] = useState(
-		formatProgressPercentInput(instance?.progressPercent),
+	const effectivePageCount = resolveEffectivePageCount(
+		mediaItemType,
+		pageCount,
+	);
+	const [progressInputValue, setProgressInputValue] = useState(
+		formatProgressInputValue(instance?.progressPercent, effectivePageCount),
 	);
 	const [consumptionInfo, setConsumptionInfo] =
 		useState<ConsumptionInfo | null>(
@@ -136,7 +175,7 @@ export function InstanceEditForm({
 		reviewText,
 		startedAt,
 		completedAt,
-		progressPercent,
+		progressInputValue,
 		consumptionInfo,
 		seasonReviews,
 	};
@@ -191,7 +230,10 @@ export function InstanceEditForm({
 	const startedAtId = useId();
 	const completedAtId = useId();
 	const reviewTextId = useId();
-	const parsedProgressPercent = parseProgressPercentInput(progressPercent);
+	const parsedProgressPercent = parseProgressInputValue(
+		progressInputValue,
+		effectivePageCount,
+	);
 
 	const usedSeasons = new Set(seasonReviews.map((r) => r.season));
 	const nextAvailableSeason = totalSeasons
@@ -366,8 +408,9 @@ export function InstanceEditForm({
 			</div>
 			<ProgressField
 				completedAt={completedAt}
-				progressPercent={progressPercent}
-				onProgressPercentChange={setProgressPercent}
+				progressPercent={progressInputValue}
+				onProgressPercentChange={setProgressInputValue}
+				pageCount={effectivePageCount}
 			/>
 			{dateError && (
 				<p className="text-sm text-destructive" data-testid="date-error">

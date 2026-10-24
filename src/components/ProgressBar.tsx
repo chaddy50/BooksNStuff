@@ -31,7 +31,7 @@ export function ProgressBar({
 			aria-valuemin={0}
 			aria-valuemax={100}
 			aria-label={t("mediaItemDetails.progressComplete", {
-				percent: progressPercent,
+				percent: Math.round(progressPercent),
 			})}
 			className={cn(
 				"w-full h-2.5 bg-black/60 backdrop-blur-sm border-t border-white/40",

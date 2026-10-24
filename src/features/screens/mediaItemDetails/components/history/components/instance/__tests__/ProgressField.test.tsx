@@ -51,4 +51,31 @@ describe("ProgressField", () => {
 
 		expect(onProgressPercentChange).toHaveBeenCalledWith("30");
 	});
+
+	it("shows a page label and total-pages suffix when pageCount is given", () => {
+		render(
+			<ProgressField
+				completedAt=""
+				progressPercent="160"
+				onProgressPercentChange={vi.fn()}
+				pageCount={320}
+			/>,
+		);
+
+		expect(screen.getByLabelText("mediaItemDetails.page")).toHaveValue(160);
+		expect(screen.getByText("/ 320")).toBeInTheDocument();
+	});
+
+	it("uses the raw percent label and no suffix when pageCount is omitted", () => {
+		render(
+			<ProgressField
+				completedAt=""
+				progressPercent="55"
+				onProgressPercentChange={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByLabelText("mediaItemDetails.progress")).toHaveValue(55);
+		expect(screen.queryByText(/^\//)).not.toBeInTheDocument();
+	});
 });

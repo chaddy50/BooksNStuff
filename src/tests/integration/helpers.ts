@@ -140,7 +140,7 @@ type InsertInstanceOptions = {
 	fictionRating?: FictionRating;
 	seasonReviews?: SeasonReview[];
 	consumptionInfo?: ConsumptionInfo;
-	progressPercent?: number;
+	progressPercent?: string;
 };
 
 const DEFAULT_INSTANCE_VALUES = {

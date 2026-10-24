@@ -251,7 +251,7 @@ describe("fetchDashboardData", () => {
 		await insertInstance({
 			mediaItemId: itemId,
 			startedAt: "2024-01-01",
-			progressPercent: 42,
+			progressPercent: "42",
 		});
 
 		const data = await fetchDashboardData(USER_A);

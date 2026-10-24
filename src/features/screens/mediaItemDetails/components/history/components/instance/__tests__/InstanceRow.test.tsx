@@ -5,6 +5,7 @@ import { TooltipProvider } from "#/components/ui/tooltip";
 import type { FictionRating } from "#/database/schema";
 import {
 	getConsumptionLabel,
+	getProgressLabel,
 	InstanceRow,
 } from "#/features/screens/mediaItemDetails/components/history/components/instance/InstanceRow";
 import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/mediaItemDetails";
@@ -60,6 +61,25 @@ describe("getConsumptionLabel", () => {
 		).toBe(
 			"consumption.gamePlatform.ps5 · consumption.controlMethod.controller",
 		);
+	});
+});
+
+describe("getProgressLabel", () => {
+	const tWithOptions = (key: string, options?: Record<string, unknown>) =>
+		options ? `${key}:${JSON.stringify(options)}` : key;
+
+	it("returns null when progressPercent is null", () => {
+		expect(getProgressLabel(null, null, tWithOptions)).toBeNull();
+	});
+
+	it("rounds a fractional percent for display", () => {
+		expect(getProgressLabel(46.875, null, tWithOptions)).toBe(
+			'mediaItemDetails.progressComplete:{"percent":47}',
+		);
+	});
+
+	it("returns null once the instance is completed, even with a percent", () => {
+		expect(getProgressLabel(46.875, "2024-01-15", tWithOptions)).toBeNull();
 	});
 });
 

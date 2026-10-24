@@ -25,10 +25,10 @@ describe("fetchCurrentProgressByMediaItemId", () => {
 		expect(selectDistinctOnFn).not.toHaveBeenCalled();
 	});
 
-	it("maps each row's progressPercent by media item id", async () => {
+	it("maps each row's progressPercent by media item id, parsed from the decimal column's string", async () => {
 		const { db } = await import("#/database/index");
 		const { selectDistinctOnFn } = makeSelectDistinctOnMock([
-			{ mediaItemId: 1, progressPercent: 55 },
+			{ mediaItemId: 1, progressPercent: "55.0000" },
 			{ mediaItemId: 2, progressPercent: null },
 		]);
 		// @ts-expect-error — assigning to mocked module
@@ -43,7 +43,7 @@ describe("fetchCurrentProgressByMediaItemId", () => {
 	it("omits media items with no unfinished instance from the map", async () => {
 		const { db } = await import("#/database/index");
 		const { selectDistinctOnFn } = makeSelectDistinctOnMock([
-			{ mediaItemId: 1, progressPercent: 55 },
+			{ mediaItemId: 1, progressPercent: "55.0000" },
 		]);
 		// @ts-expect-error — assigning to mocked module
 		db.selectDistinctOn = selectDistinctOnFn;

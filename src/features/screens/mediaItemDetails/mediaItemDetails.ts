@@ -102,7 +102,13 @@ export const saveInstance = createServerFn({ method: "POST" })
 			reviewText: z.string().optional(),
 			startedAt: z.string().optional(),
 			completedAt: z.string().optional(),
-			progressPercent: z.number().int().min(0).max(100).nullable().optional(),
+			progressPercent: z
+				.string()
+				.refine((value) => {
+					const parsed = Number(value);
+					return !Number.isNaN(parsed) && parsed >= 0 && parsed <= 100;
+				})
+				.optional(),
 			seasonReviews: z
 				.array(
 					z.object({

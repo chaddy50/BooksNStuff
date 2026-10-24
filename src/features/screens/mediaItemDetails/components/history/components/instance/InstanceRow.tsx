@@ -26,7 +26,9 @@ export function getProgressLabel(
 ): string | null {
 	if (completedAt != null) return null;
 	if (progressPercent == null) return null;
-	return t("mediaItemDetails.progressComplete", { percent: progressPercent });
+	return t("mediaItemDetails.progressComplete", {
+		percent: Math.round(progressPercent),
+	});
 }
 
 export function InstanceRow({

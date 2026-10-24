@@ -112,7 +112,7 @@ describe("InstanceEditForm", () => {
 
 		await vi.waitFor(() => expect(saveInstance).toHaveBeenCalled());
 		expect(vi.mocked(saveInstance).mock.calls[0][0].data.progressPercent).toBe(
-			30,
+			"30.0000",
 		);
 	});
 
@@ -227,6 +227,187 @@ describe("InstanceEditForm", () => {
 		expect(
 			screen.getByLabelText("mediaItemDetails.progress"),
 		).toBeInTheDocument();
+	});
+
+	describe("page-based progress entry for books", () => {
+		it("shows a page-number input with a total-pages suffix when pageCount is known", () => {
+			render(
+				<InstanceEditForm
+					{...baseProps}
+					pageCount={320}
+					instance={{
+						id: 42,
+						rating: 0,
+						fictionRating: null,
+						seasonReviews: null,
+						consumptionInfo: null,
+						reviewText: null,
+						progressPercent: 50,
+						startedAt: "2024-01-01",
+						completedAt: null,
+					}}
+				/>,
+			);
+
+			expect(screen.getByLabelText("mediaItemDetails.page")).toHaveValue(160);
+			expect(screen.getByText("/ 320")).toBeInTheDocument();
+		});
+
+		it("saves the page number converted to a percent string", async () => {
+			const { saveInstance } = await import(
+				"#/features/screens/mediaItemDetails/mediaItemDetails"
+			);
+			vi.mocked(saveInstance).mockClear();
+			render(<InstanceEditForm {...baseProps} pageCount={320} />);
+
+			fireEvent.change(screen.getByLabelText("mediaItemDetails.page"), {
+				target: { value: "160" },
+			});
+			fireEvent.click(screen.getByText("mediaItemDetails.save"));
+
+			await vi.waitFor(() => expect(saveInstance).toHaveBeenCalled());
+			expect(
+				vi.mocked(saveInstance).mock.calls[0][0].data.progressPercent,
+			).toBe("50.0000");
+		});
+
+		it("round-trips a page number through percent without drifting for large books", async () => {
+			const { saveInstance } = await import(
+				"#/features/screens/mediaItemDetails/mediaItemDetails"
+			);
+			vi.mocked(saveInstance).mockClear();
+			render(<InstanceEditForm {...baseProps} pageCount={1200} />);
+
+			fireEvent.change(screen.getByLabelText("mediaItemDetails.page"), {
+				target: { value: "500" },
+			});
+			fireEvent.click(screen.getByText("mediaItemDetails.save"));
+
+			await vi.waitFor(() => expect(saveInstance).toHaveBeenCalled());
+			expect(
+				vi.mocked(saveInstance).mock.calls[0][0].data.progressPercent,
+			).toBe("41.6667");
+		});
+
+		it("shows the exact page number again after reopening, for a large book", () => {
+			render(
+				<InstanceEditForm
+					{...baseProps}
+					pageCount={1200}
+					instance={{
+						id: 42,
+						rating: 0,
+						fictionRating: null,
+						seasonReviews: null,
+						consumptionInfo: null,
+						reviewText: null,
+						progressPercent: 41.6667,
+						startedAt: "2024-01-01",
+						completedAt: null,
+					}}
+				/>,
+			);
+
+			expect(screen.getByLabelText("mediaItemDetails.page")).toHaveValue(500);
+		});
+
+		it("falls back to the raw percent field when pageCount is missing", () => {
+			render(<InstanceEditForm {...baseProps} />);
+
+			expect(
+				screen.queryByLabelText("mediaItemDetails.page"),
+			).not.toBeInTheDocument();
+			expect(
+				screen.getByLabelText("mediaItemDetails.progress"),
+			).toBeInTheDocument();
+		});
+
+		it("falls back to the raw percent field for a non-book media type even with pageCount set", () => {
+			render(
+				<InstanceEditForm
+					{...baseProps}
+					mediaItemType={MediaItemType.MOVIE}
+					pageCount={320}
+				/>,
+			);
+
+			expect(
+				screen.queryByLabelText("mediaItemDetails.page"),
+			).not.toBeInTheDocument();
+			expect(
+				screen.getByLabelText("mediaItemDetails.progress"),
+			).toBeInTheDocument();
+		});
+
+		it("clamps a page number above pageCount to 100 percent", async () => {
+			const { saveInstance } = await import(
+				"#/features/screens/mediaItemDetails/mediaItemDetails"
+			);
+			vi.mocked(saveInstance).mockClear();
+			render(<InstanceEditForm {...baseProps} pageCount={320} />);
+
+			fireEvent.change(screen.getByLabelText("mediaItemDetails.page"), {
+				target: { value: "400" },
+			});
+			fireEvent.click(screen.getByText("mediaItemDetails.save"));
+
+			await vi.waitFor(() => expect(saveInstance).toHaveBeenCalled());
+			expect(
+				vi.mocked(saveInstance).mock.calls[0][0].data.progressPercent,
+			).toBe("100.0000");
+		});
+
+		it("clamps a negative page number to 0 percent", async () => {
+			const { saveInstance } = await import(
+				"#/features/screens/mediaItemDetails/mediaItemDetails"
+			);
+			vi.mocked(saveInstance).mockClear();
+			render(<InstanceEditForm {...baseProps} pageCount={320} />);
+
+			fireEvent.change(screen.getByLabelText("mediaItemDetails.page"), {
+				target: { value: "-5" },
+			});
+			fireEvent.click(screen.getByText("mediaItemDetails.save"));
+
+			await vi.waitFor(() => expect(saveInstance).toHaveBeenCalled());
+			expect(
+				vi.mocked(saveInstance).mock.calls[0][0].data.progressPercent,
+			).toBe("0.0000");
+		});
+
+		it("sends an undefined progressPercent when the page-number field is emptied", async () => {
+			const { saveInstance } = await import(
+				"#/features/screens/mediaItemDetails/mediaItemDetails"
+			);
+			vi.mocked(saveInstance).mockClear();
+			render(
+				<InstanceEditForm
+					{...baseProps}
+					pageCount={320}
+					instance={{
+						id: 42,
+						rating: 0,
+						fictionRating: null,
+						seasonReviews: null,
+						consumptionInfo: null,
+						reviewText: null,
+						progressPercent: 50,
+						startedAt: "2024-01-01",
+						completedAt: null,
+					}}
+				/>,
+			);
+
+			fireEvent.change(screen.getByLabelText("mediaItemDetails.page"), {
+				target: { value: "" },
+			});
+			fireEvent.click(screen.getByText("mediaItemDetails.save"));
+
+			await vi.waitFor(() => expect(saveInstance).toHaveBeenCalled());
+			expect(
+				vi.mocked(saveInstance).mock.calls[0][0].data.progressPercent,
+			).toBeUndefined();
+		});
 	});
 
 	it("shows season reviews section only when mediaItemType is TV_SHOW", () => {
