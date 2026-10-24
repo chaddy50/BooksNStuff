@@ -220,6 +220,46 @@ export async function getNextItemInSeries(
 // syncSeriesStatus
 // ---------------------------------------------------------------------------
 
+/** Average rating across an about-to-complete series' items, or null if none are rated. */
+async function computeCompletedSeriesRating(
+	itemIds: number[],
+): Promise<string | null> {
+	const latestRatings = await fetchLatestRatingsByMediaItemId(itemIds);
+
+	// A cleared rating is stored as 0 (not NULL) by the instance editor, so it
+	// must be excluded here too or it drags the average toward zero.
+	const ratings = Array.from(latestRatings.values())
+		.map((r) => r.rating)
+		.filter((r) => r > 0);
+	if (ratings.length === 0) return null;
+
+	const average = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
+	return average.toFixed(1);
+}
+
+/** What the series' nextItemStatus should become now that its status is newStatus. */
+async function resolveNextItemStatus(
+	seriesId: number,
+	userId: string,
+	newStatus: MediaItemStatus,
+): Promise<NextItemStatus | null> {
+	if (newStatus === MediaItemStatus.COMPLETED) return null;
+	if (newStatus === MediaItemStatus.WAITING_FOR_NEXT_RELEASE) {
+		return NextItemStatus.WAITING_FOR_RELEASE;
+	}
+
+	// Leaving WAITING_FOR_NEXT_RELEASE for any other status clears a stale
+	// "waiting for release" marker, but leaves PURCHASED/AVAILABLE markers
+	// alone since those are set independently via updateNextItemStatus.
+	const [current] = await db
+		.select({ nextItemStatus: series.nextItemStatus })
+		.from(series)
+		.where(and(eq(series.id, seriesId), eq(series.userId, userId)));
+	return current?.nextItemStatus === NextItemStatus.WAITING_FOR_RELEASE
+		? null
+		: (current?.nextItemStatus ?? null);
+}
+
 export async function syncSeriesStatus(seriesId: number, userId: string) {
 	const items = await db
 		.select({ id: mediaItems.id, status: mediaItems.status })
@@ -235,31 +275,16 @@ export async function syncSeriesStatus(seriesId: number, userId: string) {
 
 	if (newStatus === null) return;
 
-	let newRating: string | null = null;
-	if (newStatus === MediaItemStatus.COMPLETED) {
-		const itemIds = items.map((item) => item.id);
-		const latestRatings = await fetchLatestRatingsByMediaItemId(itemIds);
-
-		// A cleared rating is stored as 0 (not NULL) by the instance editor, so it
-		// must be excluded here too or it drags the average toward zero.
-		const ratings = Array.from(latestRatings.values())
-			.map((r) => r.rating)
-			.filter((r) => r > 0);
-		if (ratings.length > 0) {
-			const average = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
-			newRating = average.toFixed(1);
-		}
-	}
+	const newRating =
+		newStatus === MediaItemStatus.COMPLETED
+			? await computeCompletedSeriesRating(items.map((item) => item.id))
+			: null;
 
 	const seriesUpdates: Partial<typeof series.$inferInsert> = {
 		status: newStatus,
-		rating: newStatus === MediaItemStatus.COMPLETED ? newRating : null,
+		rating: newRating,
+		nextItemStatus: await resolveNextItemStatus(seriesId, userId, newStatus),
 	};
-	if (newStatus === MediaItemStatus.COMPLETED) {
-		seriesUpdates.nextItemStatus = null;
-	} else if (newStatus === MediaItemStatus.WAITING_FOR_NEXT_RELEASE) {
-		seriesUpdates.nextItemStatus = NextItemStatus.WAITING_FOR_RELEASE;
-	}
 
 	await db
 		.update(series)

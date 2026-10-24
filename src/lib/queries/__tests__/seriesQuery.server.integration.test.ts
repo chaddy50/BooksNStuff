@@ -13,14 +13,14 @@ vi.mock("#/features/screens/auth/session", () => ({
 }));
 
 import { eq } from "drizzle-orm";
-import { series } from "#/database/schema";
+import { mediaItems, series } from "#/database/schema";
 import { testDb } from "#/tests/integration/db";
 import {
 	insertMediaItem,
 	insertSeries,
 	truncateAll,
 } from "#/tests/integration/helpers";
-import { runSeriesQuery } from "../seriesQuery.server";
+import { runSeriesQuery, syncSeriesStatus } from "../seriesQuery.server";
 
 const USER = "test-user";
 
@@ -480,5 +480,70 @@ describe("titleQuery filter", () => {
 		const result = await runSeriesQuery({ titleQuery: "sanderson" }, USER);
 
 		expect(result.items).toHaveLength(0);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// syncSeriesStatus
+// ---------------------------------------------------------------------------
+
+describe("syncSeriesStatus", () => {
+	it("clears a stale WAITING_FOR_RELEASE marker when the series moves to a different status", async () => {
+		const seriesId = await makeSeries();
+		const droppedItemId = await insertMediaItem({
+			userId: USER,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.DROPPED,
+		});
+		await insertMediaItem({
+			userId: USER,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.WAITING_FOR_NEXT_RELEASE,
+		});
+
+		await syncSeriesStatus(seriesId, USER);
+		const [waiting] = await testDb
+			.select({ nextItemStatus: series.nextItemStatus })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(waiting?.nextItemStatus).toBe(NextItemStatus.WAITING_FOR_RELEASE);
+
+		await testDb
+			.update(mediaItems)
+			.set({ status: MediaItemStatus.ON_HOLD })
+			.where(eq(mediaItems.id, droppedItemId));
+		await syncSeriesStatus(seriesId, USER);
+
+		const [onHold] = await testDb
+			.select({ status: series.status, nextItemStatus: series.nextItemStatus })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(onHold?.status).toBe(MediaItemStatus.ON_HOLD);
+		expect(onHold?.nextItemStatus).toBeNull();
+	});
+
+	it("leaves a PURCHASED next-item marker untouched when the series status changes", async () => {
+		const seriesId = await insertSeries({
+			userId: USER,
+			name: "Test Series",
+			type: MediaItemType.BOOK,
+			nextItemStatus: NextItemStatus.PURCHASED,
+		});
+		await insertMediaItem({
+			userId: USER,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+
+		await syncSeriesStatus(seriesId, USER);
+
+		const [row] = await testDb
+			.select({ nextItemStatus: series.nextItemStatus })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(row?.nextItemStatus).toBe(NextItemStatus.PURCHASED);
 	});
 });
