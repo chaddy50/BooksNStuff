@@ -203,6 +203,21 @@ async function findUnfinishedInstance(mediaItemId: number) {
 	return instance ?? null;
 }
 
+async function startInstanceIfNeeded(mediaItemId: number, today: string) {
+	const existingUnfinishedInstance = await findUnfinishedInstance(mediaItemId);
+	if (existingUnfinishedInstance) return;
+	await db.insert(mediaItemInstances).values({ mediaItemId, startedAt: today });
+}
+
+async function completeUnfinishedInstance(mediaItemId: number, today: string) {
+	const unfinishedInstance = await findUnfinishedInstance(mediaItemId);
+	if (!unfinishedInstance) return;
+	await db
+		.update(mediaItemInstances)
+		.set({ completedAt: today, progressPercent: 100 })
+		.where(eq(mediaItemInstances.id, unfinishedInstance.id));
+}
+
 export async function updateMediaItemStatusForUser(
 	mediaItemId: number,
 	status: MediaItemStatus,
@@ -213,22 +228,9 @@ export async function updateMediaItemStatusForUser(
 	const today = new Date().toISOString().slice(0, 10);
 
 	if (status === MediaItemStatus.IN_PROGRESS) {
-		const existingUnfinishedInstance =
-			await findUnfinishedInstance(mediaItemId);
-		if (!existingUnfinishedInstance) {
-			await db.insert(mediaItemInstances).values({
-				mediaItemId,
-				startedAt: today,
-			});
-		}
+		await startInstanceIfNeeded(mediaItemId, today);
 	} else if (status === MediaItemStatus.COMPLETED) {
-		const unfinishedInstance = await findUnfinishedInstance(mediaItemId);
-		if (unfinishedInstance) {
-			await db
-				.update(mediaItemInstances)
-				.set({ completedAt: today, progressPercent: 100 })
-				.where(eq(mediaItemInstances.id, unfinishedInstance.id));
-		}
+		await completeUnfinishedInstance(mediaItemId, today);
 	}
 
 	await db
