@@ -417,6 +417,7 @@ export const mediaItems = pgTable(
 			.notNull()
 			.default("not_purchased"),
 		expectedReleaseDate: date("expected_release_date"),
+		statusChangedAt: date("status_changed_at"),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at")
 			.defaultNow()

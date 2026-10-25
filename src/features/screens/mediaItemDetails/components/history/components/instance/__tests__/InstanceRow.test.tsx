@@ -3,12 +3,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "#/components/ui/tooltip";
 import type { FictionRating } from "#/database/schema";
+import { InstanceRow } from "#/features/screens/mediaItemDetails/components/history/components/instance/InstanceRow";
 import {
 	getConsumptionLabel,
 	getProgressLabel,
-	InstanceRow,
-} from "#/features/screens/mediaItemDetails/components/history/components/instance/InstanceRow";
+} from "#/features/screens/mediaItemDetails/instanceMetaLabels";
 import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/mediaItemDetails";
+import { MediaItemStatus } from "#/lib/enums";
 
 vi.mock("react-i18next", () => ({
 	useTranslation: () => ({ t: (key: string) => key }),
@@ -28,12 +29,20 @@ const baseInstance: Instance = {
 	completedAt: null,
 };
 
-function renderInstanceRow(instanceOverrides: Partial<Instance> = {}) {
+function renderInstanceRow(
+	instanceOverrides: Partial<Instance> = {},
+	statusOverrides: {
+		status?: MediaItemStatus;
+		statusChangedAt?: string | null;
+	} = {},
+) {
 	return render(
 		<TooltipProvider>
 			<InstanceRow
 				index={1}
 				instance={{ ...baseInstance, ...instanceOverrides }}
+				status={statusOverrides.status ?? MediaItemStatus.IN_PROGRESS}
+				statusChangedAt={statusOverrides.statusChangedAt ?? null}
 				onEdit={vi.fn()}
 			/>
 		</TooltipProvider>,
@@ -183,6 +192,43 @@ describe("InstanceRow", () => {
 		expect(
 			screen.queryByText("mediaItemDetails.progressComplete"),
 		).not.toBeInTheDocument();
+	});
+
+	it("shows 'On Hold since' instead of the started date while on hold", () => {
+		renderInstanceRow(
+			{ startedAt: "2026-01-01" },
+			{ status: MediaItemStatus.ON_HOLD, statusChangedAt: "2026-02-10" },
+		);
+
+		expect(
+			screen.getByText("mediaItemDetails.onHoldSince"),
+		).toBeInTheDocument();
+		expect(screen.queryByText("Started Jan 01, 2026")).not.toBeInTheDocument();
+	});
+
+	it("omits the date segment while on hold when statusChangedAt is unknown", () => {
+		renderInstanceRow(
+			{ startedAt: "2026-01-01" },
+			{ status: MediaItemStatus.ON_HOLD, statusChangedAt: null },
+		);
+
+		expect(
+			screen.queryByText("mediaItemDetails.onHoldSince"),
+		).not.toBeInTheDocument();
+		expect(screen.queryByText("Started Jan 01, 2026")).not.toBeInTheDocument();
+	});
+
+	it("shows 'Dropped on' and the frozen progress percentage when dropped", () => {
+		renderInstanceRow(
+			{ startedAt: "2026-01-01", progressPercent: 50 },
+			{ status: MediaItemStatus.DROPPED, statusChangedAt: "2026-03-05" },
+		);
+
+		expect(screen.getByText("mediaItemDetails.droppedOn")).toBeInTheDocument();
+		expect(
+			screen.getByText("mediaItemDetails.progressComplete"),
+		).toBeInTheDocument();
+		expect(screen.queryByText("Started Jan 01, 2026")).not.toBeInTheDocument();
 	});
 
 	it("shows a season review's fiction rating categories", () => {

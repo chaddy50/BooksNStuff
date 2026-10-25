@@ -2,58 +2,32 @@ import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import { MarkdownTextBlock } from "#/components/MarkdownTextBlock";
 import { Button } from "#/components/ui/button";
-import type { ConsumptionInfo } from "#/database/schema";
 import { FictionRatingComments } from "#/features/screens/mediaItemDetails/components/history/components/instance/rating/fictionRating/FictionRatingComments";
 import { RatingStars } from "#/features/screens/mediaItemDetails/components/history/components/instance/rating/ratingStars/RatingStars";
+import { getInstanceMetaLabels } from "#/features/screens/mediaItemDetails/instanceMetaLabels";
 import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/mediaItemDetails";
+import type { MediaItemStatus } from "#/lib/enums";
 import { formatDateRange } from "#/lib/utils";
-
-export function getConsumptionLabel(
-	info: ConsumptionInfo | null,
-	t: (key: string) => string,
-): string | null {
-	if (!info) return null;
-	if (info.controlMethod) {
-		return `${t(`consumption.gamePlatform.${info.method}`)} · ${t(`consumption.controlMethod.${info.controlMethod}`)}`;
-	}
-	return t(`consumption.method.${info.method}`);
-}
-
-export function getProgressLabel(
-	progressPercent: number | null,
-	completedAt: string | null,
-	t: (key: string, options?: Record<string, unknown>) => string,
-): string | null {
-	if (completedAt != null) return null;
-	if (progressPercent == null) return null;
-	return t("mediaItemDetails.progressComplete", {
-		percent: Math.round(progressPercent),
-	});
-}
 
 export function InstanceRow({
 	index,
 	instance,
+	status,
+	statusChangedAt,
 	onEdit,
 }: {
 	index: number;
 	instance: MediaItemDetails["instances"][number];
+	status: MediaItemStatus;
+	statusChangedAt: string | null;
 	onEdit: () => void;
 }) {
 	const { t } = useTranslation();
-	const dateRange = formatDateRange(instance.startedAt, instance.completedAt);
-
-	const consumptionLabel = getConsumptionLabel(
-		instance.consumptionInfo,
-		t as (key: string) => string,
-	);
-	const progressLabel = getProgressLabel(
-		instance.progressPercent,
-		instance.completedAt,
+	const metaLabels = getInstanceMetaLabels(
+		instance,
+		status,
+		statusChangedAt,
 		t as (key: string, options?: Record<string, unknown>) => string,
-	);
-	const metaLabels = [dateRange, consumptionLabel, progressLabel].filter(
-		(label): label is string => label !== null,
 	);
 
 	return (

@@ -23,13 +23,21 @@ import { getDefaultMethod } from "#/features/screens/mediaItemDetails/components
 import { ProgressField } from "#/features/screens/mediaItemDetails/components/history/components/instance/ProgressField";
 import { RatingEditor } from "#/features/screens/mediaItemDetails/components/history/components/instance/rating/RatingEditor";
 import { SeasonReviewRow } from "#/features/screens/mediaItemDetails/components/history/components/instance/SeasonReviewRow";
+import { SetOtherStatusButton } from "#/features/screens/mediaItemDetails/components/history/components/instance/SetOtherStatusButton";
+import { InstanceMetaLine } from "#/features/screens/mediaItemDetails/components/InstanceMetaLine";
+import { getInstanceMetaLabels } from "#/features/screens/mediaItemDetails/instanceMetaLabels";
 import {
 	deleteInstance,
 	type MediaItemDetails,
 	type SeriesCompletionConfirmation,
 	saveInstance,
+	updateMediaItemStatus,
 } from "#/features/screens/mediaItemDetails/mediaItemDetails";
-import { GameControlMethod, MediaItemType } from "#/lib/enums";
+import {
+	GameControlMethod,
+	type MediaItemStatus,
+	MediaItemType,
+} from "#/lib/enums";
 import { getLocalDateString, isDeepEqual } from "#/lib/utils";
 
 export interface InstanceEditFormHandle {
@@ -41,6 +49,8 @@ interface InstanceEditFormProps {
 	instance?: MediaItemDetails["instances"][number];
 	mediaItemId: number;
 	mediaItemType: MediaItemType;
+	status: MediaItemStatus;
+	statusChangedAt: string | null;
 	totalSeasons?: number;
 	pageCount?: number;
 	onSave: () => void;
@@ -171,6 +181,8 @@ export function InstanceEditForm({
 	instance,
 	mediaItemId,
 	mediaItemType,
+	status,
+	statusChangedAt,
 	totalSeasons,
 	pageCount,
 	onSave,
@@ -282,6 +294,12 @@ export function InstanceEditForm({
 		: Math.max(0, ...seasonReviews.map((r) => r.season)) + 1 || 1;
 	const allSeasonsAdded =
 		totalSeasons !== undefined && seasonReviews.length >= totalSeasons;
+	const isEditingUnfinishedInstance = Boolean(
+		instance?.startedAt && !instance?.completedAt,
+	);
+	const [otherStatusErrorMessage, setOtherStatusErrorMessage] = useState<
+		string | undefined
+	>();
 
 	function addSeasonReview() {
 		if (nextAvailableSeason === undefined) return;
@@ -355,6 +373,29 @@ export function InstanceEditForm({
 		}
 	}
 
+	async function onConfirmOtherStatus(status: MediaItemStatus) {
+		if (dateError) {
+			return;
+		}
+		setSaving(true);
+		try {
+			await saveInstance({
+				data: buildSaveInstanceData(
+					mediaItemId,
+					instance?.id,
+					currentValues,
+					parsedProgressPercent,
+				),
+			});
+			await updateMediaItemStatus({ data: { mediaItemId, status } });
+			onSave();
+		} catch {
+			setOtherStatusErrorMessage(t("mediaItemDetails.setOtherStatusFailed"));
+		} finally {
+			setSaving(false);
+		}
+	}
+
 	async function onRemoveDetailedRating() {
 		if (!instance?.id) {
 			return;
@@ -411,6 +452,17 @@ export function InstanceEditForm({
 			ref={formRootRef}
 			className="p-4 rounded-lg border border-border bg-card flex flex-col gap-5"
 		>
+			{instance && (
+				<InstanceMetaLine
+					labels={getInstanceMetaLabels(
+						instance,
+						status,
+						statusChangedAt,
+						t as (key: string, options?: Record<string, unknown>) => string,
+					)}
+				/>
+			)}
+
 			{/* Dates */}
 			<div className="grid grid-cols-2 gap-4 max-w-sm">
 				<div className="flex flex-col gap-1.5">
@@ -529,13 +581,19 @@ export function InstanceEditForm({
 					{t("mediaItemDetails.cancel")}
 				</Button>
 				{instance && (
-					<DeleteButton
-						className="ml-auto"
-						onClick={onDeleteInstance}
-						disabled={saving}
-					>
-						{t("mediaItemDetails.removeEntry")}
-					</DeleteButton>
+					<div className="ml-auto flex gap-2">
+						{isEditingUnfinishedInstance && (
+							<SetOtherStatusButton
+								disabled={saving}
+								errorMessage={otherStatusErrorMessage}
+								status={status}
+								onConfirmStatus={onConfirmOtherStatus}
+							/>
+						)}
+						<DeleteButton onClick={onDeleteInstance} disabled={saving}>
+							{t("mediaItemDetails.removeEntry")}
+						</DeleteButton>
+					</div>
 				)}
 			</div>
 		</div>

@@ -1,0 +1,1 @@
+ALTER TABLE "media_items" ADD COLUMN "status_changed_at" date;
