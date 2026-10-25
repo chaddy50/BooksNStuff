@@ -9,8 +9,8 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("#/features/screens/seriesDetails/seriesDetails", () => ({
-	updateSeriesStatus: vi.fn().mockResolvedValue(undefined),
-	confirmSeriesCompletion: vi.fn().mockResolvedValue(undefined),
+	updateSeriesStatus: vi.fn<() => Promise<void>>().mockResolvedValue(),
+	confirmSeriesCompletion: vi.fn<() => Promise<void>>().mockResolvedValue(),
 }));
 
 const CONFIRMATION = { seriesId: 7, seriesName: "Ongoing Trilogy" };
