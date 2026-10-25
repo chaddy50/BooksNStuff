@@ -35,6 +35,28 @@ const baseProps = {
 	onSeriesCompletionNeeded: vi.fn(),
 };
 
+const savedInstance = {
+	id: 42,
+	rating: 0,
+	fictionRating: null,
+	seasonReviews: null,
+	consumptionInfo: null,
+	reviewText: "First impressions",
+	progressPercent: null,
+	startedAt: "2024-01-01",
+	completedAt: null,
+};
+
+function fictionRating(): FictionRating {
+	return {
+		setting: { rating: 4 },
+		character: { rating: 4 },
+		plot: { rating: 4 },
+		enjoyment: { rating: 4 },
+		depth: { rating: 4 },
+	};
+}
+
 afterEach(cleanup);
 beforeEach(async () => {
 	const { useUserSettings } = await import(
@@ -770,28 +792,6 @@ describe("InstanceEditForm", () => {
 		expect(onSave).not.toHaveBeenCalled();
 	});
 });
-
-const savedInstance = {
-	id: 42,
-	rating: 0,
-	fictionRating: null,
-	seasonReviews: null,
-	consumptionInfo: null,
-	reviewText: "First impressions",
-	progressPercent: null,
-	startedAt: "2024-01-01",
-	completedAt: null,
-};
-
-function fictionRating(): FictionRating {
-	return {
-		setting: { rating: 4 },
-		character: { rating: 4 },
-		plot: { rating: 4 },
-		enjoyment: { rating: 4 },
-		depth: { rating: 4 },
-	};
-}
 
 describe("InstanceEditForm unsaved changes", () => {
 	it("reports a freshly opened new entry as clean despite the pre-filled start date", () => {

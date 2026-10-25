@@ -378,7 +378,6 @@ export function InstanceEditForm({
 			return;
 		}
 		setSaving(true);
-		setOtherStatusErrorMessage(undefined);
 		try {
 			await saveInstance({
 				data: buildSaveInstanceData(

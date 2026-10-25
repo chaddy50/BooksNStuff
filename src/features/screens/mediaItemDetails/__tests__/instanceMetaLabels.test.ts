@@ -20,37 +20,52 @@ const baseInstance: Instance = {
 	completedAt: null,
 };
 
-const t = (key: string, options?: Record<string, unknown>) =>
+const translate = (key: string, options?: Record<string, unknown>) =>
 	options ? `${key}:${JSON.stringify(options)}` : key;
 
 describe("getDateSegment", () => {
 	it("returns the started/completed date range when not on hold", () => {
 		expect(
-			getDateSegment(MediaItemStatus.IN_PROGRESS, null, baseInstance, t),
+			getDateSegment(
+				MediaItemStatus.IN_PROGRESS,
+				null,
+				baseInstance,
+				translate,
+			),
 		).toBe("Started Jan 01, 2026");
 	});
 
 	it("returns an On Hold since label when on hold with a known statusChangedAt", () => {
 		expect(
-			getDateSegment(MediaItemStatus.ON_HOLD, "2026-02-10", baseInstance, t),
+			getDateSegment(
+				MediaItemStatus.ON_HOLD,
+				"2026-02-10",
+				baseInstance,
+				translate,
+			),
 		).toBe('mediaItemDetails.onHoldSince:{"date":"Feb 10, 2026"}');
 	});
 
 	it("returns null when on hold with an unknown statusChangedAt", () => {
 		expect(
-			getDateSegment(MediaItemStatus.ON_HOLD, null, baseInstance, t),
+			getDateSegment(MediaItemStatus.ON_HOLD, null, baseInstance, translate),
 		).toBeNull();
 	});
 
 	it("returns a Dropped on label when dropped with a known statusChangedAt", () => {
 		expect(
-			getDateSegment(MediaItemStatus.DROPPED, "2026-03-05", baseInstance, t),
+			getDateSegment(
+				MediaItemStatus.DROPPED,
+				"2026-03-05",
+				baseInstance,
+				translate,
+			),
 		).toBe('mediaItemDetails.droppedOn:{"date":"Mar 05, 2026"}');
 	});
 
 	it("returns null when dropped with an unknown statusChangedAt", () => {
 		expect(
-			getDateSegment(MediaItemStatus.DROPPED, null, baseInstance, t),
+			getDateSegment(MediaItemStatus.DROPPED, null, baseInstance, translate),
 		).toBeNull();
 	});
 });
@@ -65,7 +80,7 @@ describe("getInstanceMetaLabels", () => {
 			},
 			MediaItemStatus.IN_PROGRESS,
 			null,
-			t,
+			translate,
 		);
 
 		expect(labels).toEqual([
@@ -80,7 +95,7 @@ describe("getInstanceMetaLabels", () => {
 			{ ...baseInstance, progressPercent: 50 },
 			MediaItemStatus.DROPPED,
 			"2026-03-05",
-			t,
+			translate,
 		);
 
 		expect(labels).toEqual([
@@ -94,7 +109,7 @@ describe("getInstanceMetaLabels", () => {
 			baseInstance,
 			MediaItemStatus.ON_HOLD,
 			null,
-			t,
+			translate,
 		);
 
 		expect(labels).toEqual([]);
