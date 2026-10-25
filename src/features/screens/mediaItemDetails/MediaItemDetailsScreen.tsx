@@ -85,7 +85,7 @@ export function MediaItemDetailsScreen() {
 			/>
 
 			<SeriesCompletionPromptDialog
-				seriesName={completionPrompt.pendingConfirmation?.seriesName ?? null}
+				seriesName={completionPrompt.seriesName}
 				isResolving={completionPrompt.isResolving}
 				onMarkWaiting={completionPrompt.markWaiting}
 				onMarkComplete={completionPrompt.markComplete}

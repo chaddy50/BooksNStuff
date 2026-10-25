@@ -39,6 +39,7 @@ export function useSeriesCompletionPrompt() {
 
 	return {
 		pendingConfirmation,
+		seriesName: pendingConfirmation?.seriesName ?? null,
 		promptSeriesCompletion: setPendingConfirmation,
 		isResolving,
 		markWaiting,
