@@ -1,5 +1,6 @@
 import type { customReports } from "#/database/schema";
 import type { MediaItemType } from "#/lib/enums";
+import { getLocalDateString } from "#/lib/utils";
 import {
 	type CustomReport,
 	type DashboardReportType,
@@ -34,7 +35,7 @@ export function getStartDateFromMonthCount(monthCount: number): string {
 	const startDate = new Date();
 	startDate.setDate(1);
 	startDate.setMonth(startDate.getMonth() - (monthCount - 1));
-	return startDate.toISOString().slice(0, 10);
+	return getLocalDateString(startDate);
 }
 
 export function getDateRangeFromMonthCount(monthCount: number): {
@@ -43,7 +44,7 @@ export function getDateRangeFromMonthCount(monthCount: number): {
 } {
 	return {
 		startDate: getStartDateFromMonthCount(monthCount),
-		endDate: new Date().toISOString().slice(0, 10),
+		endDate: getLocalDateString(new Date()),
 	};
 }
 
