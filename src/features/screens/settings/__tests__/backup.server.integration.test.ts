@@ -13,7 +13,6 @@ vi.mock("#/features/screens/auth/session", () => ({
 import { asc, eq } from "drizzle-orm";
 import {
 	creators,
-	customReports,
 	genres,
 	mediaItems,
 	mediaItemTags,
@@ -33,7 +32,6 @@ import { runItemQuery } from "#/lib/queries/itemQuery.server";
 import { testDb } from "#/tests/integration/db";
 import {
 	insertCreator,
-	insertCustomReport,
 	insertGenre,
 	insertInstance,
 	insertMediaItem,
@@ -278,17 +276,8 @@ async function seedFullLibrary(userId: string) {
 		displayOrder: 2,
 	});
 
-	const customReportId = await insertCustomReport({
-		userId,
-		name: "Movies this year",
-		reportType: "items_completed_by_month",
-		mediaTypes: [MediaItemType.MOVIE],
-		monthCount: 24,
-		displayOrder: 1,
-	});
 	await insertUserSettings({
 		userId,
-		activeCustomReportId: customReportId,
 		defaultLibrarySortBy: "title",
 		defaultLibrarySortDirection: "asc",
 		defaultSeriesSortBy: "name",
@@ -307,7 +296,6 @@ async function seedFullLibrary(userId: string) {
 		tagId,
 		mediaItemId,
 		instanceId,
-		customReportId,
 	};
 }
 
@@ -318,7 +306,6 @@ const VOLATILE_KEYS = new Set([
 	"genreId",
 	"mediaItemId",
 	"tagId",
-	"activeCustomReportId",
 	"exportedAt",
 ]);
 
@@ -338,7 +325,7 @@ function stripVolatile(value: unknown): unknown {
 }
 
 describe("exportBackup", () => {
-	it("emits version 3 with every collection present", async () => {
+	it("emits version 5 with every collection present", async () => {
 		await insertMediaItem({
 			userId: USER_A,
 			type: MediaItemType.MOVIE,
@@ -347,13 +334,13 @@ describe("exportBackup", () => {
 
 		const backup = await exportBackup(USER_A);
 
-		expect(backup.version).toBe(4);
+		expect(backup.version).toBe(5);
 		expect(backup).not.toHaveProperty("mediaItemMetadata");
+		expect(backup).not.toHaveProperty("customReports");
 		expect(backup).toHaveProperty("tags");
 		expect(backup).toHaveProperty("mediaItemTags");
 		expect(backup).toHaveProperty("creators");
 		expect(backup).toHaveProperty("genres");
-		expect(backup).toHaveProperty("customReports");
 		expect(backup).toHaveProperty("userSettings");
 		expect(backup.mediaItems[0]).toMatchObject({
 			title: "Dune",
@@ -388,24 +375,16 @@ describe("exportBackup", () => {
 		expect(backup.genres[0].name).toBe("Science Fiction");
 	});
 
-	it("exports custom reports and user settings", async () => {
+	it("exports user settings", async () => {
 		await insertUser(USER_A);
-		const customReportId = await insertCustomReport({
-			userId: USER_A,
-			name: "Movies this year",
-		});
 		await insertUserSettings({
 			userId: USER_A,
-			activeCustomReportId: customReportId,
 			defaultLibrarySortBy: "title",
 		});
 
 		const backup = await exportBackup(USER_A);
 
-		expect(backup.customReports).toHaveLength(1);
-		expect(backup.customReports[0].name).toBe("Movies this year");
 		expect(backup.userSettings).toMatchObject({
-			activeCustomReportId: customReportId,
 			defaultLibrarySortBy: "title",
 		});
 	});
@@ -474,7 +453,6 @@ describe("exportBackup", () => {
 		expect(backup.mediaItemTags).toHaveLength(0);
 		expect(backup.creators).toHaveLength(0);
 		expect(backup.genres).toHaveLength(0);
-		expect(backup.customReports).toHaveLength(0);
 		expect(backup.userSettings).toBeNull();
 	});
 });
@@ -554,7 +532,6 @@ describe("importBackup round trip", () => {
 		expect(restored.mediaItemTags).toHaveLength(1);
 		expect(restored.creators).toHaveLength(1);
 		expect(restored.genres).toHaveLength(1);
-		expect(restored.customReports).toHaveLength(1);
 		expect(restored.userSettings).not.toBeNull();
 	});
 
@@ -594,21 +571,6 @@ describe("importBackup round trip", () => {
 		expect(restored.tags[0].name).toBe("Favorites");
 	});
 
-	it("remaps activeCustomReportId to the restored report", async () => {
-		const seeded = await seedFullLibrary(USER_A);
-
-		await importBackup(await exportThroughJson(USER_A), USER_A);
-
-		const restored = await exportBackup(USER_A);
-		expect(restored.userSettings?.activeCustomReportId).toBe(
-			restored.customReports[0].id,
-		);
-		expect(restored.userSettings?.activeCustomReportId).not.toBe(
-			seeded.customReportId,
-		);
-		expect(restored.customReports[0].name).toBe("Movies this year");
-	});
-
 	it("preserves the scalar user settings", async () => {
 		await seedFullLibrary(USER_A);
 
@@ -625,21 +587,6 @@ describe("importBackup round trip", () => {
 			defaultTvShowConsumptionMethod: "streaming",
 			defaultGamePlatform: "pc",
 			defaultGameControlMethod: "controller",
-		});
-	});
-
-	it("preserves the custom report fields", async () => {
-		await seedFullLibrary(USER_A);
-
-		await importBackup(await exportThroughJson(USER_A), USER_A);
-
-		const restored = await exportBackup(USER_A);
-		expect(restored.customReports[0]).toMatchObject({
-			name: "Movies this year",
-			reportType: "items_completed_by_month",
-			mediaTypes: [MediaItemType.MOVIE],
-			monthCount: 24,
-			displayOrder: 1,
 		});
 	});
 
@@ -751,7 +698,6 @@ describe("importBackup version 2 compatibility", () => {
 		expect(restored.mediaItemTags).toHaveLength(0);
 		expect(restored.creators).toHaveLength(0);
 		expect(restored.genres).toHaveLength(0);
-		expect(restored.customReports).toHaveLength(0);
 		expect(restored.userSettings).toBeNull();
 	});
 
@@ -864,7 +810,6 @@ describe("importBackup version 1 compatibility", () => {
 		expect(restored.mediaItemTags).toHaveLength(0);
 		expect(restored.creators).toHaveLength(0);
 		expect(restored.genres).toHaveLength(0);
-		expect(restored.customReports).toHaveLength(0);
 		expect(restored.userSettings).toBeNull();
 	});
 });
@@ -896,22 +841,16 @@ describe("importBackup user scoping", () => {
 		).toHaveLength(1);
 	});
 
-	it("does not delete another user's reports or settings", async () => {
-		const seeded = await seedFullLibrary(USER_B);
+	it("does not delete another user's settings", async () => {
+		await seedFullLibrary(USER_B);
 
 		await importBackup(buildEmptyV3Backup(), USER_A);
-
-		const remainingReports = await testDb
-			.select()
-			.from(customReports)
-			.where(eq(customReports.userId, USER_B));
-		expect(remainingReports).toHaveLength(1);
 
 		const [remainingSettings] = await testDb
 			.select()
 			.from(userSettings)
 			.where(eq(userSettings.userId, USER_B));
-		expect(remainingSettings.activeCustomReportId).toBe(seeded.customReportId);
+		expect(remainingSettings.defaultLibrarySortBy).toBe("title");
 	});
 
 	it("replaces only the caller's series and views", async () => {
@@ -963,8 +902,8 @@ describe("importBackup dangling references", () => {
 	it("skips join rows whose tag or media item is missing", async () => {
 		await seedFullLibrary(USER_A);
 		const backup = await exportThroughJson(USER_A);
-		if (backup.version !== 4) {
-			throw new Error("expected a version 4 export");
+		if (backup.version !== 5) {
+			throw new Error("expected a version 5 export");
 		}
 		backup.mediaItemTags = [
 			...backup.mediaItemTags,
@@ -981,8 +920,8 @@ describe("importBackup dangling references", () => {
 	it("nulls creatorId and genreId that no row in the file matches", async () => {
 		await seedFullLibrary(USER_A);
 		const backup = await exportThroughJson(USER_A);
-		if (backup.version !== 4) {
-			throw new Error("expected a version 4 export");
+		if (backup.version !== 5) {
+			throw new Error("expected a version 5 export");
 		}
 		backup.creators = [];
 		backup.genres = [];
@@ -992,21 +931,6 @@ describe("importBackup dangling references", () => {
 		const restored = await exportBackup(USER_A);
 		expect(restored.mediaItems[0].creatorId).toBeNull();
 		expect(restored.mediaItems[0].genreId).toBeNull();
-	});
-
-	it("nulls activeCustomReportId that no report in the file matches", async () => {
-		await seedFullLibrary(USER_A);
-		const backup = await exportThroughJson(USER_A);
-		if (backup.version !== 4) {
-			throw new Error("expected a version 4 export");
-		}
-		backup.customReports = [];
-
-		await importBackup(backup, USER_A);
-
-		const restored = await exportBackup(USER_A);
-		expect(restored.customReports).toHaveLength(0);
-		expect(restored.userSettings?.activeCustomReportId).toBeNull();
 	});
 
 	it("imports user settings when the file has no reports at all", async () => {
@@ -1020,7 +944,6 @@ describe("importBackup dangling references", () => {
 
 		const restored = await exportBackup(USER_A);
 		expect(restored.userSettings).toMatchObject({
-			activeCustomReportId: null,
 			defaultGamePlatform: "pc",
 		});
 	});
@@ -1040,7 +963,6 @@ describe("importBackup dangling references", () => {
 		expect(restored.mediaItemTags).toHaveLength(0);
 		expect(restored.creators).toHaveLength(0);
 		expect(restored.genres).toHaveLength(0);
-		expect(restored.customReports).toHaveLength(0);
 		expect(restored.userSettings).toBeNull();
 
 		const untouched = await exportBackup(USER_B);
@@ -1065,7 +987,7 @@ describe("backupSchema validation", () => {
 	it("rejects an unrecognized version", () => {
 		const parsed = backupSchema.safeParse({
 			...buildV1Backup(),
-			version: 4,
+			version: 6,
 		});
 		expect(parsed.success).toBe(false);
 	});
@@ -1133,8 +1055,8 @@ describe("view item order backup", () => {
 
 		const backup = await exportThroughJson(USER_A);
 
-		expect(backup.version).toBe(4);
-		expect(backup.version === 4 && backup.viewItemOrder).toHaveLength(2);
+		expect(backup.version).toBe(5);
+		expect(backup.version === 5 && backup.viewItemOrder).toHaveLength(2);
 	});
 
 	it("exports only the caller's order rows", async () => {
@@ -1143,7 +1065,7 @@ describe("view item order backup", () => {
 
 		const backup = await exportThroughJson(USER_A);
 
-		expect(backup.version === 4 && backup.viewItemOrder).toHaveLength(2);
+		expect(backup.version === 5 && backup.viewItemOrder).toHaveLength(2);
 	});
 
 	it("restores the order against the renumbered view and item ids", async () => {
@@ -1179,8 +1101,8 @@ describe("view item order backup", () => {
 	it("skips an order row whose view is missing from the file", async () => {
 		await seedOrderedView(USER_A);
 		const backup = await exportThroughJson(USER_A);
-		if (backup.version !== 4) {
-			throw new Error("expected a version 4 export");
+		if (backup.version !== 5) {
+			throw new Error("expected a version 5 export");
 		}
 		backup.views = [];
 
@@ -1192,8 +1114,8 @@ describe("view item order backup", () => {
 	it("skips an order row whose media item is missing from the file", async () => {
 		await seedOrderedView(USER_A);
 		const backup = await exportThroughJson(USER_A);
-		if (backup.version !== 4) {
-			throw new Error("expected a version 4 export");
+		if (backup.version !== 5) {
+			throw new Error("expected a version 5 export");
 		}
 		backup.mediaItems = [];
 

@@ -4,7 +4,6 @@ import { z } from "zod";
 import { db } from "#/database/index";
 import {
 	creators,
-	customReports,
 	genres,
 	mediaItemInstances,
 	mediaItems,
@@ -21,7 +20,7 @@ import {
  * Backup export/import.
  */
 
-export const BACKUP_VERSION = 4;
+export const BACKUP_VERSION = 5;
 
 // ---------------------------------------------------------------------------
 // Export
@@ -83,11 +82,6 @@ export async function exportBackup(userId: string) {
 		.from(genres)
 		.where(eq(genres.userId, userId));
 
-	const customReportRows = await db
-		.select()
-		.from(customReports)
-		.where(eq(customReports.userId, userId));
-
 	const settingsRows = await db
 		.select()
 		.from(userSettings)
@@ -105,7 +99,6 @@ export async function exportBackup(userId: string) {
 		mediaItemTags: mediaItemTagRows,
 		creators: creatorRows,
 		genres: genreRows,
-		customReports: customReportRows,
 		userSettings: settingsRows[0] ?? null,
 	};
 }
@@ -193,8 +186,8 @@ const customReportBackupSchema = z.object({
 	updatedAt: z.string(),
 });
 
-const userSettingsBackupSchema = z.object({
-	activeCustomReportId: z.number().int().nullable(),
+/** Shared user-settings fields, common to every backup version. */
+const userSettingsScalarFieldsSchema = z.object({
 	defaultLibrarySortBy: z.string().nullable(),
 	defaultLibrarySortDirection: z.string().nullable(),
 	defaultSeriesSortBy: z.string().nullable(),
@@ -207,6 +200,13 @@ const userSettingsBackupSchema = z.object({
 	createdAt: z.string(),
 	updatedAt: z.string(),
 });
+
+/** v1–v4 shape, still carrying the now-removed custom-reports link column. */
+const userSettingsBackupSchemaLegacy = userSettingsScalarFieldsSchema.extend({
+	activeCustomReportId: z.number().int().nullable(),
+});
+
+const userSettingsBackupSchema = userSettingsScalarFieldsSchema;
 
 /** The descriptive half of an item, shared by every format version. */
 const itemMetadataSchema = z.object({
@@ -232,6 +232,21 @@ const itemTrackingSchema = z.object({
 	updatedAt: z.string(),
 });
 
+const backupSchemaV5 = z.object({
+	version: z.literal(5),
+	exportedAt: z.string(),
+	series: z.array(seriesBackupSchema),
+	mediaItems: z.array(itemTrackingSchema.merge(itemMetadataSchema)),
+	mediaItemInstances: z.array(instanceBackupSchema),
+	views: z.array(viewBackupSchema),
+	viewItemOrder: z.array(viewItemOrderBackupSchema),
+	tags: z.array(tagBackupSchema),
+	mediaItemTags: z.array(mediaItemTagBackupSchema),
+	creators: z.array(creatorBackupSchema),
+	genres: z.array(genreBackupSchema),
+	userSettings: userSettingsBackupSchema.nullable(),
+});
+
 const backupSchemaV4 = z.object({
 	version: z.literal(4),
 	exportedAt: z.string(),
@@ -245,7 +260,7 @@ const backupSchemaV4 = z.object({
 	creators: z.array(creatorBackupSchema),
 	genres: z.array(genreBackupSchema),
 	customReports: z.array(customReportBackupSchema),
-	userSettings: userSettingsBackupSchema.nullable(),
+	userSettings: userSettingsBackupSchemaLegacy.nullable(),
 });
 
 const backupSchemaV3 = z.object({
@@ -260,7 +275,7 @@ const backupSchemaV3 = z.object({
 	creators: z.array(creatorBackupSchema),
 	genres: z.array(genreBackupSchema),
 	customReports: z.array(customReportBackupSchema),
-	userSettings: userSettingsBackupSchema.nullable(),
+	userSettings: userSettingsBackupSchemaLegacy.nullable(),
 });
 
 const backupSchemaV2 = z.object({
@@ -294,6 +309,7 @@ export const backupSchema = z.discriminatedUnion("version", [
 	backupSchemaV2,
 	backupSchemaV3,
 	backupSchemaV4,
+	backupSchemaV5,
 ]);
 
 /**
@@ -302,7 +318,7 @@ export const backupSchema = z.discriminatedUnion("version", [
  * already been serialized by the time anyone re-reads one.
  */
 export type BackupData = z.infer<typeof backupSchema>;
-type BackupV4 = z.infer<typeof backupSchemaV4>;
+type BackupV5 = z.infer<typeof backupSchemaV5>;
 
 // ---------------------------------------------------------------------------
 // Import
@@ -312,14 +328,13 @@ export async function importBackup(
 	rawBackup: BackupData,
 	userId: string,
 ): Promise<void> {
-	const backup = normalizeToV4(rawBackup);
+	const backup = normalizeToV5(rawBackup);
 
 	await db.transaction(async (tx) => {
-		// 1. Delete all existing user data. Settings and reports go first because
-		// they point at each other, then items — whose delete cascades to instances
-		// and tag links — and only then the rows items point at.
+		// 1. Delete all existing user data. Settings go first, then items — whose
+		// delete cascades to instances and tag links — and only then the rows
+		// items point at.
 		await tx.delete(userSettings).where(eq(userSettings.userId, userId));
-		await tx.delete(customReports).where(eq(customReports.userId, userId));
 		await tx.delete(views).where(eq(views.userId, userId));
 		await tx.delete(mediaItems).where(eq(mediaItems.userId, userId));
 		await tx.delete(series).where(eq(series.userId, userId));
@@ -492,33 +507,11 @@ export async function importBackup(
 			});
 		}
 
-		// 9. Restore custom reports — build old-id → new-id map for the settings row
-		const customReportIdMap = new Map<number, number>();
-		for (const reportRow of backup.customReports) {
-			const [inserted] = await tx
-				.insert(customReports)
-				.values({
-					userId,
-					name: reportRow.name,
-					reportType: reportRow.reportType,
-					mediaTypes: reportRow.mediaTypes,
-					monthCount: reportRow.monthCount,
-					displayOrder: reportRow.displayOrder,
-					createdAt: new Date(reportRow.createdAt),
-					updatedAt: new Date(reportRow.updatedAt),
-				})
-				.returning({ id: customReports.id });
-			customReportIdMap.set(reportRow.id, inserted.id);
-		}
-
-		// 10. Restore user settings
+		// 9. Restore user settings
 		const settings = backup.userSettings;
 		if (settings) {
 			await tx.insert(userSettings).values({
 				userId,
-				activeCustomReportId: settings.activeCustomReportId
-					? (customReportIdMap.get(settings.activeCustomReportId) ?? null)
-					: null,
 				defaultLibrarySortBy:
 					settings.defaultLibrarySortBy as typeof userSettings.$inferInsert.defaultLibrarySortBy,
 				defaultLibrarySortDirection:
@@ -548,30 +541,41 @@ export async function importBackup(
 // Private helpers
 // ---------------------------------------------------------------------------
 
+/** Drops the v1–v4-only `activeCustomReportId` field from a legacy settings row, if present. */
+function dropActiveCustomReportId(
+	settings: z.infer<typeof userSettingsBackupSchemaLegacy> | null,
+): z.infer<typeof userSettingsBackupSchema> | null {
+	if (!settings) {
+		return null;
+	}
+	const { activeCustomReportId: _ignored, ...rest } = settings;
+	return rest;
+}
+
 /**
- * Lifts a v1, v2 or v3 backup into the v4 shape.
+ * Lifts a v1–v4 backup into the v5 shape.
  *
  * The tables each later version added were never exported by the older formats,
- * so they come back empty — a pre-v4 file restores its views intact, their items
+ * so they come back empty — a pre-v5 file restores its views intact, their items
  * simply all sort as unplaced. `creatorId` and `genreId` are dropped for the same
  * reason: an old file carries the ids but not the `creators`/`genres` rows they
  * point at, so keeping them would attach items to whatever happens to hold that
- * id now.
+ * id now. Any custom-reports data a v1–v4 file carries is dropped the same way —
+ * the feature no longer exists, so there is nothing left to attach it to.
  *
  * The v1 lift additionally joins each item to the metadata row it references.
  * Items whose metadata row is missing are dropped, matching the importer's
  * long-standing behavior; metadata rows no item references are unreachable and
  * disappear with the join.
  */
-function normalizeToV4(backup: BackupData): BackupV4 {
+function normalizeToV5(backup: BackupData): BackupV5 {
 	const emptyCollections: Pick<
-		BackupV4,
+		BackupV5,
 		| "viewItemOrder"
 		| "tags"
 		| "mediaItemTags"
 		| "creators"
 		| "genres"
-		| "customReports"
 		| "userSettings"
 	> = {
 		viewItemOrder: [],
@@ -579,23 +583,37 @@ function normalizeToV4(backup: BackupData): BackupV4 {
 		mediaItemTags: [],
 		creators: [],
 		genres: [],
-		customReports: [],
 		userSettings: null,
 	};
 
-	if (backup.version === 4) {
+	if (backup.version === 5) {
 		return backup;
 	}
 
+	if (backup.version === 4) {
+		const { customReports: _customReports, ...rest } = backup;
+		return {
+			...rest,
+			version: 5,
+			userSettings: dropActiveCustomReportId(backup.userSettings),
+		};
+	}
+
 	if (backup.version === 3) {
-		return { ...backup, viewItemOrder: [], version: 4 };
+		const { customReports: _customReports, ...rest } = backup;
+		return {
+			...rest,
+			viewItemOrder: [],
+			version: 5,
+			userSettings: dropActiveCustomReportId(backup.userSettings),
+		};
 	}
 
 	if (backup.version === 2) {
 		return {
 			...backup,
 			...emptyCollections,
-			version: 4,
+			version: 5,
 			mediaItems: backup.mediaItems.map((item) => ({
 				...item,
 				creatorId: null,
@@ -634,7 +652,7 @@ function normalizeToV4(backup: BackupData): BackupV4 {
 
 	return {
 		...emptyCollections,
-		version: 4,
+		version: 5,
 		exportedAt: backup.exportedAt,
 		series: backup.series,
 		mediaItems: mediaItemsWithMetadata,

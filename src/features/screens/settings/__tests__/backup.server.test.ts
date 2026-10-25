@@ -182,9 +182,18 @@ function buildV4Backup() {
 	};
 }
 
+/** A v5 file — the v4 shape minus custom reports and their settings link. */
+function buildV5Backup() {
+	const v4 = buildV4Backup();
+	const { customReports: _customReports, ...rest } = v4;
+	const { activeCustomReportId: _activeCustomReportId, ...userSettings } =
+		v4.userSettings;
+	return { ...rest, version: 5 as const, userSettings };
+}
+
 describe("BACKUP_VERSION", () => {
-	it("is 4", () => {
-		expect(BACKUP_VERSION).toBe(4);
+	it("is 5", () => {
+		expect(BACKUP_VERSION).toBe(5);
 	});
 });
 
@@ -201,24 +210,28 @@ describe("backupSchema version acceptance", () => {
 		expect(backupSchema.safeParse(buildV1Backup()).success).toBe(true);
 	});
 
-	it("rejects an unrecognized version", () => {
-		expect(
-			backupSchema.safeParse({ ...buildV4Backup(), version: 5 }).success,
-		).toBe(false);
-	});
-
-	it("accepts a v4 document with every collection", () => {
+	it("still accepts a v4 document", () => {
 		expect(backupSchema.safeParse(buildV4Backup()).success).toBe(true);
 	});
 
-	it("accepts a v4 document with no saved view order", () => {
+	it("rejects an unrecognized version", () => {
 		expect(
-			backupSchema.safeParse({ ...buildV4Backup(), viewItemOrder: [] }).success,
+			backupSchema.safeParse({ ...buildV5Backup(), version: 6 }).success,
+		).toBe(false);
+	});
+
+	it("accepts a v5 document with every collection", () => {
+		expect(backupSchema.safeParse(buildV5Backup()).success).toBe(true);
+	});
+
+	it("accepts a v5 document with no saved view order", () => {
+		expect(
+			backupSchema.safeParse({ ...buildV5Backup(), viewItemOrder: [] }).success,
 		).toBe(true);
 	});
 
-	it("rejects a v4 document missing viewItemOrder", () => {
-		const { viewItemOrder: _omitted, ...withoutOrder } = buildV4Backup();
+	it("rejects a v5 document missing viewItemOrder", () => {
+		const { viewItemOrder: _omitted, ...withoutOrder } = buildV5Backup();
 
 		expect(backupSchema.safeParse(withoutOrder).success).toBe(false);
 	});
@@ -226,14 +239,14 @@ describe("backupSchema version acceptance", () => {
 
 describe("backupSchema viewItemOrder entries", () => {
 	it("accepts position 0", () => {
-		const backup = buildV4Backup();
+		const backup = buildV5Backup();
 		backup.viewItemOrder = [{ viewId: 1, mediaItemId: 1, position: 0 }];
 
 		expect(backupSchema.safeParse(backup).success).toBe(true);
 	});
 
 	it("rejects a non-integer position", () => {
-		const backup = buildV4Backup();
+		const backup = buildV5Backup();
 		backup.viewItemOrder = [
 			{ viewId: 1, mediaItemId: 1, position: "first" } as never,
 		];
@@ -242,7 +255,7 @@ describe("backupSchema viewItemOrder entries", () => {
 	});
 
 	it("rejects an entry missing its view id", () => {
-		const backup = buildV4Backup();
+		const backup = buildV5Backup();
 		backup.viewItemOrder = [{ mediaItemId: 1, position: 0 } as never];
 
 		expect(backupSchema.safeParse(backup).success).toBe(false);

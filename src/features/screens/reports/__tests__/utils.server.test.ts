@@ -7,26 +7,21 @@ vi.mock("#/features/screens/auth/session", () => ({
 	getRequiredUser: vi.fn(),
 }));
 
-import { buildMonthRange, getStartDateFromMonthCount } from "../utils.server";
+import { buildMonthRange, getYearToDateRange } from "../utils.server";
 
-describe("getStartDateFromMonthCount", () => {
+describe("getYearToDateRange", () => {
 	afterEach(() => {
 		vi.useRealTimers();
 	});
 
-	it("does not skip a month when today is near the end of a shorter month", () => {
-		vi.setSystemTime(new Date("2024-03-31T12:00:00Z"));
-		expect(getStartDateFromMonthCount(2)).toBe("2024-02-01");
-	});
-
-	it("does not skip a month when subtracting across a year boundary", () => {
+	it("returns January 1 of the current year as the start date", () => {
 		vi.setSystemTime(new Date("2024-10-31T12:00:00Z"));
-		expect(getStartDateFromMonthCount(12)).toBe("2023-11-01");
+		expect(getYearToDateRange().startDate).toBe("2024-01-01");
 	});
 
-	it("returns the first of the current month when monthCount is 1", () => {
-		vi.setSystemTime(new Date("2024-03-31T12:00:00Z"));
-		expect(getStartDateFromMonthCount(1)).toBe("2024-03-01");
+	it("returns today as the end date", () => {
+		vi.setSystemTime(new Date("2024-03-05T12:00:00Z"));
+		expect(getYearToDateRange().endDate).toBe("2024-03-05");
 	});
 });
 

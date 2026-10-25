@@ -5,7 +5,7 @@ import { MediaItemCard } from "#/components/MediaItemCard";
 import { TopBar } from "#/features/navigation/topBar/TopBar";
 
 const route = getRouteApi(
-	"/_authenticated/_details/reports/$reportId/drilldown",
+	"/_authenticated/_details/reports/$reportType/drilldown",
 );
 
 export function ReportDrilldownScreen() {
@@ -19,7 +19,7 @@ export function ReportDrilldownScreen() {
 			<div className="px-4 md:px-6 py-6 max-w-5xl mx-auto">
 				{items.length === 0 ? (
 					<p className="text-sm text-muted-foreground text-center py-8">
-						{t("dashboard.report.noItems")}
+						{t("insights.report.noItems")}
 					</p>
 				) : (
 					<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">

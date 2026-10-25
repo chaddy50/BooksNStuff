@@ -21,12 +21,13 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/_app/settings'
 import { Route as AuthenticatedAppSeriesRouteImport } from './routes/_authenticated/_app/series'
 import { Route as AuthenticatedAppLibraryRouteImport } from './routes/_authenticated/_app/library'
+import { Route as AuthenticatedAppInsightsRouteImport } from './routes/_authenticated/_app/insights'
 import { Route as AuthenticatedDetailsSeriesSeriesIdRouteImport } from './routes/_authenticated/_details/series.$seriesId'
 import { Route as AuthenticatedDetailsMediaItemDetailsMediaItemIdRouteImport } from './routes/_authenticated/_details/mediaItemDetails.$mediaItemId'
 import { Route as AuthenticatedDetailsGenreGenreIdRouteImport } from './routes/_authenticated/_details/genre.$genreId'
 import { Route as AuthenticatedDetailsCreatorCreatorIdRouteImport } from './routes/_authenticated/_details/creator.$creatorId'
 import { Route as AuthenticatedAppViewsViewIdRouteImport } from './routes/_authenticated/_app/views.$viewId'
-import { Route as AuthenticatedDetailsReportsReportIdDrilldownRouteImport } from './routes/_authenticated/_details/reports.$reportId.drilldown'
+import { Route as AuthenticatedDetailsReportsReportTypeDrilldownRouteImport } from './routes/_authenticated/_details/reports.$reportType.drilldown'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -85,6 +86,12 @@ const AuthenticatedAppLibraryRoute = AuthenticatedAppLibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppInsightsRoute =
+  AuthenticatedAppInsightsRouteImport.update({
+    id: '/insights',
+    path: '/insights',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedDetailsSeriesSeriesIdRoute =
   AuthenticatedDetailsSeriesSeriesIdRouteImport.update({
     id: '/series/$seriesId',
@@ -115,10 +122,10 @@ const AuthenticatedAppViewsViewIdRoute =
     path: '/views/$viewId',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedDetailsReportsReportIdDrilldownRoute =
-  AuthenticatedDetailsReportsReportIdDrilldownRouteImport.update({
-    id: '/reports/$reportId/drilldown',
-    path: '/reports/$reportId/drilldown',
+const AuthenticatedDetailsReportsReportTypeDrilldownRoute =
+  AuthenticatedDetailsReportsReportTypeDrilldownRouteImport.update({
+    id: '/reports/$reportType/drilldown',
+    path: '/reports/$reportType/drilldown',
     getParentRoute: () => AuthenticatedDetailsRoute,
   } as any)
 
@@ -127,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
   '/reset-password': typeof AuthResetPasswordRoute
+  '/insights': typeof AuthenticatedAppInsightsRoute
   '/library': typeof AuthenticatedAppLibraryRoute
   '/series': typeof AuthenticatedAppSeriesRoute
   '/settings': typeof AuthenticatedAppSettingsRoute
@@ -136,13 +144,14 @@ export interface FileRoutesByFullPath {
   '/genre/$genreId': typeof AuthenticatedDetailsGenreGenreIdRoute
   '/mediaItemDetails/$mediaItemId': typeof AuthenticatedDetailsMediaItemDetailsMediaItemIdRoute
   '/series/$seriesId': typeof AuthenticatedDetailsSeriesSeriesIdRoute
-  '/reports/$reportId/drilldown': typeof AuthenticatedDetailsReportsReportIdDrilldownRoute
+  '/reports/$reportType/drilldown': typeof AuthenticatedDetailsReportsReportTypeDrilldownRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedAppIndexRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
   '/reset-password': typeof AuthResetPasswordRoute
+  '/insights': typeof AuthenticatedAppInsightsRoute
   '/library': typeof AuthenticatedAppLibraryRoute
   '/series': typeof AuthenticatedAppSeriesRoute
   '/settings': typeof AuthenticatedAppSettingsRoute
@@ -152,7 +161,7 @@ export interface FileRoutesByTo {
   '/genre/$genreId': typeof AuthenticatedDetailsGenreGenreIdRoute
   '/mediaItemDetails/$mediaItemId': typeof AuthenticatedDetailsMediaItemDetailsMediaItemIdRoute
   '/series/$seriesId': typeof AuthenticatedDetailsSeriesSeriesIdRoute
-  '/reports/$reportId/drilldown': typeof AuthenticatedDetailsReportsReportIdDrilldownRoute
+  '/reports/$reportType/drilldown': typeof AuthenticatedDetailsReportsReportTypeDrilldownRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -163,6 +172,7 @@ export interface FileRoutesById {
   '/_auth/reset-password': typeof AuthResetPasswordRoute
   '/_authenticated/_app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/_details': typeof AuthenticatedDetailsRouteWithChildren
+  '/_authenticated/_app/insights': typeof AuthenticatedAppInsightsRoute
   '/_authenticated/_app/library': typeof AuthenticatedAppLibraryRoute
   '/_authenticated/_app/series': typeof AuthenticatedAppSeriesRoute
   '/_authenticated/_app/settings': typeof AuthenticatedAppSettingsRoute
@@ -173,7 +183,7 @@ export interface FileRoutesById {
   '/_authenticated/_details/genre/$genreId': typeof AuthenticatedDetailsGenreGenreIdRoute
   '/_authenticated/_details/mediaItemDetails/$mediaItemId': typeof AuthenticatedDetailsMediaItemDetailsMediaItemIdRoute
   '/_authenticated/_details/series/$seriesId': typeof AuthenticatedDetailsSeriesSeriesIdRoute
-  '/_authenticated/_details/reports/$reportId/drilldown': typeof AuthenticatedDetailsReportsReportIdDrilldownRoute
+  '/_authenticated/_details/reports/$reportType/drilldown': typeof AuthenticatedDetailsReportsReportTypeDrilldownRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/reset-password'
+    | '/insights'
     | '/library'
     | '/series'
     | '/settings'
@@ -191,13 +202,14 @@ export interface FileRouteTypes {
     | '/genre/$genreId'
     | '/mediaItemDetails/$mediaItemId'
     | '/series/$seriesId'
-    | '/reports/$reportId/drilldown'
+    | '/reports/$reportType/drilldown'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
+    | '/insights'
     | '/library'
     | '/series'
     | '/settings'
@@ -207,7 +219,7 @@ export interface FileRouteTypes {
     | '/genre/$genreId'
     | '/mediaItemDetails/$mediaItemId'
     | '/series/$seriesId'
-    | '/reports/$reportId/drilldown'
+    | '/reports/$reportType/drilldown'
   id:
     | '__root__'
     | '/_auth'
@@ -217,6 +229,7 @@ export interface FileRouteTypes {
     | '/_auth/reset-password'
     | '/_authenticated/_app'
     | '/_authenticated/_details'
+    | '/_authenticated/_app/insights'
     | '/_authenticated/_app/library'
     | '/_authenticated/_app/series'
     | '/_authenticated/_app/settings'
@@ -227,7 +240,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_details/genre/$genreId'
     | '/_authenticated/_details/mediaItemDetails/$mediaItemId'
     | '/_authenticated/_details/series/$seriesId'
-    | '/_authenticated/_details/reports/$reportId/drilldown'
+    | '/_authenticated/_details/reports/$reportType/drilldown'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -322,6 +335,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppLibraryRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/_app/insights': {
+      id: '/_authenticated/_app/insights'
+      path: '/insights'
+      fullPath: '/insights'
+      preLoaderRoute: typeof AuthenticatedAppInsightsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/_details/series/$seriesId': {
       id: '/_authenticated/_details/series/$seriesId'
       path: '/series/$seriesId'
@@ -357,11 +377,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppViewsViewIdRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/_details/reports/$reportId/drilldown': {
-      id: '/_authenticated/_details/reports/$reportId/drilldown'
-      path: '/reports/$reportId/drilldown'
-      fullPath: '/reports/$reportId/drilldown'
-      preLoaderRoute: typeof AuthenticatedDetailsReportsReportIdDrilldownRouteImport
+    '/_authenticated/_details/reports/$reportType/drilldown': {
+      id: '/_authenticated/_details/reports/$reportType/drilldown'
+      path: '/reports/$reportType/drilldown'
+      fullPath: '/reports/$reportType/drilldown'
+      preLoaderRoute: typeof AuthenticatedDetailsReportsReportTypeDrilldownRouteImport
       parentRoute: typeof AuthenticatedDetailsRoute
     }
   }
@@ -382,6 +402,7 @@ const AuthRouteChildren: AuthRouteChildren = {
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppInsightsRoute: typeof AuthenticatedAppInsightsRoute
   AuthenticatedAppLibraryRoute: typeof AuthenticatedAppLibraryRoute
   AuthenticatedAppSeriesRoute: typeof AuthenticatedAppSeriesRoute
   AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
@@ -390,6 +411,7 @@ interface AuthenticatedAppRouteChildren {
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppInsightsRoute: AuthenticatedAppInsightsRoute,
   AuthenticatedAppLibraryRoute: AuthenticatedAppLibraryRoute,
   AuthenticatedAppSeriesRoute: AuthenticatedAppSeriesRoute,
   AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
@@ -405,7 +427,7 @@ interface AuthenticatedDetailsRouteChildren {
   AuthenticatedDetailsGenreGenreIdRoute: typeof AuthenticatedDetailsGenreGenreIdRoute
   AuthenticatedDetailsMediaItemDetailsMediaItemIdRoute: typeof AuthenticatedDetailsMediaItemDetailsMediaItemIdRoute
   AuthenticatedDetailsSeriesSeriesIdRoute: typeof AuthenticatedDetailsSeriesSeriesIdRoute
-  AuthenticatedDetailsReportsReportIdDrilldownRoute: typeof AuthenticatedDetailsReportsReportIdDrilldownRoute
+  AuthenticatedDetailsReportsReportTypeDrilldownRoute: typeof AuthenticatedDetailsReportsReportTypeDrilldownRoute
 }
 
 const AuthenticatedDetailsRouteChildren: AuthenticatedDetailsRouteChildren = {
@@ -416,8 +438,8 @@ const AuthenticatedDetailsRouteChildren: AuthenticatedDetailsRouteChildren = {
     AuthenticatedDetailsMediaItemDetailsMediaItemIdRoute,
   AuthenticatedDetailsSeriesSeriesIdRoute:
     AuthenticatedDetailsSeriesSeriesIdRoute,
-  AuthenticatedDetailsReportsReportIdDrilldownRoute:
-    AuthenticatedDetailsReportsReportIdDrilldownRoute,
+  AuthenticatedDetailsReportsReportTypeDrilldownRoute:
+    AuthenticatedDetailsReportsReportTypeDrilldownRoute,
 }
 
 const AuthenticatedDetailsRouteWithChildren =
