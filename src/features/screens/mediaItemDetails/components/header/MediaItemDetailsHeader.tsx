@@ -105,6 +105,8 @@ export function MediaItemDetailsHeader(props: MediaItemDetailsHeaderProps) {
 						<MediaItemDetailsHeaderCurrentInstance
 							instance={unfinishedInstance}
 							mediaItemType={mediaItemDetails.type}
+							status={mediaItemDetails.status}
+							statusChangedAt={mediaItemDetails.statusChangedAt}
 							onClick={() => onUpdateProgress(unfinishedInstance.id)}
 						/>
 					) : (

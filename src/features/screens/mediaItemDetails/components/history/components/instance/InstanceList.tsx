@@ -71,6 +71,8 @@ export function InstanceList(props: InstanceListProps) {
 					ref={editorRef}
 					mediaItemId={mediaItemDetails.id}
 					mediaItemType={mediaItemType}
+					status={mediaItemDetails.status}
+					statusChangedAt={mediaItemDetails.statusChangedAt}
 					totalSeasons={totalSeasons}
 					pageCount={pageCount}
 					onSave={onInstanceSaved}
@@ -87,6 +89,8 @@ export function InstanceList(props: InstanceListProps) {
 						instance={instance}
 						mediaItemId={mediaItemDetails.id}
 						mediaItemType={mediaItemType}
+						status={mediaItemDetails.status}
+						statusChangedAt={mediaItemDetails.statusChangedAt}
 						totalSeasons={totalSeasons}
 						pageCount={pageCount}
 						onSave={onInstanceSaved}
@@ -98,6 +102,8 @@ export function InstanceList(props: InstanceListProps) {
 						key={instance.id}
 						index={idx + 1}
 						instance={instance}
+						status={mediaItemDetails.status}
+						statusChangedAt={mediaItemDetails.statusChangedAt}
 						onEdit={() => startEditing(instance.id)}
 					/>
 				),

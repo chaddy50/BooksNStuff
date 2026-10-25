@@ -717,6 +717,56 @@ describe("updateMediaItemStatusForUser", () => {
 		expect(instance?.completedAt).toBeNull();
 	});
 
+	it("leaves the unfinished instance's progressPercent untouched when putting on hold", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+			progressPercent: "42",
+		});
+
+		await updateMediaItemStatusForUser(itemId, MediaItemStatus.ON_HOLD, USER_A);
+
+		const details = await getMediaItemDetailsForUser(itemId, USER_A);
+		const instance = details.instances.find((i) => i.id === instanceId);
+		expect(instance?.progressPercent).toBe(42);
+		expect(instance?.completedAt).toBeNull();
+	});
+
+	it("stamps statusChangedAt with today's date when the status actually changes", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+
+		await updateMediaItemStatusForUser(itemId, MediaItemStatus.ON_HOLD, USER_A);
+
+		const details = await getMediaItemDetailsForUser(itemId, USER_A);
+		const today = new Date().toISOString().slice(0, 10);
+		expect(details.statusChangedAt).toBe(today);
+	});
+
+	it("leaves statusChangedAt untouched when the status does not change", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.ON_HOLD,
+		});
+		await updateMediaItemStatusForUser(itemId, MediaItemStatus.ON_HOLD, USER_A);
+		const stampedDetails = await getMediaItemDetailsForUser(itemId, USER_A);
+		const stampedAt = stampedDetails.statusChangedAt;
+
+		await updateMediaItemStatusForUser(itemId, MediaItemStatus.ON_HOLD, USER_A);
+
+		const details = await getMediaItemDetailsForUser(itemId, USER_A);
+		expect(details.statusChangedAt).toBe(stampedAt);
+	});
+
 	it("creates a new unfinished instance when starting an item with none", async () => {
 		const itemId = await insertMediaItem({
 			userId: USER_A,

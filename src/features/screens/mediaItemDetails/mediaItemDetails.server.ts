@@ -43,6 +43,7 @@ export async function getMediaItemDetailsForUser(id: number, userId: string) {
 		.select({
 			id: mediaItems.id,
 			status: mediaItems.status,
+			statusChangedAt: mediaItems.statusChangedAt,
 			purchaseStatus: mediaItems.purchaseStatus,
 			expectedReleaseDate: mediaItems.expectedReleaseDate,
 			seriesId: mediaItems.seriesId,
@@ -250,9 +251,11 @@ export async function updateMediaItemStatusForUser(
 		await completeUnfinishedInstance(mediaItemId, today);
 	}
 
+	const hasStatusChanged = item.status !== status;
+
 	await db
 		.update(mediaItems)
-		.set({ status })
+		.set({ status, ...(hasStatusChanged && { statusChangedAt: today }) })
 		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
 
 	if (!item.seriesId) return null;

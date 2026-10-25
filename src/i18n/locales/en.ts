@@ -127,6 +127,13 @@ export const en = {
 		removeSeason: "Remove Season",
 		completedDateBeforeStartDateError:
 			"Completed date cannot be before started date.",
+		setOtherStatus: "Set Other Status",
+		setOtherStatusDescription:
+			"Mark this item On Hold or Dropped. The details you've entered for this entry will be saved first.",
+		setOtherStatusFailed: "Couldn't update the status. Please try again.",
+		onHoldSince: "On Hold since {{date}}",
+		droppedOn: "Dropped on {{date}}",
+		resume: "Resume",
 	},
 	relatedItems: {
 		title: "Related",

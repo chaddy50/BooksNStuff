@@ -7,7 +7,7 @@ import {
 	InstanceEditForm,
 	type InstanceEditFormHandle,
 } from "#/features/screens/mediaItemDetails/components/history/components/instance/InstanceEditForm";
-import { MediaItemType } from "#/lib/enums";
+import { MediaItemStatus, MediaItemType } from "#/lib/enums";
 
 type MockedUserSettings = ReturnType<typeof useUserSettings>;
 
@@ -18,6 +18,7 @@ vi.mock("react-i18next", () => ({
 vi.mock("#/features/screens/mediaItemDetails/mediaItemDetails", () => ({
 	saveInstance: vi.fn().mockResolvedValue(undefined),
 	deleteInstance: vi.fn().mockResolvedValue(undefined),
+	updateMediaItemStatus: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("#/components/hooks/useUserSettings", () => ({
@@ -27,6 +28,8 @@ vi.mock("#/components/hooks/useUserSettings", () => ({
 const baseProps = {
 	mediaItemId: 1,
 	mediaItemType: MediaItemType.BOOK,
+	status: MediaItemStatus.IN_PROGRESS,
+	statusChangedAt: null,
 	onSave: vi.fn(),
 	onCancel: vi.fn(),
 	onSeriesCompletionNeeded: vi.fn(),
@@ -538,6 +541,233 @@ describe("InstanceEditForm", () => {
 		expect(
 			screen.getByText("mediaItemDetails.removeEntry"),
 		).toBeInTheDocument();
+	});
+
+	it("shows the Set Other Status button only for an existing unfinished instance", () => {
+		const { rerender } = render(<InstanceEditForm {...baseProps} />);
+		expect(
+			screen.queryByText("mediaItemDetails.setOtherStatus"),
+		).not.toBeInTheDocument();
+
+		rerender(<InstanceEditForm {...baseProps} instance={savedInstance} />);
+		expect(
+			screen.getByText("mediaItemDetails.setOtherStatus"),
+		).toBeInTheDocument();
+
+		rerender(
+			<InstanceEditForm
+				{...baseProps}
+				instance={{ ...savedInstance, completedAt: "2024-01-15" }}
+			/>,
+		);
+		expect(
+			screen.queryByText("mediaItemDetails.setOtherStatus"),
+		).not.toBeInTheDocument();
+	});
+
+	it("shows the same status/date summary as the header card when editing an existing instance", () => {
+		render(<InstanceEditForm {...baseProps} instance={savedInstance} />);
+
+		expect(screen.getByText("Started Jan 01, 2024")).toBeInTheDocument();
+	});
+
+	it("shows 'On Hold since' instead of the started date while on hold", () => {
+		render(
+			<InstanceEditForm
+				{...baseProps}
+				status={MediaItemStatus.ON_HOLD}
+				statusChangedAt="2024-02-10"
+				instance={savedInstance}
+			/>,
+		);
+
+		expect(
+			screen.getByText("mediaItemDetails.onHoldSince"),
+		).toBeInTheDocument();
+		expect(screen.queryByText("Started Jan 01, 2024")).not.toBeInTheDocument();
+	});
+
+	it("shows 'Dropped on' instead of the started date while dropped", () => {
+		render(
+			<InstanceEditForm
+				{...baseProps}
+				status={MediaItemStatus.DROPPED}
+				statusChangedAt="2024-03-05"
+				instance={savedInstance}
+			/>,
+		);
+
+		expect(screen.getByText("mediaItemDetails.droppedOn")).toBeInTheDocument();
+		expect(screen.queryByText("Started Jan 01, 2024")).not.toBeInTheDocument();
+	});
+
+	it("resumes an on-hold item by saving current fields then setting status to in_progress", async () => {
+		const { saveInstance, updateMediaItemStatus } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		vi.mocked(saveInstance).mockClear();
+		vi.mocked(updateMediaItemStatus).mockClear();
+		const onSave = vi.fn();
+
+		render(
+			<InstanceEditForm
+				{...baseProps}
+				onSave={onSave}
+				status={MediaItemStatus.ON_HOLD}
+				statusChangedAt="2024-02-10"
+				instance={savedInstance}
+			/>,
+		);
+		expect(
+			screen.queryByText("mediaItemDetails.setOtherStatus"),
+		).not.toBeInTheDocument();
+
+		fireEvent.click(screen.getByText("mediaItemDetails.resume"));
+
+		await vi.waitFor(() => expect(updateMediaItemStatus).toHaveBeenCalled());
+		expect(saveInstance).toHaveBeenCalled();
+		expect(updateMediaItemStatus).toHaveBeenCalledWith({
+			data: { mediaItemId: baseProps.mediaItemId, status: "in_progress" },
+		});
+		expect(onSave).toHaveBeenCalledTimes(1);
+	});
+
+	it("resumes a dropped item by saving current fields then setting status to in_progress", async () => {
+		const { saveInstance, updateMediaItemStatus } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		vi.mocked(saveInstance).mockClear();
+		vi.mocked(updateMediaItemStatus).mockClear();
+		const onSave = vi.fn();
+
+		render(
+			<InstanceEditForm
+				{...baseProps}
+				onSave={onSave}
+				status={MediaItemStatus.DROPPED}
+				statusChangedAt="2024-03-05"
+				instance={savedInstance}
+			/>,
+		);
+		expect(
+			screen.queryByText("mediaItemDetails.setOtherStatus"),
+		).not.toBeInTheDocument();
+
+		fireEvent.click(screen.getByText("mediaItemDetails.resume"));
+
+		await vi.waitFor(() => expect(updateMediaItemStatus).toHaveBeenCalled());
+		expect(saveInstance).toHaveBeenCalled();
+		expect(updateMediaItemStatus).toHaveBeenCalledWith({
+			data: { mediaItemId: baseProps.mediaItemId, status: "in_progress" },
+		});
+		expect(onSave).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not show a status/date summary when creating a new instance", () => {
+		render(<InstanceEditForm {...baseProps} />);
+
+		expect(screen.queryByText("Started Jan 01, 2024")).not.toBeInTheDocument();
+	});
+
+	it("saves the current fields and sets the status to On Hold when confirmed", async () => {
+		const { saveInstance, updateMediaItemStatus } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		vi.mocked(saveInstance).mockClear();
+		vi.mocked(updateMediaItemStatus).mockClear();
+		const onSave = vi.fn();
+
+		render(
+			<InstanceEditForm
+				{...baseProps}
+				onSave={onSave}
+				instance={savedInstance}
+			/>,
+		);
+		fireEvent.change(screen.getByLabelText("mediaItemDetails.review"), {
+			target: { value: "Pausing here for now" },
+		});
+		fireEvent.click(screen.getByText("mediaItemDetails.setOtherStatus"));
+		fireEvent.click(screen.getByText("status.on_hold"));
+
+		await vi.waitFor(() => expect(updateMediaItemStatus).toHaveBeenCalled());
+		expect(vi.mocked(saveInstance).mock.calls[0][0].data.reviewText).toBe(
+			"Pausing here for now",
+		);
+		expect(updateMediaItemStatus).toHaveBeenCalledWith({
+			data: { mediaItemId: baseProps.mediaItemId, status: "on_hold" },
+		});
+		expect(onSave).toHaveBeenCalledTimes(1);
+	});
+
+	it("saves the current fields and sets the status to Dropped when confirmed", async () => {
+		const { saveInstance, updateMediaItemStatus } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		vi.mocked(saveInstance).mockClear();
+		vi.mocked(updateMediaItemStatus).mockClear();
+		const onSave = vi.fn();
+
+		render(
+			<InstanceEditForm
+				{...baseProps}
+				onSave={onSave}
+				instance={savedInstance}
+			/>,
+		);
+		fireEvent.click(screen.getByText("mediaItemDetails.setOtherStatus"));
+		fireEvent.click(screen.getByText("status.dropped"));
+
+		await vi.waitFor(() => expect(updateMediaItemStatus).toHaveBeenCalled());
+		expect(updateMediaItemStatus).toHaveBeenCalledWith({
+			data: { mediaItemId: baseProps.mediaItemId, status: "dropped" },
+		});
+		expect(onSave).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not save or change status when the date range is invalid", async () => {
+		const { saveInstance, updateMediaItemStatus } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		vi.mocked(saveInstance).mockClear();
+		vi.mocked(updateMediaItemStatus).mockClear();
+
+		render(<InstanceEditForm {...baseProps} instance={savedInstance} />);
+		fireEvent.change(screen.getByLabelText("mediaItemDetails.completed"), {
+			target: { value: "2023-01-01" },
+		});
+		fireEvent.click(screen.getByText("mediaItemDetails.setOtherStatus"));
+		fireEvent.click(screen.getByText("status.on_hold"));
+
+		expect(saveInstance).not.toHaveBeenCalled();
+		expect(updateMediaItemStatus).not.toHaveBeenCalled();
+	});
+
+	it("shows an error and does not close when setting the other status fails", async () => {
+		const { updateMediaItemStatus } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		vi.mocked(updateMediaItemStatus).mockRejectedValueOnce(
+			new Error("network error"),
+		);
+		const onSave = vi.fn();
+
+		render(
+			<InstanceEditForm
+				{...baseProps}
+				onSave={onSave}
+				instance={savedInstance}
+			/>,
+		);
+		fireEvent.click(screen.getByText("mediaItemDetails.setOtherStatus"));
+		fireEvent.click(screen.getByText("status.on_hold"));
+
+		await vi.waitFor(() =>
+			expect(screen.getByRole("alert")).toHaveTextContent(
+				"mediaItemDetails.setOtherStatusFailed",
+			),
+		);
+		expect(onSave).not.toHaveBeenCalled();
 	});
 });
 

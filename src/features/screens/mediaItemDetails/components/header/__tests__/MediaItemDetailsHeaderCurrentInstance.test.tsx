@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { MediaItemType } from "#/lib/enums";
+import { MediaItemStatus, MediaItemType } from "#/lib/enums";
 import type { MediaItemDetails } from "../../../mediaItemDetails";
 import { MediaItemDetailsHeaderCurrentInstance } from "../MediaItemDetailsHeaderCurrentInstance";
 
@@ -26,11 +26,17 @@ const baseInstance: Instance = {
 function renderCurrentInstance(
 	instanceOverrides: Partial<Instance> = {},
 	onClick = vi.fn(),
+	statusOverrides: {
+		status?: MediaItemStatus;
+		statusChangedAt?: string | null;
+	} = {},
 ) {
 	return render(
 		<MediaItemDetailsHeaderCurrentInstance
 			instance={{ ...baseInstance, ...instanceOverrides }}
 			mediaItemType={MediaItemType.BOOK}
+			status={statusOverrides.status ?? MediaItemStatus.IN_PROGRESS}
+			statusChangedAt={statusOverrides.statusChangedAt ?? null}
 			onClick={onClick}
 		/>,
 	);
@@ -117,5 +123,52 @@ describe("MediaItemDetailsHeaderCurrentInstance", () => {
 		expect(
 			screen.getByRole("button", { name: "mediaItemDetails.updateProgress" }),
 		).toBeInTheDocument();
+	});
+
+	it("shows 'On Hold since' instead of the started date while on hold", () => {
+		renderCurrentInstance({ startedAt: "2026-01-01" }, undefined, {
+			status: MediaItemStatus.ON_HOLD,
+			statusChangedAt: "2026-02-10",
+		});
+
+		expect(
+			screen.getByText("mediaItemDetails.onHoldSince"),
+		).toBeInTheDocument();
+		expect(screen.queryByText("Started Jan 01, 2026")).not.toBeInTheDocument();
+	});
+
+	it("omits the date segment while on hold when statusChangedAt is unknown", () => {
+		renderCurrentInstance({ startedAt: "2026-01-01" }, undefined, {
+			status: MediaItemStatus.ON_HOLD,
+			statusChangedAt: null,
+		});
+
+		expect(
+			screen.queryByText("mediaItemDetails.onHoldSince"),
+		).not.toBeInTheDocument();
+		expect(screen.queryByText("Started Jan 01, 2026")).not.toBeInTheDocument();
+	});
+
+	it("still renders the progress bar while on hold", () => {
+		renderCurrentInstance({ progressPercent: 42 }, undefined, {
+			status: MediaItemStatus.ON_HOLD,
+			statusChangedAt: "2026-02-10",
+		});
+
+		expect(screen.getByRole("progressbar")).toBeInTheDocument();
+	});
+
+	it("shows 'Dropped on' and the frozen progress percentage when dropped", () => {
+		renderCurrentInstance(
+			{ startedAt: "2026-01-01", progressPercent: 50 },
+			undefined,
+			{ status: MediaItemStatus.DROPPED, statusChangedAt: "2026-03-05" },
+		);
+
+		expect(screen.getByText("mediaItemDetails.droppedOn")).toBeInTheDocument();
+		expect(
+			screen.getByText("mediaItemDetails.progressComplete"),
+		).toBeInTheDocument();
+		expect(screen.queryByText("Started Jan 01, 2026")).not.toBeInTheDocument();
 	});
 });

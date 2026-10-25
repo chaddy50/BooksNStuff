@@ -2,7 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { InstanceList } from "#/features/screens/mediaItemDetails/components/history/components/instance/InstanceList";
 import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/mediaItemDetails";
-import { MediaItemType } from "#/lib/enums";
+import { MediaItemStatus, MediaItemType } from "#/lib/enums";
 
 vi.mock("react-i18next", () => ({
 	useTranslation: () => ({ t: (key: string) => key }),
@@ -18,8 +18,15 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock(
 	"#/features/screens/mediaItemDetails/components/history/components/instance/InstanceEditForm",
 	() => ({
-		InstanceEditForm: (props: { pageCount?: number }) => (
-			<div data-testid="editor">pageCount:{String(props.pageCount)}</div>
+		InstanceEditForm: (props: {
+			pageCount?: number;
+			status?: MediaItemStatus;
+			statusChangedAt?: string | null;
+		}) => (
+			<div data-testid="editor">
+				pageCount:{String(props.pageCount)} status:{String(props.status)}{" "}
+				statusChangedAt:{String(props.statusChangedAt)}
+			</div>
 		),
 	}),
 );
@@ -30,6 +37,8 @@ function buildMediaItemDetails(
 	return {
 		id: 7,
 		type: MediaItemType.BOOK,
+		status: MediaItemStatus.IN_PROGRESS,
+		statusChangedAt: null,
 		metadata: {},
 		instances: [],
 		...overrides,
@@ -104,5 +113,25 @@ describe("InstanceList", () => {
 		);
 
 		expect(screen.getByTestId("editor")).toHaveTextContent("pageCount:320");
+	});
+
+	it("passes the item's status and statusChangedAt through to the editor", () => {
+		render(
+			<InstanceList
+				mediaItemDetails={buildMediaItemDetails({
+					status: MediaItemStatus.ON_HOLD,
+					statusChangedAt: "2024-02-10",
+				})}
+				idBeingEdited="new"
+				setIdBeingEdited={vi.fn()}
+				startEditing={vi.fn()}
+				editorRef={{ current: null }}
+			/>,
+		);
+
+		expect(screen.getByTestId("editor")).toHaveTextContent("status:on_hold");
+		expect(screen.getByTestId("editor")).toHaveTextContent(
+			"statusChangedAt:2024-02-10",
+		);
 	});
 });
