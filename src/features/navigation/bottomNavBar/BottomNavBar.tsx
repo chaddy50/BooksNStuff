@@ -1,4 +1,10 @@
-import { Layers, LayoutDashboard, Library, Menu } from "lucide-react";
+import {
+	ChartColumn,
+	Layers,
+	LayoutDashboard,
+	Library,
+	Menu,
+} from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -27,6 +33,11 @@ export function BottomNavBar() {
 					to="/series"
 					icon={<Layers className="size-5" />}
 					label={t("nav.series")}
+				/>
+				<BottomNavItem
+					to="/insights"
+					icon={<ChartColumn className="size-5" />}
+					label={t("nav.insights")}
 				/>
 				<button
 					type="button"

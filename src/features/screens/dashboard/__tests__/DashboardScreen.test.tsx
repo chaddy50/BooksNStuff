@@ -28,22 +28,16 @@ function makePurchasedItem(id: number, title: string): DashboardItem {
 // fails the two sections that must stay badge-free.
 vi.mock("@tanstack/react-router", () => ({
 	getRouteApi: () => ({
-		useLoaderData: () => [
-			{
-				inProgressItems: [makePurchasedItem(1, "Dune")],
-				nextInSeriesItems: [makePurchasedItem(2, "Dune Messiah")],
-				recentlyFinishedItems: [makePurchasedItem(3, "Children of Dune")],
-			},
-			null,
-		],
+		useLoaderData: () => ({
+			inProgressItems: [makePurchasedItem(1, "Dune")],
+			nextInSeriesItems: [makePurchasedItem(2, "Dune Messiah")],
+			recentlyFinishedItems: [makePurchasedItem(3, "Children of Dune")],
+		}),
 	}),
 	Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 vi.mock("#/features/navigation/topBar/TopBar", () => ({ TopBar: () => null }));
-vi.mock("#/features/screens/dashboard/components/DashboardReport", () => ({
-	DashboardReport: () => null,
-}));
 
 function renderDashboardScreen() {
 	return render(

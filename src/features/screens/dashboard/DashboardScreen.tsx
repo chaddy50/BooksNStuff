@@ -2,41 +2,27 @@ import { getRouteApi } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { TopBar } from "#/features/navigation/topBar/TopBar";
-import { DashboardReport } from "./components/DashboardReport";
 import { DashboardSection } from "./components/DashboardSection";
 
 const route = getRouteApi("/_authenticated/_app/");
 
 export function DashboardScreen() {
-	const [
-		{ inProgressItems, nextInSeriesItems, recentlyFinishedItems },
-		initialReport,
-	] = route.useLoaderData();
+	const { inProgressItems, nextInSeriesItems, recentlyFinishedItems } =
+		route.useLoaderData();
 	const { t } = useTranslation();
 
 	return (
 		<div className="min-h-dvh flex flex-col bg-background text-foreground">
 			<TopBar title={t("dashboard.title")} />
 			<main className="px-4 md:px-6 py-2 flex-1 min-h-0 flex flex-col gap-2">
-				<div
-					className="flex flex-col md:flex-row gap-4 md:gap-10 shrink-0"
-					data-testid="dashboard-primary-row"
-				>
-					<div className="flex-1 min-w-0">
-						<DashboardSection
-							variant="scroll"
-							cardWidth="w-48 md:w-[clamp(10rem,19vh,15rem)]"
-							title={t("dashboard.inProgress")}
-							items={inProgressItems}
-							emptyMessage={t("dashboard.emptyInProgress")}
-						/>
-					</div>
-					<div
-						className="shrink-0 md:w-[clamp(18rem,30vw,30rem)]"
-						data-testid="dashboard-report-column"
-					>
-						<DashboardReport initialReport={initialReport} />
-					</div>
+				<div className="shrink-0" data-testid="dashboard-primary-row">
+					<DashboardSection
+						variant="scroll"
+						cardWidth="w-48 md:w-[clamp(10rem,19vh,15rem)]"
+						title={t("dashboard.inProgress")}
+						items={inProgressItems}
+						emptyMessage={t("dashboard.emptyInProgress")}
+					/>
 				</div>
 				<div className="shrink-0">
 					<DashboardSection

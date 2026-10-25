@@ -534,36 +534,12 @@ export const mediaItemRelations = pgTable(
 );
 
 /**
- * User-created custom dashboard reports.
- */
-export const customReports = pgTable("custom_reports", {
-	id: serial("id").primaryKey(),
-	userId: text("user_id")
-		.notNull()
-		.references(() => user.id, { onDelete: "cascade" }),
-	name: text("name").notNull(),
-	reportType: text("report_type").notNull(),
-	mediaTypes: text("media_types").array(),
-	monthCount: integer("month_count").notNull().default(12),
-	displayOrder: integer("display_order").notNull().default(0),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-	updatedAt: timestamp("updated_at")
-		.defaultNow()
-		.notNull()
-		.$onUpdateFn(() => new Date()),
-});
-
-/**
  * One row per user — stores user-level application preferences.
  */
 export const userSettings = pgTable("user_settings", {
 	userId: text("user_id")
 		.primaryKey()
 		.references(() => user.id, { onDelete: "cascade" }),
-	activeCustomReportId: integer("active_custom_report_id").references(
-		() => customReports.id,
-		{ onDelete: "set null" },
-	),
 	defaultLibrarySortBy: text("default_library_sort_by").$type<ItemSortField>(),
 	defaultLibrarySortDirection: text(
 		"default_library_sort_direction",

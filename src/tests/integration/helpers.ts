@@ -2,7 +2,6 @@ import { sql } from "drizzle-orm";
 import {
 	type ConsumptionInfo,
 	creators,
-	customReports,
 	type FictionRating,
 	type FilterAndSortOptions,
 	genres,
@@ -23,7 +22,6 @@ import {
 	viewItemOrder,
 	views,
 } from "#/database/schema";
-import type { DashboardReportType } from "#/features/screens/reports/types";
 import type {
 	BookConsumptionMethod,
 	GameControlMethod,
@@ -49,9 +47,8 @@ import { testDb } from "./db";
  * `media_item_instances`, `media_item_tags`, `media_item_relations`, `views`,
  * and `view_groups` all use plain-text userId (no FK to `user`), so those need
  * no auth rows. `view_item_order` needs none either — it inherits ownership
- * from the view it points at. `custom_reports` and `user_settings` are the
- * exceptions — both reference `user.id`, so seed a row with `insertUser`
- * before touching them.
+ * from the view it points at. `user_settings` is the exception — it
+ * references `user.id`, so seed a row with `insertUser` before touching it.
  */
 export async function truncateAll() {
 	// `user` is a reserved word and must stay quoted. Truncating it cascades to
@@ -59,7 +56,6 @@ export async function truncateAll() {
 	await testDb.execute(sql`
 		TRUNCATE
 			user_settings,
-			custom_reports,
 			media_item_instances,
 			media_item_tags,
 			media_item_relations,
@@ -261,8 +257,8 @@ export async function insertCreator(
 }
 
 /**
- * Inserts a better-auth `user` row. Only `custom_reports` and `user_settings`
- * need one — every other app table stores userId as plain text.
+ * Inserts a better-auth `user` row. Only `user_settings` needs one — every
+ * other app table stores userId as plain text.
  */
 export async function insertUser(userId: string): Promise<void> {
 	await testDb.insert(user).values({
@@ -356,38 +352,8 @@ export async function insertMediaItemRelation(
 	});
 }
 
-type InsertCustomReportOptions = {
-	userId: string;
-	name?: string;
-	reportType?: DashboardReportType;
-	mediaTypes?: MediaItemType[];
-	monthCount?: number;
-	displayOrder?: number;
-};
-
-/** Inserts a `custom_reports` row and returns its id. Needs `insertUser` first. */
-export async function insertCustomReport(
-	options: InsertCustomReportOptions,
-): Promise<number> {
-	const [row] = await testDb
-		.insert(customReports)
-		.values({
-			userId: options.userId,
-			name: options.name ?? "Test Report",
-			reportType: options.reportType ?? "items_completed_by_month",
-			mediaTypes: options.mediaTypes ?? null,
-			monthCount: options.monthCount ?? 12,
-			displayOrder: options.displayOrder ?? 0,
-		})
-		.returning({ id: customReports.id });
-
-	if (!row) throw new Error("insertCustomReport failed");
-	return row.id;
-}
-
 type InsertUserSettingsOptions = {
 	userId: string;
-	activeCustomReportId?: number;
 	defaultLibrarySortBy?: ItemSortField;
 	defaultLibrarySortDirection?: SortDirection;
 	defaultSeriesSortBy?: SeriesSortField;
@@ -399,26 +365,29 @@ type InsertUserSettingsOptions = {
 	defaultGameControlMethod?: GameControlMethod;
 };
 
-/**
- * Inserts the caller's one `user_settings` row. Needs `insertUser` first, and
- * `insertCustomReport` first when passing `activeCustomReportId`.
- */
+const USER_SETTINGS_DEFAULTS = {
+	defaultLibrarySortBy: null,
+	defaultLibrarySortDirection: null,
+	defaultSeriesSortBy: null,
+	defaultSeriesSortDirection: null,
+	defaultBookConsumptionMethod: null,
+	defaultMovieConsumptionMethod: null,
+	defaultTvShowConsumptionMethod: null,
+	defaultGamePlatform: null,
+	defaultGameControlMethod: null,
+} satisfies Omit<typeof userSettings.$inferInsert, "userId">;
+
+/** Inserts the caller's one `user_settings` row. Needs `insertUser` first. */
 export async function insertUserSettings(
 	options: InsertUserSettingsOptions,
 ): Promise<void> {
+	const { userId, ...overrides } = options;
+	const providedOverrides = Object.fromEntries(
+		Object.entries(overrides).filter(([, value]) => value !== undefined),
+	);
 	await testDb.insert(userSettings).values({
-		userId: options.userId,
-		activeCustomReportId: options.activeCustomReportId ?? null,
-		defaultLibrarySortBy: options.defaultLibrarySortBy ?? null,
-		defaultLibrarySortDirection: options.defaultLibrarySortDirection ?? null,
-		defaultSeriesSortBy: options.defaultSeriesSortBy ?? null,
-		defaultSeriesSortDirection: options.defaultSeriesSortDirection ?? null,
-		defaultBookConsumptionMethod: options.defaultBookConsumptionMethod ?? null,
-		defaultMovieConsumptionMethod:
-			options.defaultMovieConsumptionMethod ?? null,
-		defaultTvShowConsumptionMethod:
-			options.defaultTvShowConsumptionMethod ?? null,
-		defaultGamePlatform: options.defaultGamePlatform ?? null,
-		defaultGameControlMethod: options.defaultGameControlMethod ?? null,
+		userId,
+		...USER_SETTINGS_DEFAULTS,
+		...providedOverrides,
 	});
 }

@@ -1,9 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq } from "drizzle-orm";
-import { z } from "zod";
 
-import { db } from "#/database/index";
-import { customReports, userSettings } from "#/database/schema";
 import { getLoggedInUser } from "#/features/screens/auth/session";
 import { MediaItemType } from "#/lib/enums";
 import { getDrillDownItems } from "./drilldown/drilldown";
@@ -11,175 +7,40 @@ import { fetchAverageScoreByGenre } from "./reportTypes/averageScoreByGenre.serv
 import { fetchItemsCompletedByGenre } from "./reportTypes/itemsCompletedByGenre.server";
 import { fetchItemsCompletedByMonth } from "./reportTypes/itemsCompletedByMonth.server";
 import { fetchProgressByMonth } from "./reportTypes/progressByMonth.server";
-import type {
-	CustomReport,
-	DashboardReport,
-	GenreDataPoint,
-	ReportDataPoint,
-} from "./types";
-import { getDateRangeFromMonthCount, rowToCustomReport } from "./utils.server";
+import { INSIGHTS_REPORT_TYPES, type InsightsReport } from "./types";
+import { getYearToDateRange } from "./utils.server";
 
 // ---- Exported server functions ----------------------------------------------
 
-export const getCustomReports = createServerFn({ method: "GET" }).handler(
-	async () => {
+export const getInsightsReports = createServerFn({ method: "GET" }).handler(
+	async (): Promise<InsightsReport[]> => {
 		const user = await getLoggedInUser();
-		const rows = await db
-			.select()
-			.from(customReports)
-			.where(eq(customReports.userId, user.id))
-			.orderBy(customReports.displayOrder, customReports.id);
-		return rows.map(rowToCustomReport);
-	},
-);
+		const { startDate, endDate } = getYearToDateRange();
 
-const customReportInputSchema = z.object({
-	name: z.string().min(1),
-	reportType: z.enum([
-		"progress_by_month",
-		"items_completed_by_month",
-		"items_completed_by_genre",
-		"avg_score_by_genre",
-	]),
-	mediaTypes: z.array(z.string()).nullable(),
-	monthCount: z.number().int().positive(),
-});
+		const [
+			progressByMonth,
+			itemsCompletedByMonth,
+			itemsCompletedByGenre,
+			avgScoreByGenre,
+		] = await Promise.all([
+			fetchProgressByMonth(user.id, MediaItemType.BOOK, startDate, endDate),
+			fetchItemsCompletedByMonth(user.id, startDate, endDate, null),
+			fetchItemsCompletedByGenre(user.id, startDate, endDate, null),
+			fetchAverageScoreByGenre(user.id, startDate, endDate, null),
+		]);
 
-export const createCustomReport = createServerFn({ method: "POST" })
-	.inputValidator(customReportInputSchema)
-	.handler(async ({ data }) => {
-		const user = await getLoggedInUser();
-		const [row] = await db
-			.insert(customReports)
-			.values({
-				userId: user.id,
-				name: data.name,
-				reportType: data.reportType,
-				mediaTypes: data.mediaTypes,
-				monthCount: data.monthCount,
-			})
-			.returning();
-		return rowToCustomReport(row);
-	});
+		const dataByReportType = {
+			progress_by_month: progressByMonth,
+			items_completed_by_month: itemsCompletedByMonth,
+			items_completed_by_genre: itemsCompletedByGenre,
+			avg_score_by_genre: avgScoreByGenre,
+		};
 
-export const updateCustomReport = createServerFn({ method: "POST" })
-	.inputValidator(customReportInputSchema.extend({ id: z.number().int() }))
-	.handler(async ({ data }) => {
-		const user = await getLoggedInUser();
-		const [row] = await db
-			.update(customReports)
-			.set({
-				name: data.name,
-				reportType: data.reportType,
-				mediaTypes: data.mediaTypes,
-				monthCount: data.monthCount,
-			})
-			.where(
-				and(eq(customReports.id, data.id), eq(customReports.userId, user.id)),
-			)
-			.returning();
-		if (!row) {
-			throw new Error("Report not found");
-		}
-		return rowToCustomReport(row);
-	});
-
-export const deleteCustomReport = createServerFn({ method: "POST" })
-	.inputValidator(z.object({ id: z.number().int() }))
-	.handler(async ({ data }) => {
-		const user = await getLoggedInUser();
-		await db
-			.delete(customReports)
-			.where(
-				and(eq(customReports.id, data.id), eq(customReports.userId, user.id)),
-			);
-	});
-
-export const setActiveCustomReport = createServerFn({ method: "POST" })
-	.inputValidator(z.object({ id: z.number().int().nullable() }))
-	.handler(async ({ data }) => {
-		const user = await getLoggedInUser();
-		await ensureUserSettings(user.id);
-		await db
-			.update(userSettings)
-			.set({ activeCustomReportId: data.id })
-			.where(eq(userSettings.userId, user.id));
-	});
-
-export const getDashboardReport = createServerFn({ method: "GET" }).handler(
-	async (): Promise<DashboardReport> => {
-		const user = await getLoggedInUser();
-		await ensureUserSettings(user.id);
-
-		const [settings] = await db
-			.select({ activeCustomReportId: userSettings.activeCustomReportId })
-			.from(userSettings)
-			.where(eq(userSettings.userId, user.id))
-			.limit(1);
-
-		const allReports = await db
-			.select()
-			.from(customReports)
-			.where(eq(customReports.userId, user.id))
-			.orderBy(customReports.displayOrder, customReports.id);
-
-		const allCustomReports = allReports.map(rowToCustomReport);
-
-		let activeReport: CustomReport | null = null;
-		if (settings?.activeCustomReportId) {
-			activeReport =
-				allCustomReports.find((r) => r.id === settings.activeCustomReportId) ??
-				null;
-		}
-		if (!activeReport && allCustomReports.length > 0) {
-			activeReport = allCustomReports[0];
-		}
-
-		let data: ReportDataPoint[] | GenreDataPoint[] = [];
-		if (activeReport) {
-			const { startDate, endDate } = getDateRangeFromMonthCount(
-				activeReport.monthCount,
-			);
-			if (activeReport.reportType === "progress_by_month") {
-				const mediaType = activeReport.mediaTypes?.[0] ?? MediaItemType.BOOK;
-				data = await fetchProgressByMonth(
-					user.id,
-					mediaType,
-					startDate,
-					endDate,
-				);
-			} else if (activeReport.reportType === "items_completed_by_month") {
-				data = await fetchItemsCompletedByMonth(
-					user.id,
-					startDate,
-					endDate,
-					activeReport.mediaTypes,
-				);
-			} else if (activeReport.reportType === "items_completed_by_genre") {
-				data = await fetchItemsCompletedByGenre(
-					user.id,
-					startDate,
-					endDate,
-					activeReport.mediaTypes,
-				);
-			} else {
-				data = await fetchAverageScoreByGenre(
-					user.id,
-					startDate,
-					endDate,
-					activeReport.mediaTypes,
-				);
-			}
-		}
-
-		return { customReports: allCustomReports, activeReport, data };
+		return INSIGHTS_REPORT_TYPES.map((reportType) => ({
+			reportType,
+			data: dataByReportType[reportType],
+		}));
 	},
 );
 
 export { getDrillDownItems };
-
-// ---- Private helpers --------------------------------------------------------
-
-async function ensureUserSettings(userId: string): Promise<void> {
-	await db.insert(userSettings).values({ userId }).onConflictDoNothing();
-}

@@ -4,7 +4,6 @@ import { z } from "zod";
 import { db } from "#/database/index";
 import {
 	creators,
-	customReports,
 	genres,
 	mediaItemInstances,
 	mediaItems,
@@ -21,7 +20,7 @@ import {
  * Backup export/import.
  */
 
-export const BACKUP_VERSION = 4;
+export const BACKUP_VERSION = 5;
 
 // ---------------------------------------------------------------------------
 // Export
@@ -83,11 +82,6 @@ export async function exportBackup(userId: string) {
 		.from(genres)
 		.where(eq(genres.userId, userId));
 
-	const customReportRows = await db
-		.select()
-		.from(customReports)
-		.where(eq(customReports.userId, userId));
-
 	const settingsRows = await db
 		.select()
 		.from(userSettings)
@@ -105,7 +99,6 @@ export async function exportBackup(userId: string) {
 		mediaItemTags: mediaItemTagRows,
 		creators: creatorRows,
 		genres: genreRows,
-		customReports: customReportRows,
 		userSettings: settingsRows[0] ?? null,
 	};
 }
@@ -193,8 +186,8 @@ const customReportBackupSchema = z.object({
 	updatedAt: z.string(),
 });
 
-const userSettingsBackupSchema = z.object({
-	activeCustomReportId: z.number().int().nullable(),
+/** Shared user-settings fields, common to every backup version. */
+const userSettingsScalarFieldsSchema = z.object({
 	defaultLibrarySortBy: z.string().nullable(),
 	defaultLibrarySortDirection: z.string().nullable(),
 	defaultSeriesSortBy: z.string().nullable(),
@@ -207,6 +200,13 @@ const userSettingsBackupSchema = z.object({
 	createdAt: z.string(),
 	updatedAt: z.string(),
 });
+
+/** v1–v4 shape, still carrying the now-removed custom-reports link column. */
+const userSettingsBackupSchemaLegacy = userSettingsScalarFieldsSchema.extend({
+	activeCustomReportId: z.number().int().nullable(),
+});
+
+const userSettingsBackupSchema = userSettingsScalarFieldsSchema;
 
 /** The descriptive half of an item, shared by every format version. */
 const itemMetadataSchema = z.object({
@@ -232,6 +232,21 @@ const itemTrackingSchema = z.object({
 	updatedAt: z.string(),
 });
 
+const backupSchemaV5 = z.object({
+	version: z.literal(5),
+	exportedAt: z.string(),
+	series: z.array(seriesBackupSchema),
+	mediaItems: z.array(itemTrackingSchema.merge(itemMetadataSchema)),
+	mediaItemInstances: z.array(instanceBackupSchema),
+	views: z.array(viewBackupSchema),
+	viewItemOrder: z.array(viewItemOrderBackupSchema),
+	tags: z.array(tagBackupSchema),
+	mediaItemTags: z.array(mediaItemTagBackupSchema),
+	creators: z.array(creatorBackupSchema),
+	genres: z.array(genreBackupSchema),
+	userSettings: userSettingsBackupSchema.nullable(),
+});
+
 const backupSchemaV4 = z.object({
 	version: z.literal(4),
 	exportedAt: z.string(),
@@ -245,7 +260,7 @@ const backupSchemaV4 = z.object({
 	creators: z.array(creatorBackupSchema),
 	genres: z.array(genreBackupSchema),
 	customReports: z.array(customReportBackupSchema),
-	userSettings: userSettingsBackupSchema.nullable(),
+	userSettings: userSettingsBackupSchemaLegacy.nullable(),
 });
 
 const backupSchemaV3 = z.object({
@@ -260,7 +275,7 @@ const backupSchemaV3 = z.object({
 	creators: z.array(creatorBackupSchema),
 	genres: z.array(genreBackupSchema),
 	customReports: z.array(customReportBackupSchema),
-	userSettings: userSettingsBackupSchema.nullable(),
+	userSettings: userSettingsBackupSchemaLegacy.nullable(),
 });
 
 const backupSchemaV2 = z.object({
@@ -294,6 +309,7 @@ export const backupSchema = z.discriminatedUnion("version", [
 	backupSchemaV2,
 	backupSchemaV3,
 	backupSchemaV4,
+	backupSchemaV5,
 ]);
 
 /**
@@ -302,7 +318,7 @@ export const backupSchema = z.discriminatedUnion("version", [
  * already been serialized by the time anyone re-reads one.
  */
 export type BackupData = z.infer<typeof backupSchema>;
-type BackupV4 = z.infer<typeof backupSchemaV4>;
+type BackupV5 = z.infer<typeof backupSchemaV5>;
 
 // ---------------------------------------------------------------------------
 // Import
@@ -312,235 +328,316 @@ export async function importBackup(
 	rawBackup: BackupData,
 	userId: string,
 ): Promise<void> {
-	const backup = normalizeToV4(rawBackup);
+	const backup = normalizeToV5(rawBackup);
 
 	await db.transaction(async (tx) => {
-		// 1. Delete all existing user data. Settings and reports go first because
-		// they point at each other, then items — whose delete cascades to instances
-		// and tag links — and only then the rows items point at.
-		await tx.delete(userSettings).where(eq(userSettings.userId, userId));
-		await tx.delete(customReports).where(eq(customReports.userId, userId));
-		await tx.delete(views).where(eq(views.userId, userId));
-		await tx.delete(mediaItems).where(eq(mediaItems.userId, userId));
-		await tx.delete(series).where(eq(series.userId, userId));
-		await tx.delete(creators).where(eq(creators.userId, userId));
-		await tx.delete(genres).where(eq(genres.userId, userId));
-		await tx.delete(tags).where(eq(tags.userId, userId));
+		await deleteExistingUserData(tx, userId);
 
-		// 2. Restore series — build old-id → new-id map
-		const seriesIdMap = new Map<number, number>();
-		for (const seriesRow of backup.series) {
-			const [inserted] = await tx
-				.insert(series)
-				.values({
-					userId,
-					name: seriesRow.name,
-					type: seriesRow.type as typeof series.$inferInsert.type,
-					status: seriesRow.status as typeof series.$inferInsert.status,
-					rating: seriesRow.rating,
-					description: seriesRow.description,
-					isComplete: seriesRow.isComplete,
-					nextItemStatus: (seriesRow.nextItemStatus ??
-						null) as typeof series.$inferInsert.nextItemStatus,
-					createdAt: new Date(seriesRow.createdAt),
-					updatedAt: new Date(seriesRow.updatedAt),
-				})
-				.returning({ id: series.id });
-			seriesIdMap.set(seriesRow.id, inserted.id);
-		}
+		const seriesIdMap = await restoreSeries(tx, userId, backup.series);
+		const creatorIdMap = await restoreCreators(tx, userId, backup.creators);
+		const genreIdMap = await restoreGenres(tx, userId, backup.genres);
+		const tagIdMap = await restoreTags(tx, userId, backup.tags);
+		const itemIdMap = await restoreMediaItems(tx, userId, backup.mediaItems, {
+			seriesIdMap,
+			creatorIdMap,
+			genreIdMap,
+		});
+		await restoreMediaItemInstances(tx, backup.mediaItemInstances, itemIdMap);
+		await restoreMediaItemTagLinks(
+			tx,
+			backup.mediaItemTags,
+			itemIdMap,
+			tagIdMap,
+		);
+		const viewIdMap = await restoreViews(tx, userId, backup.views);
+		await restoreViewItemOrder(tx, backup.viewItemOrder, viewIdMap, itemIdMap);
+		await restoreUserSettings(tx, userId, backup.userSettings);
+	});
+}
 
-		// 3. Restore the rows media items point at, before the items themselves
-		const creatorIdMap = new Map<number, number>();
-		for (const creatorRow of backup.creators) {
-			const [inserted] = await tx
-				.insert(creators)
-				.values({
-					userId,
-					name: creatorRow.name,
-					biography: creatorRow.biography,
-					createdAt: new Date(creatorRow.createdAt),
-					updatedAt: new Date(creatorRow.updatedAt),
-				})
-				.returning({ id: creators.id });
-			creatorIdMap.set(creatorRow.id, inserted.id);
-		}
+// ---------------------------------------------------------------------------
+// Import — one restore step per table
+// ---------------------------------------------------------------------------
 
-		const genreIdMap = new Map<number, number>();
-		for (const genreRow of backup.genres) {
-			const [inserted] = await tx
-				.insert(genres)
-				.values({
-					userId,
-					name: genreRow.name,
-					createdAt: new Date(genreRow.createdAt),
-				})
-				.returning({ id: genres.id });
-			genreIdMap.set(genreRow.id, inserted.id);
-		}
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-		const tagIdMap = new Map<number, number>();
-		for (const tagRow of backup.tags) {
-			const [inserted] = await tx
-				.insert(tags)
-				.values({
-					userId,
-					name: tagRow.name,
-					createdAt: new Date(tagRow.createdAt),
-				})
-				.returning({ id: tags.id });
-			tagIdMap.set(tagRow.id, inserted.id);
-		}
+/**
+ * Settings and views go first because they point at other rows, then items
+ * — whose delete cascades to instances and tag links — and only then the
+ * rows items point at.
+ */
+async function deleteExistingUserData(tx: Tx, userId: string): Promise<void> {
+	await tx.delete(userSettings).where(eq(userSettings.userId, userId));
+	await tx.delete(views).where(eq(views.userId, userId));
+	await tx.delete(mediaItems).where(eq(mediaItems.userId, userId));
+	await tx.delete(series).where(eq(series.userId, userId));
+	await tx.delete(creators).where(eq(creators.userId, userId));
+	await tx.delete(genres).where(eq(genres.userId, userId));
+	await tx.delete(tags).where(eq(tags.userId, userId));
+}
 
-		// 4. Restore mediaItems — build old-id → new-id map
-		const itemIdMap = new Map<number, number>();
-		for (const itemRow of backup.mediaItems) {
-			const [inserted] = await tx
-				.insert(mediaItems)
-				.values({
-					userId,
-					type: itemRow.type as typeof mediaItems.$inferInsert.type,
-					title: itemRow.title,
-					description: itemRow.description,
-					coverImageUrl: itemRow.coverImageUrl,
-					releaseDate: itemRow.releaseDate,
-					externalId: itemRow.externalId,
-					externalSource: itemRow.externalSource,
-					metadata: itemRow.metadata as typeof mediaItems.$inferInsert.metadata,
-					seriesId: itemRow.seriesId
-						? (seriesIdMap.get(itemRow.seriesId) ?? null)
-						: null,
-					creatorId: itemRow.creatorId
-						? (creatorIdMap.get(itemRow.creatorId) ?? null)
-						: null,
-					genreId: itemRow.genreId
-						? (genreIdMap.get(itemRow.genreId) ?? null)
-						: null,
-					status: itemRow.status as typeof mediaItems.$inferInsert.status,
-					purchaseStatus: itemRow.purchaseStatus,
-					expectedReleaseDate: itemRow.expectedReleaseDate ?? null,
-					createdAt: new Date(itemRow.createdAt),
-					updatedAt: new Date(itemRow.updatedAt),
-				})
-				.returning({ id: mediaItems.id });
-			itemIdMap.set(itemRow.id, inserted.id);
-		}
-
-		// 5. Restore mediaItemInstances
-		for (const instanceRow of backup.mediaItemInstances) {
-			const newItemId = itemIdMap.get(instanceRow.mediaItemId);
-			if (newItemId === undefined) {
-				continue;
-			}
-			await tx.insert(mediaItemInstances).values({
-				mediaItemId: newItemId,
-				rating: instanceRow.rating,
-				fictionRating:
-					instanceRow.fictionRating as typeof mediaItemInstances.$inferInsert.fictionRating,
-				seasonReviews: (instanceRow.seasonReviews ??
-					null) as typeof mediaItemInstances.$inferInsert.seasonReviews,
-				consumptionInfo: (instanceRow.consumptionInfo ??
-					null) as typeof mediaItemInstances.$inferInsert.consumptionInfo,
-				reviewText: instanceRow.reviewText,
-				startedAt: instanceRow.startedAt,
-				completedAt: instanceRow.completedAt,
-				createdAt: new Date(instanceRow.createdAt),
-				updatedAt: new Date(instanceRow.updatedAt),
-			});
-		}
-
-		// 6. Restore the item ↔ tag links, skipping any whose end is missing
-		for (const linkRow of backup.mediaItemTags) {
-			const newItemId = itemIdMap.get(linkRow.mediaItemId);
-			const newTagId = tagIdMap.get(linkRow.tagId);
-			if (newItemId === undefined || newTagId === undefined) {
-				continue;
-			}
-			await tx
-				.insert(mediaItemTags)
-				.values({ mediaItemId: newItemId, tagId: newTagId });
-		}
-
-		// 7. Restore views — build old-id → new-id map for the order rows
-		const viewIdMap = new Map<number, number>();
-		for (const viewRow of backup.views) {
-			const [inserted] = await tx
-				.insert(views)
-				.values({
-					userId,
-					name: viewRow.name,
-					subject: viewRow.subject as ViewSubject,
-					filters: viewRow.filters as typeof views.$inferInsert.filters,
-					displayOrder: viewRow.displayOrder,
-					createdAt: new Date(viewRow.createdAt),
-					updatedAt: new Date(viewRow.updatedAt),
-				})
-				.returning({ id: views.id });
-			viewIdMap.set(viewRow.id, inserted.id);
-		}
-
-		// 8. Restore the hand-built view orders, skipping any whose end is missing
-		for (const orderRow of backup.viewItemOrder) {
-			const newViewId = viewIdMap.get(orderRow.viewId);
-			const newItemId = itemIdMap.get(orderRow.mediaItemId);
-			if (newViewId === undefined || newItemId === undefined) {
-				continue;
-			}
-			await tx.insert(viewItemOrder).values({
-				viewId: newViewId,
-				mediaItemId: newItemId,
-				position: orderRow.position,
-			});
-		}
-
-		// 9. Restore custom reports — build old-id → new-id map for the settings row
-		const customReportIdMap = new Map<number, number>();
-		for (const reportRow of backup.customReports) {
-			const [inserted] = await tx
-				.insert(customReports)
-				.values({
-					userId,
-					name: reportRow.name,
-					reportType: reportRow.reportType,
-					mediaTypes: reportRow.mediaTypes,
-					monthCount: reportRow.monthCount,
-					displayOrder: reportRow.displayOrder,
-					createdAt: new Date(reportRow.createdAt),
-					updatedAt: new Date(reportRow.updatedAt),
-				})
-				.returning({ id: customReports.id });
-			customReportIdMap.set(reportRow.id, inserted.id);
-		}
-
-		// 10. Restore user settings
-		const settings = backup.userSettings;
-		if (settings) {
-			await tx.insert(userSettings).values({
+async function restoreSeries(
+	tx: Tx,
+	userId: string,
+	rows: BackupV5["series"],
+): Promise<Map<number, number>> {
+	const idMap = new Map<number, number>();
+	for (const seriesRow of rows) {
+		const [inserted] = await tx
+			.insert(series)
+			.values({
 				userId,
-				activeCustomReportId: settings.activeCustomReportId
-					? (customReportIdMap.get(settings.activeCustomReportId) ?? null)
-					: null,
-				defaultLibrarySortBy:
-					settings.defaultLibrarySortBy as typeof userSettings.$inferInsert.defaultLibrarySortBy,
-				defaultLibrarySortDirection:
-					settings.defaultLibrarySortDirection as typeof userSettings.$inferInsert.defaultLibrarySortDirection,
-				defaultSeriesSortBy:
-					settings.defaultSeriesSortBy as typeof userSettings.$inferInsert.defaultSeriesSortBy,
-				defaultSeriesSortDirection:
-					settings.defaultSeriesSortDirection as typeof userSettings.$inferInsert.defaultSeriesSortDirection,
-				defaultBookConsumptionMethod:
-					settings.defaultBookConsumptionMethod as typeof userSettings.$inferInsert.defaultBookConsumptionMethod,
-				defaultMovieConsumptionMethod:
-					settings.defaultMovieConsumptionMethod as typeof userSettings.$inferInsert.defaultMovieConsumptionMethod,
-				defaultTvShowConsumptionMethod:
-					settings.defaultTvShowConsumptionMethod as typeof userSettings.$inferInsert.defaultTvShowConsumptionMethod,
-				defaultGamePlatform:
-					settings.defaultGamePlatform as typeof userSettings.$inferInsert.defaultGamePlatform,
-				defaultGameControlMethod:
-					settings.defaultGameControlMethod as typeof userSettings.$inferInsert.defaultGameControlMethod,
-				createdAt: new Date(settings.createdAt),
-				updatedAt: new Date(settings.updatedAt),
-			});
+				name: seriesRow.name,
+				type: seriesRow.type as typeof series.$inferInsert.type,
+				status: seriesRow.status as typeof series.$inferInsert.status,
+				rating: seriesRow.rating,
+				description: seriesRow.description,
+				isComplete: seriesRow.isComplete,
+				nextItemStatus: (seriesRow.nextItemStatus ??
+					null) as typeof series.$inferInsert.nextItemStatus,
+				createdAt: new Date(seriesRow.createdAt),
+				updatedAt: new Date(seriesRow.updatedAt),
+			})
+			.returning({ id: series.id });
+		idMap.set(seriesRow.id, inserted.id);
+	}
+	return idMap;
+}
+
+async function restoreCreators(
+	tx: Tx,
+	userId: string,
+	rows: BackupV5["creators"],
+): Promise<Map<number, number>> {
+	const idMap = new Map<number, number>();
+	for (const creatorRow of rows) {
+		const [inserted] = await tx
+			.insert(creators)
+			.values({
+				userId,
+				name: creatorRow.name,
+				biography: creatorRow.biography,
+				createdAt: new Date(creatorRow.createdAt),
+				updatedAt: new Date(creatorRow.updatedAt),
+			})
+			.returning({ id: creators.id });
+		idMap.set(creatorRow.id, inserted.id);
+	}
+	return idMap;
+}
+
+async function restoreGenres(
+	tx: Tx,
+	userId: string,
+	rows: BackupV5["genres"],
+): Promise<Map<number, number>> {
+	const idMap = new Map<number, number>();
+	for (const genreRow of rows) {
+		const [inserted] = await tx
+			.insert(genres)
+			.values({
+				userId,
+				name: genreRow.name,
+				createdAt: new Date(genreRow.createdAt),
+			})
+			.returning({ id: genres.id });
+		idMap.set(genreRow.id, inserted.id);
+	}
+	return idMap;
+}
+
+async function restoreTags(
+	tx: Tx,
+	userId: string,
+	rows: BackupV5["tags"],
+): Promise<Map<number, number>> {
+	const idMap = new Map<number, number>();
+	for (const tagRow of rows) {
+		const [inserted] = await tx
+			.insert(tags)
+			.values({
+				userId,
+				name: tagRow.name,
+				createdAt: new Date(tagRow.createdAt),
+			})
+			.returning({ id: tags.id });
+		idMap.set(tagRow.id, inserted.id);
+	}
+	return idMap;
+}
+
+/** Maps an old foreign-key id through its restored id map, or null if either is absent. */
+function mapForeignId(
+	id: number | null | undefined,
+	idMap: Map<number, number>,
+): number | null {
+	if (id == null) {
+		return null;
+	}
+	return idMap.get(id) ?? null;
+}
+
+async function restoreMediaItems(
+	tx: Tx,
+	userId: string,
+	rows: BackupV5["mediaItems"],
+	idMaps: {
+		seriesIdMap: Map<number, number>;
+		creatorIdMap: Map<number, number>;
+		genreIdMap: Map<number, number>;
+	},
+): Promise<Map<number, number>> {
+	const idMap = new Map<number, number>();
+	for (const itemRow of rows) {
+		const [inserted] = await tx
+			.insert(mediaItems)
+			.values({
+				userId,
+				type: itemRow.type as typeof mediaItems.$inferInsert.type,
+				title: itemRow.title,
+				description: itemRow.description,
+				coverImageUrl: itemRow.coverImageUrl,
+				releaseDate: itemRow.releaseDate,
+				externalId: itemRow.externalId,
+				externalSource: itemRow.externalSource,
+				metadata: itemRow.metadata as typeof mediaItems.$inferInsert.metadata,
+				seriesId: mapForeignId(itemRow.seriesId, idMaps.seriesIdMap),
+				creatorId: mapForeignId(itemRow.creatorId, idMaps.creatorIdMap),
+				genreId: mapForeignId(itemRow.genreId, idMaps.genreIdMap),
+				status: itemRow.status as typeof mediaItems.$inferInsert.status,
+				purchaseStatus: itemRow.purchaseStatus,
+				expectedReleaseDate: itemRow.expectedReleaseDate ?? null,
+				createdAt: new Date(itemRow.createdAt),
+				updatedAt: new Date(itemRow.updatedAt),
+			})
+			.returning({ id: mediaItems.id });
+		idMap.set(itemRow.id, inserted.id);
+	}
+	return idMap;
+}
+
+async function restoreMediaItemInstances(
+	tx: Tx,
+	rows: BackupV5["mediaItemInstances"],
+	itemIdMap: Map<number, number>,
+): Promise<void> {
+	for (const instanceRow of rows) {
+		const newItemId = itemIdMap.get(instanceRow.mediaItemId);
+		if (newItemId === undefined) {
+			continue;
 		}
+		await tx.insert(mediaItemInstances).values({
+			mediaItemId: newItemId,
+			rating: instanceRow.rating,
+			fictionRating:
+				instanceRow.fictionRating as typeof mediaItemInstances.$inferInsert.fictionRating,
+			seasonReviews: (instanceRow.seasonReviews ??
+				null) as typeof mediaItemInstances.$inferInsert.seasonReviews,
+			consumptionInfo: (instanceRow.consumptionInfo ??
+				null) as typeof mediaItemInstances.$inferInsert.consumptionInfo,
+			reviewText: instanceRow.reviewText,
+			startedAt: instanceRow.startedAt,
+			completedAt: instanceRow.completedAt,
+			createdAt: new Date(instanceRow.createdAt),
+			updatedAt: new Date(instanceRow.updatedAt),
+		});
+	}
+}
+
+/** Skips any link whose item or tag end is missing from the restored maps. */
+async function restoreMediaItemTagLinks(
+	tx: Tx,
+	rows: BackupV5["mediaItemTags"],
+	itemIdMap: Map<number, number>,
+	tagIdMap: Map<number, number>,
+): Promise<void> {
+	for (const linkRow of rows) {
+		const newItemId = itemIdMap.get(linkRow.mediaItemId);
+		const newTagId = tagIdMap.get(linkRow.tagId);
+		if (newItemId === undefined || newTagId === undefined) {
+			continue;
+		}
+		await tx
+			.insert(mediaItemTags)
+			.values({ mediaItemId: newItemId, tagId: newTagId });
+	}
+}
+
+async function restoreViews(
+	tx: Tx,
+	userId: string,
+	rows: BackupV5["views"],
+): Promise<Map<number, number>> {
+	const idMap = new Map<number, number>();
+	for (const viewRow of rows) {
+		const [inserted] = await tx
+			.insert(views)
+			.values({
+				userId,
+				name: viewRow.name,
+				subject: viewRow.subject as ViewSubject,
+				filters: viewRow.filters as typeof views.$inferInsert.filters,
+				displayOrder: viewRow.displayOrder,
+				createdAt: new Date(viewRow.createdAt),
+				updatedAt: new Date(viewRow.updatedAt),
+			})
+			.returning({ id: views.id });
+		idMap.set(viewRow.id, inserted.id);
+	}
+	return idMap;
+}
+
+/** Skips any order row whose view or item end is missing from the restored maps. */
+async function restoreViewItemOrder(
+	tx: Tx,
+	rows: BackupV5["viewItemOrder"],
+	viewIdMap: Map<number, number>,
+	itemIdMap: Map<number, number>,
+): Promise<void> {
+	for (const orderRow of rows) {
+		const newViewId = viewIdMap.get(orderRow.viewId);
+		const newItemId = itemIdMap.get(orderRow.mediaItemId);
+		if (newViewId === undefined || newItemId === undefined) {
+			continue;
+		}
+		await tx.insert(viewItemOrder).values({
+			viewId: newViewId,
+			mediaItemId: newItemId,
+			position: orderRow.position,
+		});
+	}
+}
+
+async function restoreUserSettings(
+	tx: Tx,
+	userId: string,
+	settings: BackupV5["userSettings"],
+): Promise<void> {
+	if (!settings) {
+		return;
+	}
+	await tx.insert(userSettings).values({
+		userId,
+		defaultLibrarySortBy:
+			settings.defaultLibrarySortBy as typeof userSettings.$inferInsert.defaultLibrarySortBy,
+		defaultLibrarySortDirection:
+			settings.defaultLibrarySortDirection as typeof userSettings.$inferInsert.defaultLibrarySortDirection,
+		defaultSeriesSortBy:
+			settings.defaultSeriesSortBy as typeof userSettings.$inferInsert.defaultSeriesSortBy,
+		defaultSeriesSortDirection:
+			settings.defaultSeriesSortDirection as typeof userSettings.$inferInsert.defaultSeriesSortDirection,
+		defaultBookConsumptionMethod:
+			settings.defaultBookConsumptionMethod as typeof userSettings.$inferInsert.defaultBookConsumptionMethod,
+		defaultMovieConsumptionMethod:
+			settings.defaultMovieConsumptionMethod as typeof userSettings.$inferInsert.defaultMovieConsumptionMethod,
+		defaultTvShowConsumptionMethod:
+			settings.defaultTvShowConsumptionMethod as typeof userSettings.$inferInsert.defaultTvShowConsumptionMethod,
+		defaultGamePlatform:
+			settings.defaultGamePlatform as typeof userSettings.$inferInsert.defaultGamePlatform,
+		defaultGameControlMethod:
+			settings.defaultGameControlMethod as typeof userSettings.$inferInsert.defaultGameControlMethod,
+		createdAt: new Date(settings.createdAt),
+		updatedAt: new Date(settings.updatedAt),
 	});
 }
 
@@ -548,62 +645,86 @@ export async function importBackup(
 // Private helpers
 // ---------------------------------------------------------------------------
 
+/** Drops the v1–v4-only `activeCustomReportId` field from a legacy settings row, if present. */
+function dropActiveCustomReportId(
+	settings: z.infer<typeof userSettingsBackupSchemaLegacy> | null,
+): z.infer<typeof userSettingsBackupSchema> | null {
+	if (!settings) {
+		return null;
+	}
+	const { activeCustomReportId: _ignored, ...rest } = settings;
+	return rest;
+}
+
 /**
- * Lifts a v1, v2 or v3 backup into the v4 shape.
+ * Lifts a v1–v4 backup into the v5 shape.
  *
  * The tables each later version added were never exported by the older formats,
- * so they come back empty — a pre-v4 file restores its views intact, their items
+ * so they come back empty — a pre-v5 file restores its views intact, their items
  * simply all sort as unplaced. `creatorId` and `genreId` are dropped for the same
  * reason: an old file carries the ids but not the `creators`/`genres` rows they
  * point at, so keeping them would attach items to whatever happens to hold that
- * id now.
+ * id now. Any custom-reports data a v1–v4 file carries is dropped the same way —
+ * the feature no longer exists, so there is nothing left to attach it to.
  *
  * The v1 lift additionally joins each item to the metadata row it references.
  * Items whose metadata row is missing are dropped, matching the importer's
  * long-standing behavior; metadata rows no item references are unreachable and
  * disappear with the join.
  */
-function normalizeToV4(backup: BackupData): BackupV4 {
-	const emptyCollections: Pick<
-		BackupV4,
-		| "viewItemOrder"
-		| "tags"
-		| "mediaItemTags"
-		| "creators"
-		| "genres"
-		| "customReports"
-		| "userSettings"
-	> = {
+const LIFT_TO_V5: Record<
+	BackupData["version"],
+	(backup: BackupData) => BackupV5
+> = {
+	5: (backup) => backup as BackupV5,
+	4: (backup) => liftV4ToV5(backup as z.infer<typeof backupSchemaV4>),
+	3: (backup) => liftV3ToV5(backup as z.infer<typeof backupSchemaV3>),
+	2: (backup) => liftV2ToV5(backup as z.infer<typeof backupSchemaV2>),
+	1: (backup) => liftV1ToV5(backup as z.infer<typeof backupSchemaV1>),
+};
+
+function normalizeToV5(backup: BackupData): BackupV5 {
+	return LIFT_TO_V5[backup.version](backup);
+}
+
+function liftV4ToV5(backup: z.infer<typeof backupSchemaV4>): BackupV5 {
+	const { customReports: _customReports, ...rest } = backup;
+	return {
+		...rest,
+		version: 5,
+		userSettings: dropActiveCustomReportId(backup.userSettings),
+	};
+}
+
+function liftV3ToV5(backup: z.infer<typeof backupSchemaV3>): BackupV5 {
+	const { customReports: _customReports, ...rest } = backup;
+	return {
+		...rest,
+		viewItemOrder: [],
+		version: 5,
+		userSettings: dropActiveCustomReportId(backup.userSettings),
+	};
+}
+
+function liftV2ToV5(backup: z.infer<typeof backupSchemaV2>): BackupV5 {
+	return {
+		...backup,
+		version: 5,
 		viewItemOrder: [],
 		tags: [],
 		mediaItemTags: [],
 		creators: [],
 		genres: [],
-		customReports: [],
 		userSettings: null,
+		mediaItems: backup.mediaItems.map((item) => ({
+			...item,
+			creatorId: null,
+			genreId: null,
+		})),
 	};
+}
 
-	if (backup.version === 4) {
-		return backup;
-	}
-
-	if (backup.version === 3) {
-		return { ...backup, viewItemOrder: [], version: 4 };
-	}
-
-	if (backup.version === 2) {
-		return {
-			...backup,
-			...emptyCollections,
-			version: 4,
-			mediaItems: backup.mediaItems.map((item) => ({
-				...item,
-				creatorId: null,
-				genreId: null,
-			})),
-		};
-	}
-
+function liftV1ToV5(backup: z.infer<typeof backupSchemaV1>): BackupV5 {
 	const metadataById = new Map(
 		backup.mediaItemMetadata.map((row) => [row.id, row]),
 	);
@@ -633,12 +754,17 @@ function normalizeToV4(backup: BackupData): BackupV4 {
 	});
 
 	return {
-		...emptyCollections,
-		version: 4,
+		version: 5,
 		exportedAt: backup.exportedAt,
 		series: backup.series,
 		mediaItems: mediaItemsWithMetadata,
 		mediaItemInstances: backup.mediaItemInstances,
 		views: backup.views,
+		viewItemOrder: [],
+		tags: [],
+		mediaItemTags: [],
+		creators: [],
+		genres: [],
+		userSettings: null,
 	};
 }
