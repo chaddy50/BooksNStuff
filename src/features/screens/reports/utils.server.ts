@@ -1,3 +1,4 @@
+import { getLocalDateString } from "#/lib/utils";
 import type { ReportDataPoint } from "./types";
 
 /**
@@ -10,8 +11,8 @@ export function getYearToDateRange(): { startDate: string; endDate: string } {
 	const today = new Date();
 	const startOfYear = new Date(today.getFullYear(), 0, 1);
 	return {
-		startDate: startOfYear.toISOString().slice(0, 10),
-		endDate: today.toISOString().slice(0, 10),
+		startDate: getLocalDateString(startOfYear),
+		endDate: getLocalDateString(today),
 	};
 }
 
