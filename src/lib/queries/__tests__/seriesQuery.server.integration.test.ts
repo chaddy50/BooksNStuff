@@ -20,7 +20,11 @@ import {
 	insertSeries,
 	truncateAll,
 } from "#/tests/integration/helpers";
-import { runSeriesQuery, syncSeriesStatus } from "../seriesQuery.server";
+import {
+	runSeriesQuery,
+	syncSeriesStatus,
+	syncSeriesStatusWithCompletionConfirmation,
+} from "../seriesQuery.server";
 
 const USER = "test-user";
 
@@ -545,5 +549,87 @@ describe("syncSeriesStatus", () => {
 			.from(series)
 			.where(eq(series.id, seriesId));
 		expect(row?.nextItemStatus).toBe(NextItemStatus.PURCHASED);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// syncSeriesStatusWithCompletionConfirmation
+// ---------------------------------------------------------------------------
+
+describe("syncSeriesStatusWithCompletionConfirmation", () => {
+	it("returns a confirmation and leaves the series status untouched when the item newly completing would finish an Ongoing series", async () => {
+		const seriesId = await makeSeries({ name: "Ongoing Trilogy" });
+		await insertMediaItem({
+			userId: USER,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+		await insertMediaItem({
+			userId: USER,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+
+		const confirmation = await syncSeriesStatusWithCompletionConfirmation(
+			seriesId,
+			USER,
+			true,
+		);
+
+		expect(confirmation).toEqual({ seriesId, seriesName: "Ongoing Trilogy" });
+		const [row] = await testDb
+			.select({ status: series.status })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(row?.status).toBe(MediaItemStatus.BACKLOG);
+	});
+
+	it("completes the series normally with no confirmation when the series is already marked Complete", async () => {
+		const seriesId = await makeSeries();
+		await patchSeries(seriesId, { isComplete: true });
+		await insertMediaItem({
+			userId: USER,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+
+		const confirmation = await syncSeriesStatusWithCompletionConfirmation(
+			seriesId,
+			USER,
+			true,
+		);
+
+		expect(confirmation).toBeNull();
+		const [row] = await testDb
+			.select({ status: series.status })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(row?.status).toBe(MediaItemStatus.COMPLETED);
+	});
+
+	it("syncs normally with no confirmation when the item wasn't newly completing", async () => {
+		const seriesId = await makeSeries();
+		await insertMediaItem({
+			userId: USER,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+
+		const confirmation = await syncSeriesStatusWithCompletionConfirmation(
+			seriesId,
+			USER,
+			false,
+		);
+
+		expect(confirmation).toBeNull();
+		const [row] = await testDb
+			.select({ status: series.status })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(row?.status).toBe(MediaItemStatus.COMPLETED);
 	});
 });

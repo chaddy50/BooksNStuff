@@ -11,6 +11,8 @@ import { useInstanceEditingState } from "./components/history/useInstanceEditing
 import { MediaItemDetailsTabStrip } from "./components/MediaItemDetailsTabStrip";
 import { OverviewTab } from "./components/overview/OverviewTab";
 import { RelatedItems } from "./components/relatedItems/RelatedItems";
+import { SeriesCompletionPromptDialog } from "./components/SeriesCompletionPromptDialog";
+import { useSeriesCompletionPrompt } from "./components/useSeriesCompletionPrompt";
 import { removeFromLibrary } from "./mediaItemDetails";
 import type { MediaItemDetailsTabId } from "./types";
 
@@ -32,6 +34,7 @@ export function MediaItemDetailsScreen() {
 		},
 		failureMessage: t("mediaItemDetails.deleteFailed"),
 	});
+	const completionPrompt = useSeriesCompletionPrompt();
 	const activeTabId: MediaItemDetailsTabId = tab ?? "overview";
 
 	const editingState = useInstanceEditingState({
@@ -81,6 +84,13 @@ export function MediaItemDetailsScreen() {
 				onConfirm={deleteConfirmation.confirmDelete}
 			/>
 
+			<SeriesCompletionPromptDialog
+				seriesName={completionPrompt.seriesName}
+				isResolving={completionPrompt.isResolving}
+				onMarkWaiting={completionPrompt.markWaiting}
+				onMarkComplete={completionPrompt.markComplete}
+			/>
+
 			<div
 				key={mediaItemDetails.id}
 				className="px-4 md:px-6 py-8 max-w-5xl mx-auto flex flex-col gap-6"
@@ -88,6 +98,7 @@ export function MediaItemDetailsScreen() {
 				<MediaItemDetailsHeader
 					mediaItemDetails={mediaItemDetails}
 					onUpdateProgress={handleUpdateProgress}
+					onSeriesCompletionNeeded={completionPrompt.promptSeriesCompletion}
 				/>
 
 				<MediaItemDetailsTabStrip
@@ -107,6 +118,7 @@ export function MediaItemDetailsScreen() {
 						<History
 							mediaItemDetails={mediaItemDetails}
 							editingState={editingState}
+							onSeriesCompletionNeeded={completionPrompt.promptSeriesCompletion}
 						/>
 					)}
 					{activeTabId === "related" && (

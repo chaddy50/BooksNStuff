@@ -17,7 +17,11 @@ import { creatorMetadataKey } from "#/lib/creator";
 import { MediaItemStatus, type MediaItemType } from "#/lib/enums";
 import { parseProgressPercentColumn } from "#/lib/queries/progressQuery.server";
 import { parseRatingColumn } from "#/lib/queries/ratingsQuery.server";
-import { syncSeriesStatus } from "#/lib/queries/seriesQuery.server";
+import {
+	type SeriesCompletionConfirmation,
+	syncSeriesStatus,
+	syncSeriesStatusWithCompletionConfirmation,
+} from "#/lib/queries/seriesQuery.server";
 import { inferStatusFromInstances } from "./mediaItemDetails";
 import { getRelatedMediaItems } from "./relatedItems.server";
 
@@ -140,11 +144,11 @@ function buildInstanceValues(data: SaveInstanceInput) {
 export async function saveInstanceForUser(
 	data: SaveInstanceInput,
 	userId: string,
-): Promise<void> {
+): Promise<SeriesCompletionConfirmation | null> {
 	const { mediaItemId, instanceId } = data;
 
 	const [item] = await db
-		.select({ seriesId: mediaItems.seriesId })
+		.select({ seriesId: mediaItems.seriesId, status: mediaItems.status })
 		.from(mediaItems)
 		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
 	if (!item) throw new Error("Media item not found");
@@ -172,19 +176,28 @@ export async function saveInstanceForUser(
 		.from(mediaItemInstances)
 		.where(eq(mediaItemInstances.mediaItemId, mediaItemId));
 
+	const newStatus = inferStatusFromInstances(instances);
 	await db
 		.update(mediaItems)
-		.set({ status: inferStatusFromInstances(instances) })
+		.set({ status: newStatus })
 		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
 
-	if (item.seriesId) {
-		await syncSeriesStatus(item.seriesId, userId);
-	}
+	if (!item.seriesId) return null;
+
+	const isItemNewlyCompleting =
+		item.status !== MediaItemStatus.COMPLETED &&
+		newStatus === MediaItemStatus.COMPLETED;
+
+	return syncSeriesStatusWithCompletionConfirmation(
+		item.seriesId,
+		userId,
+		isItemNewlyCompleting,
+	);
 }
 
 async function requireOwnedMediaItem(mediaItemId: number, userId: string) {
 	const [item] = await db
-		.select({ seriesId: mediaItems.seriesId })
+		.select({ seriesId: mediaItems.seriesId, status: mediaItems.status })
 		.from(mediaItems)
 		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
 	if (!item) throw new Error("Media item not found");
@@ -226,7 +239,7 @@ export async function updateMediaItemStatusForUser(
 	mediaItemId: number,
 	status: MediaItemStatus,
 	userId: string,
-): Promise<void> {
+): Promise<SeriesCompletionConfirmation | null> {
 	const item = await requireOwnedMediaItem(mediaItemId, userId);
 
 	const today = new Date().toISOString().slice(0, 10);
@@ -242,9 +255,17 @@ export async function updateMediaItemStatusForUser(
 		.set({ status })
 		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
 
-	if (item.seriesId) {
-		await syncSeriesStatus(item.seriesId, userId);
-	}
+	if (!item.seriesId) return null;
+
+	const isItemNewlyCompleting =
+		item.status !== MediaItemStatus.COMPLETED &&
+		status === MediaItemStatus.COMPLETED;
+
+	return syncSeriesStatusWithCompletionConfirmation(
+		item.seriesId,
+		userId,
+		isItemNewlyCompleting,
+	);
 }
 
 export type UpdateMediaItemMetadataInput = {

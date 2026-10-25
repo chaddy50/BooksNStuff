@@ -1,7 +1,10 @@
 import { useRouter } from "@tanstack/react-router";
 import type { Ref, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
-import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/mediaItemDetails";
+import type {
+	MediaItemDetails,
+	SeriesCompletionConfirmation,
+} from "#/features/screens/mediaItemDetails/mediaItemDetails";
 import { MediaItemType } from "#/lib/enums";
 import {
 	InstanceEditForm,
@@ -15,6 +18,9 @@ interface InstanceListProps {
 	setIdBeingEdited: (value: SetStateAction<number | "new" | null>) => void;
 	startEditing: (id: number | "new") => void;
 	editorRef: Ref<InstanceEditFormHandle>;
+	onSeriesCompletionNeeded: (
+		confirmation: SeriesCompletionConfirmation,
+	) => void;
 }
 
 function getTotalSeasons(
@@ -36,6 +42,7 @@ export function InstanceList(props: InstanceListProps) {
 		setIdBeingEdited,
 		startEditing,
 		editorRef,
+		onSeriesCompletionNeeded,
 	} = props;
 	const router = useRouter();
 	const { t } = useTranslation();
@@ -68,6 +75,7 @@ export function InstanceList(props: InstanceListProps) {
 					pageCount={pageCount}
 					onSave={onInstanceSaved}
 					onCancel={() => setIdBeingEdited(null)}
+					onSeriesCompletionNeeded={onSeriesCompletionNeeded}
 				/>
 			)}
 
@@ -83,6 +91,7 @@ export function InstanceList(props: InstanceListProps) {
 						pageCount={pageCount}
 						onSave={onInstanceSaved}
 						onCancel={() => setIdBeingEdited(null)}
+						onSeriesCompletionNeeded={onSeriesCompletionNeeded}
 					/>
 				) : (
 					<InstanceRow

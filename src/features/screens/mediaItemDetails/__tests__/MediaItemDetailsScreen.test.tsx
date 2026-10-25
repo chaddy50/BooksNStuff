@@ -21,6 +21,7 @@ vi.mock("@tanstack/react-router", () => ({
 	}),
 	useNavigate: () => navigate,
 	useBlocker: () => ({ status: "idle" }),
+	useRouter: () => ({ invalidate: vi.fn() }),
 }));
 
 vi.mock("#/features/navigation/topBar/TopBar", () => ({

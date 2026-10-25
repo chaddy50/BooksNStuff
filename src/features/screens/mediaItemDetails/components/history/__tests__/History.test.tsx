@@ -85,6 +85,7 @@ function HistoryHarness(props: {
 		<History
 			mediaItemDetails={props.mediaItemDetails}
 			editingState={editingState}
+			onSeriesCompletionNeeded={vi.fn()}
 		/>
 	);
 }

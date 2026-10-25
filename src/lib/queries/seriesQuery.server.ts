@@ -296,3 +296,55 @@ export async function syncSeriesStatus(seriesId: number, userId: string) {
 		.set(seriesUpdates)
 		.where(and(eq(series.id, seriesId), eq(series.userId, userId)));
 }
+
+export type SeriesCompletionConfirmation = {
+	seriesId: number;
+	seriesName: string;
+};
+
+/** Would syncing this series right now complete it while it's still "Ongoing"? */
+async function checkSeriesCompletionConfirmation(
+	seriesId: number,
+	userId: string,
+): Promise<SeriesCompletionConfirmation | null> {
+	const [seriesRow] = await db
+		.select({ name: series.name, isComplete: series.isComplete })
+		.from(series)
+		.where(and(eq(series.id, seriesId), eq(series.userId, userId)));
+	if (!seriesRow || seriesRow.isComplete) return null;
+
+	const items = await db
+		.select({ status: mediaItems.status })
+		.from(mediaItems)
+		.where(
+			and(eq(mediaItems.seriesId, seriesId), eq(mediaItems.userId, userId)),
+		);
+
+	const wouldComplete =
+		inferSeriesStatus(items.map((i) => i.status)) === MediaItemStatus.COMPLETED;
+	return wouldComplete ? { seriesId, seriesName: seriesRow.name } : null;
+}
+
+/**
+ * Drop-in replacement for `syncSeriesStatus` at call sites where a human is
+ * actively waiting on the result. When the item just transitioned into
+ * COMPLETED and that would complete an "Ongoing" series, holds off syncing and
+ * returns a confirmation payload instead; the series' status is left untouched
+ * until the user resolves it (via `updateSeriesStatus` or
+ * `confirmSeriesCompletion`).
+ */
+export async function syncSeriesStatusWithCompletionConfirmation(
+	seriesId: number,
+	userId: string,
+	isItemNewlyCompleting: boolean,
+): Promise<SeriesCompletionConfirmation | null> {
+	if (isItemNewlyCompleting) {
+		const confirmation = await checkSeriesCompletionConfirmation(
+			seriesId,
+			userId,
+		);
+		if (confirmation) return confirmation;
+	}
+	await syncSeriesStatus(seriesId, userId);
+	return null;
+}

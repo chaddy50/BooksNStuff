@@ -12,14 +12,17 @@ vi.mock("#/features/screens/auth/session", () => ({
 
 import { eq } from "drizzle-orm";
 import { mediaItems, series } from "#/database/schema";
-import { MediaItemType } from "#/lib/enums";
+import { MediaItemStatus, MediaItemType } from "#/lib/enums";
 import { testDb } from "#/tests/integration/db";
 import {
 	insertMediaItem,
 	insertSeries,
 	truncateAll,
 } from "#/tests/integration/helpers";
-import { updateSeriesMetadata } from "../seriesDetails.server";
+import {
+	confirmSeriesCompletion,
+	updateSeriesMetadata,
+} from "../seriesDetails.server";
 
 const USER_A = "user-a";
 const USER_B = "user-b";
@@ -212,5 +215,46 @@ describe("updateSeriesMetadata", () => {
 			.from(series)
 			.where(eq(series.id, seriesB));
 		expect(row?.name).toBe("B's series");
+	});
+});
+
+describe("confirmSeriesCompletion", () => {
+	it("marks the series Complete and syncs its status to Done", async () => {
+		const seriesId = await insertSeries({
+			userId: USER_A,
+			name: "Ongoing Trilogy",
+			type: MediaItemType.BOOK,
+		});
+		await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+
+		await confirmSeriesCompletion(seriesId, USER_A);
+
+		const [row] = await testDb
+			.select({ isComplete: series.isComplete, status: series.status })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(row?.isComplete).toBe(true);
+		expect(row?.status).toBe(MediaItemStatus.COMPLETED);
+	});
+
+	it("is a no-op for a series owned by another user", async () => {
+		const seriesB = await insertSeries({
+			userId: USER_B,
+			name: "B's series",
+			type: MediaItemType.BOOK,
+		});
+
+		await confirmSeriesCompletion(seriesB, USER_A);
+
+		const [row] = await testDb
+			.select({ isComplete: series.isComplete })
+			.from(series)
+			.where(eq(series.id, seriesB));
+		expect(row?.isComplete).toBe(false);
 	});
 });

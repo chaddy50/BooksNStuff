@@ -26,6 +26,7 @@ import { SeasonReviewRow } from "#/features/screens/mediaItemDetails/components/
 import {
 	deleteInstance,
 	type MediaItemDetails,
+	type SeriesCompletionConfirmation,
 	saveInstance,
 } from "#/features/screens/mediaItemDetails/mediaItemDetails";
 import { GameControlMethod, MediaItemType } from "#/lib/enums";
@@ -44,6 +45,9 @@ interface InstanceEditFormProps {
 	pageCount?: number;
 	onSave: () => void;
 	onCancel: () => void;
+	onSeriesCompletionNeeded: (
+		confirmation: SeriesCompletionConfirmation,
+	) => void;
 	ref?: Ref<InstanceEditFormHandle>;
 }
 
@@ -129,6 +133,40 @@ function resolveEffectivePageCount(
 	return isPageBasedProgress ? pageCount : undefined;
 }
 
+function emptyToUndefined(value: string): string | undefined {
+	return value || undefined;
+}
+
+function nullToUndefined<T>(value: T | null): T | undefined {
+	return value ?? undefined;
+}
+
+function emptyArrayToUndefined<T>(value: T[]): T[] | undefined {
+	return value.length > 0 ? value : undefined;
+}
+
+type SaveInstanceData = Parameters<typeof saveInstance>[0]["data"];
+
+function buildSaveInstanceData(
+	mediaItemId: number,
+	instanceId: number | undefined,
+	values: InstanceFormValues,
+	parsedProgressPercent: string | undefined,
+): SaveInstanceData {
+	return {
+		mediaItemId,
+		instanceId,
+		rating: values.rating.toFixed(1),
+		fictionRating: nullToUndefined(values.fictionRating),
+		reviewText: emptyToUndefined(values.reviewText),
+		startedAt: emptyToUndefined(values.startedAt),
+		completedAt: emptyToUndefined(values.completedAt),
+		progressPercent: parsedProgressPercent,
+		seasonReviews: emptyArrayToUndefined(values.seasonReviews),
+		consumptionInfo: nullToUndefined(values.consumptionInfo),
+	};
+}
+
 export function InstanceEditForm({
 	instance,
 	mediaItemId,
@@ -137,6 +175,7 @@ export function InstanceEditForm({
 	pageCount,
 	onSave,
 	onCancel,
+	onSeriesCompletionNeeded,
 	ref,
 }: InstanceEditFormProps) {
 	const { t } = useTranslation();
@@ -298,22 +337,19 @@ export function InstanceEditForm({
 		}
 		setSaving(true);
 		try {
-			await saveInstance({
-				data: {
-					mediaItemId: mediaItemId,
-					instanceId: instance?.id,
-					rating: rating !== null ? rating.toFixed(1) : undefined,
-					fictionRating: fictionRating ?? undefined,
-					reviewText: reviewText || undefined,
-					startedAt: startedAt || undefined,
-					completedAt: completedAt || undefined,
-					progressPercent: parsedProgressPercent,
-					seasonReviews: seasonReviews.length > 0 ? seasonReviews : undefined,
-					consumptionInfo: consumptionInfo ?? undefined,
-				},
+			const confirmation = await saveInstance({
+				data: buildSaveInstanceData(
+					mediaItemId,
+					instance?.id,
+					currentValues,
+					parsedProgressPercent,
+				),
 			});
 			baselineRef.current = currentValues;
 			onSave();
+			if (confirmation) {
+				onSeriesCompletionNeeded(confirmation);
+			}
 		} finally {
 			setSaving(false);
 		}

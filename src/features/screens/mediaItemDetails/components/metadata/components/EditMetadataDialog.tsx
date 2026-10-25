@@ -15,6 +15,7 @@ import { Textarea } from "#/components/ui/textarea";
 import { PodcastArcPickerDialog } from "#/features/mediaItemSearch/components/PodcastArcPickerDialog";
 import {
 	type MediaItemDetails,
+	type SeriesCompletionConfirmation,
 	updateMediaItemCreator,
 	updateMediaItemMetadata,
 	updateMediaItemSeries,
@@ -39,10 +40,13 @@ import { TagsEditor } from "./TagsEditor";
 
 interface EditMetadataDialogProps {
 	mediaItemDetails: MediaItemDetails;
+	onSeriesCompletionNeeded: (
+		confirmation: SeriesCompletionConfirmation,
+	) => void;
 }
 
 export function EditMetadataDialog(props: EditMetadataDialogProps) {
-	const { mediaItemDetails } = props;
+	const { mediaItemDetails, onSeriesCompletionNeeded } = props;
 	const { t } = useTranslation();
 	const router = useRouter();
 
@@ -191,7 +195,10 @@ export function EditMetadataDialog(props: EditMetadataDialogProps) {
 							<Input value={title} onChange={(e) => setTitle(e.target.value)} />
 						</FormField>
 
-						<StatusFields mediaItemDetails={mediaItemDetails} />
+						<StatusFields
+							mediaItemDetails={mediaItemDetails}
+							onSeriesCompletionNeeded={onSeriesCompletionNeeded}
+						/>
 
 						<FormField label={t("metadata.description")}>
 							<Textarea
