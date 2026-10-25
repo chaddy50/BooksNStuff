@@ -29,6 +29,7 @@ const baseProps = {
 	mediaItemType: MediaItemType.BOOK,
 	onSave: vi.fn(),
 	onCancel: vi.fn(),
+	onSeriesCompletionNeeded: vi.fn(),
 };
 
 afterEach(cleanup);
@@ -798,5 +799,49 @@ describe("InstanceEditForm scrolling into view", () => {
 		render(<InstanceEditForm {...baseProps} instance={savedInstance} />);
 
 		expect(scrollIntoView).not.toHaveBeenCalled();
+	});
+
+	it("calls onSeriesCompletionNeeded when saveInstance returns a confirmation", async () => {
+		const { saveInstance } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		const confirmation = { seriesId: 7, seriesName: "Ongoing Trilogy" };
+		vi.mocked(saveInstance).mockResolvedValueOnce(confirmation);
+		const onSeriesCompletionNeeded = vi.fn();
+
+		render(
+			<InstanceEditForm
+				{...baseProps}
+				onSeriesCompletionNeeded={onSeriesCompletionNeeded}
+			/>,
+		);
+		fireEvent.click(screen.getByText("mediaItemDetails.save"));
+
+		await vi.waitFor(() => {
+			expect(onSeriesCompletionNeeded).toHaveBeenCalledWith(confirmation);
+		});
+	});
+
+	it("does not call onSeriesCompletionNeeded when saveInstance returns null", async () => {
+		const { saveInstance } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		vi.mocked(saveInstance).mockResolvedValueOnce(null);
+		const onSave = vi.fn();
+		const onSeriesCompletionNeeded = vi.fn();
+
+		render(
+			<InstanceEditForm
+				{...baseProps}
+				onSave={onSave}
+				onSeriesCompletionNeeded={onSeriesCompletionNeeded}
+			/>,
+		);
+		fireEvent.click(screen.getByText("mediaItemDetails.save"));
+
+		await vi.waitFor(() => {
+			expect(onSave).toHaveBeenCalled();
+		});
+		expect(onSeriesCompletionNeeded).not.toHaveBeenCalled();
 	});
 });

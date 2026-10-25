@@ -49,6 +49,7 @@ describe("InstanceList", () => {
 				setIdBeingEdited={vi.fn()}
 				startEditing={vi.fn()}
 				editorRef={{ current: null }}
+				onSeriesCompletionNeeded={vi.fn()}
 			/>,
 		);
 
@@ -66,6 +67,7 @@ describe("InstanceList", () => {
 				setIdBeingEdited={vi.fn()}
 				startEditing={vi.fn()}
 				editorRef={{ current: null }}
+				onSeriesCompletionNeeded={vi.fn()}
 			/>,
 		);
 
@@ -97,6 +99,7 @@ describe("InstanceList", () => {
 				setIdBeingEdited={vi.fn()}
 				startEditing={vi.fn()}
 				editorRef={{ current: null }}
+				onSeriesCompletionNeeded={vi.fn()}
 			/>,
 		);
 

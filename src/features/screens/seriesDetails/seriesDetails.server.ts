@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "#/database/index";
 import { mediaItems, series } from "#/database/schema";
+import { syncSeriesStatus } from "#/lib/queries/seriesQuery.server";
 
 /**
  * The write half of the series details screen.
@@ -48,4 +49,15 @@ export async function updateSeriesMetadata(
 		.where(
 			and(eq(mediaItems.userId, userId), eq(mediaItems.seriesId, seriesId)),
 		);
+}
+
+export async function confirmSeriesCompletion(
+	seriesId: number,
+	userId: string,
+): Promise<void> {
+	await db
+		.update(series)
+		.set({ isComplete: true })
+		.where(and(eq(series.id, seriesId), eq(series.userId, userId)));
+	await syncSeriesStatus(seriesId, userId);
 }

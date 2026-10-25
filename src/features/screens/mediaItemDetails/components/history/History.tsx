@@ -1,5 +1,8 @@
 import { UnsavedChangesDialog } from "#/components/UnsavedChangesDialog";
-import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/mediaItemDetails";
+import type {
+	MediaItemDetails,
+	SeriesCompletionConfirmation,
+} from "#/features/screens/mediaItemDetails/mediaItemDetails";
 import { InstanceList } from "./components/instance/InstanceList";
 import { TopBar } from "./components/TopBar";
 import type { InstanceEditingState } from "./useInstanceEditingState";
@@ -7,10 +10,13 @@ import type { InstanceEditingState } from "./useInstanceEditingState";
 interface HistoryProps {
 	mediaItemDetails: MediaItemDetails;
 	editingState: InstanceEditingState;
+	onSeriesCompletionNeeded: (
+		confirmation: SeriesCompletionConfirmation,
+	) => void;
 }
 
 export function History(props: HistoryProps) {
-	const { mediaItemDetails, editingState } = props;
+	const { mediaItemDetails, editingState, onSeriesCompletionNeeded } = props;
 	const { idBeingEdited, setIdBeingEdited, editorRef, guard, startEditing } =
 		editingState;
 
@@ -24,6 +30,7 @@ export function History(props: HistoryProps) {
 				setIdBeingEdited={setIdBeingEdited}
 				startEditing={startEditing}
 				editorRef={editorRef}
+				onSeriesCompletionNeeded={onSeriesCompletionNeeded}
 			/>
 
 			<UnsavedChangesDialog

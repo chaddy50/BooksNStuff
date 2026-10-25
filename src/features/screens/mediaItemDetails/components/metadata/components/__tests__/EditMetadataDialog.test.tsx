@@ -51,7 +51,12 @@ afterEach(cleanup);
 
 describe("EditMetadataDialog", () => {
 	it("shows an Edit trigger with an accessible name", () => {
-		render(<EditMetadataDialog mediaItemDetails={mediaItemDetails} />);
+		render(
+			<EditMetadataDialog
+				mediaItemDetails={mediaItemDetails}
+				onSeriesCompletionNeeded={vi.fn()}
+			/>,
+		);
 
 		expect(
 			screen.getByRole("button", { name: "mediaItemDetails.edit" }),
@@ -59,7 +64,12 @@ describe("EditMetadataDialog", () => {
 	});
 
 	it("opens the edit dialog when the trigger is clicked", () => {
-		render(<EditMetadataDialog mediaItemDetails={mediaItemDetails} />);
+		render(
+			<EditMetadataDialog
+				mediaItemDetails={mediaItemDetails}
+				onSeriesCompletionNeeded={vi.fn()}
+			/>,
+		);
 
 		fireEvent.click(
 			screen.getByRole("button", { name: "mediaItemDetails.edit" }),
@@ -69,7 +79,12 @@ describe("EditMetadataDialog", () => {
 	});
 
 	it("always includes status and purchase status fields", () => {
-		render(<EditMetadataDialog mediaItemDetails={mediaItemDetails} />);
+		render(
+			<EditMetadataDialog
+				mediaItemDetails={mediaItemDetails}
+				onSeriesCompletionNeeded={vi.fn()}
+			/>,
+		);
 
 		fireEvent.click(
 			screen.getByRole("button", { name: "mediaItemDetails.edit" }),
@@ -79,7 +94,12 @@ describe("EditMetadataDialog", () => {
 	});
 
 	it("uses a theme-aware icon color so the trigger stays visible in light mode", () => {
-		render(<EditMetadataDialog mediaItemDetails={mediaItemDetails} />);
+		render(
+			<EditMetadataDialog
+				mediaItemDetails={mediaItemDetails}
+				onSeriesCompletionNeeded={vi.fn()}
+			/>,
+		);
 
 		const trigger = screen.getByRole("button", {
 			name: "mediaItemDetails.edit",

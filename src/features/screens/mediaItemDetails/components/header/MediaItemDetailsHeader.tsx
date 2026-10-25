@@ -12,6 +12,7 @@ import { StatusSelect } from "#/features/screens/mediaItemDetails/components/met
 import { Title } from "#/features/screens/mediaItemDetails/components/metadata/components/Title";
 import {
 	type MediaItemDetails,
+	type SeriesCompletionConfirmation,
 	updateMediaItemStatus,
 } from "#/features/screens/mediaItemDetails/mediaItemDetails";
 import {
@@ -29,10 +30,14 @@ import { MediaItemDetailsHeaderTags } from "./MediaItemDetailsHeaderTags";
 interface MediaItemDetailsHeaderProps {
 	mediaItemDetails: MediaItemDetails;
 	onUpdateProgress: (instanceId: number) => void;
+	onSeriesCompletionNeeded: (
+		confirmation: SeriesCompletionConfirmation,
+	) => void;
 }
 
 export function MediaItemDetailsHeader(props: MediaItemDetailsHeaderProps) {
-	const { mediaItemDetails, onUpdateProgress } = props;
+	const { mediaItemDetails, onUpdateProgress, onSeriesCompletionNeeded } =
+		props;
 	const { t } = useTranslation();
 	const router = useRouter();
 	const [isStarting, setIsStarting] = useState(false);
@@ -66,7 +71,10 @@ export function MediaItemDetailsHeader(props: MediaItemDetailsHeaderProps) {
 				<div className="flex flex-col gap-3 flex-1 min-w-0">
 					<div className="flex items-center gap-2">
 						<Title mediaItemDetails={mediaItemDetails} />
-						<EditMetadataDialog mediaItemDetails={mediaItemDetails} />
+						<EditMetadataDialog
+							mediaItemDetails={mediaItemDetails}
+							onSeriesCompletionNeeded={onSeriesCompletionNeeded}
+						/>
 					</div>
 					<div className="flex items-center gap-3 flex-wrap">
 						<TypeBadge type={mediaItemDetails.type} className="shrink-0" />
@@ -83,7 +91,10 @@ export function MediaItemDetailsHeader(props: MediaItemDetailsHeaderProps) {
 
 					{!unfinishedInstance && (
 						<div className="flex items-center gap-3">
-							<StatusSelect mediaItemDetails={mediaItemDetails} />
+							<StatusSelect
+								mediaItemDetails={mediaItemDetails}
+								onSeriesCompletionNeeded={onSeriesCompletionNeeded}
+							/>
 							<PurchasedToggle mediaItemDetails={mediaItemDetails} />
 						</div>
 					)}

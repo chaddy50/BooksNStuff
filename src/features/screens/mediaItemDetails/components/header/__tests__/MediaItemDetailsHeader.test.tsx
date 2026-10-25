@@ -85,6 +85,7 @@ function renderMediaItemDetailsHeader(
 			<MediaItemDetailsHeader
 				mediaItemDetails={makeMediaItemDetails()}
 				onUpdateProgress={vi.fn()}
+				onSeriesCompletionNeeded={vi.fn()}
 				{...props}
 			/>
 		</TooltipProvider>,

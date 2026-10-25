@@ -608,6 +608,70 @@ describe("saveInstanceForUser / getMediaItemDetailsForUser progress", () => {
 	});
 });
 
+describe("saveInstanceForUser series completion confirmation", () => {
+	it("returns a confirmation and leaves the series status unchanged when saving a completedAt date finishes the last active item of an Ongoing series", async () => {
+		const seriesId = await insertSeries({
+			userId: USER_A,
+			name: "Ongoing Trilogy",
+			type: MediaItemType.BOOK,
+		});
+		await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+		});
+
+		const confirmation = await saveInstanceForUser(
+			{ mediaItemId: itemId, instanceId, completedAt: "2024-02-01" },
+			USER_A,
+		);
+
+		expect(confirmation).toEqual({ seriesId, seriesName: "Ongoing Trilogy" });
+		const [seriesRow] = await testDb
+			.select({ status: series.status })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(seriesRow?.status).not.toBe(MediaItemStatus.COMPLETED);
+	});
+
+	it("returns null when saving an unrelated field on an instance whose item is already complete", async () => {
+		const seriesId = await insertSeries({
+			userId: USER_A,
+			name: "Already Done Trilogy",
+			type: MediaItemType.BOOK,
+		});
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+			completedAt: "2024-01-15",
+		});
+
+		const confirmation = await saveInstanceForUser(
+			{ mediaItemId: itemId, instanceId, reviewText: "Great book." },
+			USER_A,
+		);
+
+		expect(confirmation).toBeNull();
+	});
+});
+
 describe("updateMediaItemStatusForUser", () => {
 	it("sets the unfinished instance's progressPercent to 100 when completing", async () => {
 		const itemId = await insertMediaItem({
@@ -670,5 +734,66 @@ describe("updateMediaItemStatusForUser", () => {
 		expect(details.instances).toHaveLength(1);
 		expect(details.instances[0]?.startedAt).not.toBeNull();
 		expect(details.instances[0]?.completedAt).toBeNull();
+	});
+
+	it("returns a confirmation and leaves the series status unchanged when completing the last active item of an Ongoing series", async () => {
+		const seriesId = await insertSeries({
+			userId: USER_A,
+			name: "Ongoing Trilogy",
+			type: MediaItemType.BOOK,
+		});
+		await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+
+		const confirmation = await updateMediaItemStatusForUser(
+			itemId,
+			MediaItemStatus.COMPLETED,
+			USER_A,
+		);
+
+		expect(confirmation).toEqual({ seriesId, seriesName: "Ongoing Trilogy" });
+		const [seriesRow] = await testDb
+			.select({ status: series.status })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(seriesRow?.status).not.toBe(MediaItemStatus.COMPLETED);
+	});
+
+	it("returns null and completes the series normally when the series is already marked Complete", async () => {
+		const seriesId = await insertSeries({
+			userId: USER_A,
+			name: "Finished Trilogy",
+			type: MediaItemType.BOOK,
+			isComplete: true,
+		});
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+
+		const confirmation = await updateMediaItemStatusForUser(
+			itemId,
+			MediaItemStatus.COMPLETED,
+			USER_A,
+		);
+
+		expect(confirmation).toBeNull();
+		const [seriesRow] = await testDb
+			.select({ status: series.status })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(seriesRow?.status).toBe(MediaItemStatus.COMPLETED);
 	});
 });

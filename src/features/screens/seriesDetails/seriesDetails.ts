@@ -13,7 +13,10 @@ import {
 } from "#/database/schema";
 import { getLoggedInUser } from "#/features/screens/auth/session";
 import { getMissingSeriesItems as getMissingSeriesItemsForUser } from "#/features/screens/seriesDetails/missingSeriesItems.server";
-import { updateSeriesMetadata as updateSeriesMetadataForUser } from "#/features/screens/seriesDetails/seriesDetails.server";
+import {
+	confirmSeriesCompletion as confirmSeriesCompletionForUser,
+	updateSeriesMetadata as updateSeriesMetadataForUser,
+} from "#/features/screens/seriesDetails/seriesDetails.server";
 import { MediaItemStatus, NextItemStatus } from "#/lib/enums";
 import { attachRatingsAndProgress } from "#/lib/queries/ratingsAndProgressQuery.server";
 import { parseRatingColumn } from "#/lib/queries/ratingsQuery.server";
@@ -132,6 +135,13 @@ export const updateSeriesStatus = createServerFn({ method: "POST" })
 			.update(series)
 			.set(updates)
 			.where(and(eq(series.id, seriesId), eq(series.userId, user.id)));
+	});
+
+export const confirmSeriesCompletion = createServerFn({ method: "POST" })
+	.inputValidator(z.object({ seriesId: z.number() }))
+	.handler(async ({ data: { seriesId } }) => {
+		const user = await getLoggedInUser();
+		return confirmSeriesCompletionForUser(seriesId, user.id);
 	});
 
 export const updateNextItemStatus = createServerFn({ method: "POST" })

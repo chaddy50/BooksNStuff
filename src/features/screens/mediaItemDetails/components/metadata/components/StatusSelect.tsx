@@ -9,27 +9,34 @@ import {
 } from "#/components/ui/select";
 import {
 	type MediaItemDetails,
+	type SeriesCompletionConfirmation,
 	updateMediaItemStatus,
 } from "#/features/screens/mediaItemDetails/mediaItemDetails";
 import { MediaItemStatus } from "#/lib/enums";
 
 interface StatusSelectProps {
 	mediaItemDetails: MediaItemDetails;
+	onSeriesCompletionNeeded: (
+		confirmation: SeriesCompletionConfirmation,
+	) => void;
 }
 
 export function StatusSelect(props: StatusSelectProps) {
-	const { mediaItemDetails } = props;
+	const { mediaItemDetails, onSeriesCompletionNeeded } = props;
 	const router = useRouter();
 	const { t } = useTranslation();
 
 	async function handleStatusChange(status: string) {
-		await updateMediaItemStatus({
+		const confirmation = await updateMediaItemStatus({
 			data: {
 				mediaItemId: mediaItemDetails.id,
 				status: status as MediaItemStatus,
 			},
 		});
 		router.invalidate();
+		if (confirmation) {
+			onSeriesCompletionNeeded(confirmation);
+		}
 	}
 
 	return (

@@ -26,6 +26,7 @@ import { SeasonReviewRow } from "#/features/screens/mediaItemDetails/components/
 import {
 	deleteInstance,
 	type MediaItemDetails,
+	type SeriesCompletionConfirmation,
 	saveInstance,
 } from "#/features/screens/mediaItemDetails/mediaItemDetails";
 import { GameControlMethod, MediaItemType } from "#/lib/enums";
@@ -44,6 +45,9 @@ interface InstanceEditFormProps {
 	pageCount?: number;
 	onSave: () => void;
 	onCancel: () => void;
+	onSeriesCompletionNeeded: (
+		confirmation: SeriesCompletionConfirmation,
+	) => void;
 	ref?: Ref<InstanceEditFormHandle>;
 }
 
@@ -137,6 +141,7 @@ export function InstanceEditForm({
 	pageCount,
 	onSave,
 	onCancel,
+	onSeriesCompletionNeeded,
 	ref,
 }: InstanceEditFormProps) {
 	const { t } = useTranslation();
@@ -298,7 +303,7 @@ export function InstanceEditForm({
 		}
 		setSaving(true);
 		try {
-			await saveInstance({
+			const confirmation = await saveInstance({
 				data: {
 					mediaItemId: mediaItemId,
 					instanceId: instance?.id,
@@ -314,6 +319,9 @@ export function InstanceEditForm({
 			});
 			baselineRef.current = currentValues;
 			onSave();
+			if (confirmation) {
+				onSeriesCompletionNeeded(confirmation);
+			}
 		} finally {
 			setSaving(false);
 		}

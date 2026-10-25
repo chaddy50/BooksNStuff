@@ -81,8 +81,12 @@ export const updateMediaItemStatus = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data: { mediaItemId, status } }) => {
 		const user = await getLoggedInUser();
-		await updateMediaItemStatusForUser(mediaItemId, status, user.id);
+		return updateMediaItemStatusForUser(mediaItemId, status, user.id);
 	});
+
+export type SeriesCompletionConfirmation = NonNullable<
+	Awaited<ReturnType<typeof updateMediaItemStatus>>
+>;
 
 const fictionRatingSchema = z.object({
 	setting: z.object({ rating: z.number(), comment: z.string().optional() }),
@@ -128,7 +132,7 @@ export const saveInstance = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data }) => {
 		const user = await getLoggedInUser();
-		await saveInstanceForUser(data, user.id);
+		return saveInstanceForUser(data, user.id);
 	});
 
 export const deleteInstance = createServerFn({ method: "POST" })

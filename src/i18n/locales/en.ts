@@ -71,6 +71,13 @@ export const en = {
 		discard: "Discard Changes",
 		saveAndContinue: "Save & Continue",
 	},
+	seriesCompletionPrompt: {
+		title: 'Finish "{{seriesName}}"?',
+		description:
+			"Every book you own in this series is now finished, but it isn't marked complete yet. What would you like to do?",
+		markWaiting: "Mark as Waiting for Next Release",
+		markComplete: "Mark Series as Complete",
+	},
 	mediaItem: {
 		tags: "Tags",
 		addTag: "Add tag...",
