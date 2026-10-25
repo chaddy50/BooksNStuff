@@ -10,8 +10,12 @@ export type DashboardReportType =
 	| "items_completed_by_genre"
 	| "avg_score_by_genre";
 
-export const REPORT_MONTH_OPTIONS = [3, 6, 12, 24, 60] as const;
-export type ReportMonthOption = (typeof REPORT_MONTH_OPTIONS)[number];
+export const INSIGHTS_REPORT_TYPES: readonly DashboardReportType[] = [
+	"items_completed_by_month",
+	"items_completed_by_genre",
+	"avg_score_by_genre",
+	"progress_by_month",
+];
 
 export type ReportDataPoint = {
 	month: string; // "YYYY-MM"
@@ -23,12 +27,9 @@ export type GenreDataPoint = {
 	value: number;
 };
 
-export type CustomReport = {
-	id: number;
-	name: string;
+export type InsightsReport = {
 	reportType: DashboardReportType;
-	mediaTypes: MediaItemType[] | null; // null = all types; progress_by_month always has exactly one
-	monthCount: ReportMonthOption;
+	data: ReportDataPoint[] | GenreDataPoint[];
 };
 
 export type DrillDownItem = {
@@ -43,12 +44,6 @@ export type DrillDownItem = {
 	expectedReleaseDate: string | null;
 	seriesId: number | null;
 	seriesName: string | null;
-};
-
-export type DashboardReport = {
-	customReports: CustomReport[];
-	activeReport: CustomReport | null;
-	data: ReportDataPoint[] | GenreDataPoint[];
 };
 
 export type DrillDownItemsResult = DrillDownItem[];

@@ -1,6 +1,7 @@
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+	ChartColumn,
 	FolderPlus,
 	Layers,
 	LayoutDashboard,
@@ -119,6 +120,12 @@ export function Sidebar() {
 							icon={<Layers className="size-4 shrink-0" />}
 						>
 							{t("nav.series")}
+						</SidebarItem>
+						<SidebarItem
+							to="/insights"
+							icon={<ChartColumn className="size-4 shrink-0" />}
+						>
+							{t("nav.insights")}
 						</SidebarItem>
 					</nav>
 

@@ -1,13 +1,5 @@
-import type { customReports } from "#/database/schema";
-import type { MediaItemType } from "#/lib/enums";
 import { getLocalDateString } from "#/lib/utils";
-import {
-	type CustomReport,
-	type DashboardReportType,
-	REPORT_MONTH_OPTIONS,
-	type ReportDataPoint,
-	type ReportMonthOption,
-} from "./types";
+import type { ReportDataPoint } from "./types";
 
 /**
  * This file uses the .server.ts convention — it must never be statically
@@ -15,36 +7,12 @@ import {
  * bodies or other server-only modules.
  */
 
-export function rowToCustomReport(
-	row: typeof customReports.$inferSelect,
-): CustomReport {
+export function getYearToDateRange(): { startDate: string; endDate: string } {
+	const today = new Date();
+	const startOfYear = new Date(today.getFullYear(), 0, 1);
 	return {
-		id: row.id,
-		name: row.name,
-		reportType: row.reportType as DashboardReportType,
-		mediaTypes: (row.mediaTypes as MediaItemType[] | null) ?? null,
-		monthCount: (REPORT_MONTH_OPTIONS.includes(
-			row.monthCount as ReportMonthOption,
-		)
-			? row.monthCount
-			: 12) as ReportMonthOption,
-	};
-}
-
-export function getStartDateFromMonthCount(monthCount: number): string {
-	const startDate = new Date();
-	startDate.setDate(1);
-	startDate.setMonth(startDate.getMonth() - (monthCount - 1));
-	return getLocalDateString(startDate);
-}
-
-export function getDateRangeFromMonthCount(monthCount: number): {
-	startDate: string;
-	endDate: string;
-} {
-	return {
-		startDate: getStartDateFromMonthCount(monthCount),
-		endDate: getLocalDateString(new Date()),
+		startDate: getLocalDateString(startOfYear),
+		endDate: getLocalDateString(today),
 	};
 }
 
