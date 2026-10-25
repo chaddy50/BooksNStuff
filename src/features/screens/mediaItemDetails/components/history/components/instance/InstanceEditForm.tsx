@@ -404,15 +404,13 @@ export function InstanceEditForm({
 		try {
 			await saveInstance({
 				data: {
-					mediaItemId,
-					instanceId: instance.id,
+					...buildSaveInstanceData(
+						mediaItemId,
+						instance.id,
+						currentValues,
+						parsedProgressPercent,
+					),
 					rating: "0",
-					reviewText: reviewText || undefined,
-					startedAt: startedAt || undefined,
-					completedAt: completedAt || undefined,
-					progressPercent: parsedProgressPercent,
-					seasonReviews: seasonReviews.length > 0 ? seasonReviews : undefined,
-					consumptionInfo: consumptionInfo ?? undefined,
 				},
 			});
 			baselineRef.current = {

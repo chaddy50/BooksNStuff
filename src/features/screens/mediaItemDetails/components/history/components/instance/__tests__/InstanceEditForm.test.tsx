@@ -18,7 +18,7 @@ vi.mock("react-i18next", () => ({
 vi.mock("#/features/screens/mediaItemDetails/mediaItemDetails", () => ({
 	saveInstance: vi.fn().mockResolvedValue(undefined),
 	deleteInstance: vi.fn().mockResolvedValue(undefined),
-	updateMediaItemStatus: vi.fn(async () => {}),
+	updateMediaItemStatus: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock("#/components/hooks/useUserSettings", () => ({
