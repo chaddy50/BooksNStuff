@@ -365,22 +365,29 @@ type InsertUserSettingsOptions = {
 	defaultGameControlMethod?: GameControlMethod;
 };
 
+const USER_SETTINGS_DEFAULTS = {
+	defaultLibrarySortBy: null,
+	defaultLibrarySortDirection: null,
+	defaultSeriesSortBy: null,
+	defaultSeriesSortDirection: null,
+	defaultBookConsumptionMethod: null,
+	defaultMovieConsumptionMethod: null,
+	defaultTvShowConsumptionMethod: null,
+	defaultGamePlatform: null,
+	defaultGameControlMethod: null,
+} satisfies Omit<typeof userSettings.$inferInsert, "userId">;
+
 /** Inserts the caller's one `user_settings` row. Needs `insertUser` first. */
 export async function insertUserSettings(
 	options: InsertUserSettingsOptions,
 ): Promise<void> {
+	const { userId, ...overrides } = options;
+	const providedOverrides = Object.fromEntries(
+		Object.entries(overrides).filter(([, value]) => value !== undefined),
+	);
 	await testDb.insert(userSettings).values({
-		userId: options.userId,
-		defaultLibrarySortBy: options.defaultLibrarySortBy ?? null,
-		defaultLibrarySortDirection: options.defaultLibrarySortDirection ?? null,
-		defaultSeriesSortBy: options.defaultSeriesSortBy ?? null,
-		defaultSeriesSortDirection: options.defaultSeriesSortDirection ?? null,
-		defaultBookConsumptionMethod: options.defaultBookConsumptionMethod ?? null,
-		defaultMovieConsumptionMethod:
-			options.defaultMovieConsumptionMethod ?? null,
-		defaultTvShowConsumptionMethod:
-			options.defaultTvShowConsumptionMethod ?? null,
-		defaultGamePlatform: options.defaultGamePlatform ?? null,
-		defaultGameControlMethod: options.defaultGameControlMethod ?? null,
+		userId,
+		...USER_SETTINGS_DEFAULTS,
+		...providedOverrides,
 	});
 }
