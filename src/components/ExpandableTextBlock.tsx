@@ -44,7 +44,7 @@ export function ExpandableTextBlock({
 				<button
 					type="button"
 					onClick={() => setIsExpanded((prev) => !prev)}
-					className="mt-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+					className="mt-1 ml-auto block text-xs text-muted-foreground hover:text-foreground transition-colors"
 				>
 					{isExpanded ? t("common.showLess") : t("common.showMore")}
 				</button>
