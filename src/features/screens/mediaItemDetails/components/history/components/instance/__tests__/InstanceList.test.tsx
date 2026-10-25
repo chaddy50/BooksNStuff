@@ -126,6 +126,7 @@ describe("InstanceList", () => {
 				setIdBeingEdited={vi.fn()}
 				startEditing={vi.fn()}
 				editorRef={{ current: null }}
+				onSeriesCompletionNeeded={vi.fn()}
 			/>,
 		);
 
