@@ -466,6 +466,17 @@ async function restoreTags(
 	return idMap;
 }
 
+/** Maps an old foreign-key id through its restored id map, or null if either is absent. */
+function mapForeignId(
+	id: number | null | undefined,
+	idMap: Map<number, number>,
+): number | null {
+	if (id == null) {
+		return null;
+	}
+	return idMap.get(id) ?? null;
+}
+
 async function restoreMediaItems(
 	tx: Tx,
 	userId: string,
@@ -490,15 +501,9 @@ async function restoreMediaItems(
 				externalId: itemRow.externalId,
 				externalSource: itemRow.externalSource,
 				metadata: itemRow.metadata as typeof mediaItems.$inferInsert.metadata,
-				seriesId: itemRow.seriesId
-					? (idMaps.seriesIdMap.get(itemRow.seriesId) ?? null)
-					: null,
-				creatorId: itemRow.creatorId
-					? (idMaps.creatorIdMap.get(itemRow.creatorId) ?? null)
-					: null,
-				genreId: itemRow.genreId
-					? (idMaps.genreIdMap.get(itemRow.genreId) ?? null)
-					: null,
+				seriesId: mapForeignId(itemRow.seriesId, idMaps.seriesIdMap),
+				creatorId: mapForeignId(itemRow.creatorId, idMaps.creatorIdMap),
+				genreId: mapForeignId(itemRow.genreId, idMaps.genreIdMap),
 				status: itemRow.status as typeof mediaItems.$inferInsert.status,
 				purchaseStatus: itemRow.purchaseStatus,
 				expectedReleaseDate: itemRow.expectedReleaseDate ?? null,
@@ -667,21 +672,19 @@ function dropActiveCustomReportId(
  * long-standing behavior; metadata rows no item references are unreachable and
  * disappear with the join.
  */
+const LIFT_TO_V5: Record<
+	BackupData["version"],
+	(backup: BackupData) => BackupV5
+> = {
+	5: (backup) => backup as BackupV5,
+	4: (backup) => liftV4ToV5(backup as z.infer<typeof backupSchemaV4>),
+	3: (backup) => liftV3ToV5(backup as z.infer<typeof backupSchemaV3>),
+	2: (backup) => liftV2ToV5(backup as z.infer<typeof backupSchemaV2>),
+	1: (backup) => liftV1ToV5(backup as z.infer<typeof backupSchemaV1>),
+};
+
 function normalizeToV5(backup: BackupData): BackupV5 {
-	switch (backup.version) {
-		case 5:
-			return backup;
-		case 4:
-			return liftV4ToV5(backup);
-		case 3:
-			return liftV3ToV5(backup);
-		case 2:
-			return liftV2ToV5(backup);
-		case 1:
-			return liftV1ToV5(backup);
-		default:
-			throw new Error(`Unrecognized backup version: ${backup satisfies never}`);
-	}
+	return LIFT_TO_V5[backup.version](backup);
 }
 
 function liftV4ToV5(backup: z.infer<typeof backupSchemaV4>): BackupV5 {
