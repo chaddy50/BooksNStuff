@@ -25,6 +25,8 @@ export function ReportTile({ reportType, data }: Props) {
 				return t("insights.report.itemsCompletedByGenre");
 			case "avg_score_by_genre":
 				return t("insights.report.avgScoreByGenre");
+			default:
+				throw new Error(`Unknown report type: ${reportType satisfies never}`);
 		}
 	}
 

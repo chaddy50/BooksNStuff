@@ -569,59 +569,58 @@ function dropActiveCustomReportId(
  * disappear with the join.
  */
 function normalizeToV5(backup: BackupData): BackupV5 {
-	const emptyCollections: Pick<
-		BackupV5,
-		| "viewItemOrder"
-		| "tags"
-		| "mediaItemTags"
-		| "creators"
-		| "genres"
-		| "userSettings"
-	> = {
+	switch (backup.version) {
+		case 5:
+			return backup;
+		case 4:
+			return liftV4ToV5(backup);
+		case 3:
+			return liftV3ToV5(backup);
+		case 2:
+			return liftV2ToV5(backup);
+		case 1:
+			return liftV1ToV5(backup);
+	}
+}
+
+function liftV4ToV5(backup: z.infer<typeof backupSchemaV4>): BackupV5 {
+	const { customReports: _customReports, ...rest } = backup;
+	return {
+		...rest,
+		version: 5,
+		userSettings: dropActiveCustomReportId(backup.userSettings),
+	};
+}
+
+function liftV3ToV5(backup: z.infer<typeof backupSchemaV3>): BackupV5 {
+	const { customReports: _customReports, ...rest } = backup;
+	return {
+		...rest,
+		viewItemOrder: [],
+		version: 5,
+		userSettings: dropActiveCustomReportId(backup.userSettings),
+	};
+}
+
+function liftV2ToV5(backup: z.infer<typeof backupSchemaV2>): BackupV5 {
+	return {
+		...backup,
+		version: 5,
 		viewItemOrder: [],
 		tags: [],
 		mediaItemTags: [],
 		creators: [],
 		genres: [],
 		userSettings: null,
+		mediaItems: backup.mediaItems.map((item) => ({
+			...item,
+			creatorId: null,
+			genreId: null,
+		})),
 	};
+}
 
-	if (backup.version === 5) {
-		return backup;
-	}
-
-	if (backup.version === 4) {
-		const { customReports: _customReports, ...rest } = backup;
-		return {
-			...rest,
-			version: 5,
-			userSettings: dropActiveCustomReportId(backup.userSettings),
-		};
-	}
-
-	if (backup.version === 3) {
-		const { customReports: _customReports, ...rest } = backup;
-		return {
-			...rest,
-			viewItemOrder: [],
-			version: 5,
-			userSettings: dropActiveCustomReportId(backup.userSettings),
-		};
-	}
-
-	if (backup.version === 2) {
-		return {
-			...backup,
-			...emptyCollections,
-			version: 5,
-			mediaItems: backup.mediaItems.map((item) => ({
-				...item,
-				creatorId: null,
-				genreId: null,
-			})),
-		};
-	}
-
+function liftV1ToV5(backup: z.infer<typeof backupSchemaV1>): BackupV5 {
 	const metadataById = new Map(
 		backup.mediaItemMetadata.map((row) => [row.id, row]),
 	);
@@ -651,12 +650,17 @@ function normalizeToV5(backup: BackupData): BackupV5 {
 	});
 
 	return {
-		...emptyCollections,
 		version: 5,
 		exportedAt: backup.exportedAt,
 		series: backup.series,
 		mediaItems: mediaItemsWithMetadata,
 		mediaItemInstances: backup.mediaItemInstances,
 		views: backup.views,
+		viewItemOrder: [],
+		tags: [],
+		mediaItemTags: [],
+		creators: [],
+		genres: [],
+		userSettings: null,
 	};
 }

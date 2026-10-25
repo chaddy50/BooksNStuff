@@ -25,7 +25,6 @@ vi.mock("@tanstack/react-router", () => ({
 		useLoaderData: () => REPORTS,
 	}),
 	useNavigate: () => vi.fn(),
-	Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 vi.mock("#/features/navigation/topBar/TopBar", () => ({ TopBar: () => null }));
