@@ -39,6 +39,7 @@ import {
 	REORDERABLE_ITEM_LIMIT,
 } from "#/lib/queries/types";
 import { CUSTOM_ITEM_SORT_FIELD } from "#/lib/sortFields";
+import { getLocalDateString } from "#/lib/utils";
 
 // ---------------------------------------------------------------------------
 // buildCompletedDateCondition
@@ -438,7 +439,7 @@ export async function runItemStatsQuery(
 // ---------------------------------------------------------------------------
 
 export async function transitionReleasedItems(userId: string) {
-	const today = new Date().toISOString().slice(0, 10);
+	const today = getLocalDateString(new Date());
 	const expiredItems = await db
 		.select({ id: mediaItems.id, seriesId: mediaItems.seriesId })
 		.from(mediaItems)

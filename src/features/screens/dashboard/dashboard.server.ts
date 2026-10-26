@@ -19,7 +19,11 @@ import {
 	fetchLatestRatingsByMediaItemId,
 	getLatestRating,
 } from "#/lib/queries/ratingsQuery.server";
-import { findFirstMatchAfterIndex, findLastIndexWhere } from "#/lib/utils";
+import {
+	findFirstMatchAfterIndex,
+	findLastIndexWhere,
+	getLocalDateString,
+} from "#/lib/utils";
 
 /**
  * The currently unfinished instance of each item, as a lateral join — used to
@@ -67,7 +71,7 @@ export async function fetchInProgressItems(userId: string) {
 export async function fetchRecentlyFinishedItems(userId: string) {
 	const thirtyDaysAgo = new Date();
 	thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-	const cutoffDate = thirtyDaysAgo.toISOString().slice(0, 10);
+	const cutoffDate = getLocalDateString(thirtyDaysAgo);
 
 	const items = await db
 		.selectDistinctOn([mediaItems.id], {
