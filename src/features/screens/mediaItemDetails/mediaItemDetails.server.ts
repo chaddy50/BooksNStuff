@@ -22,6 +22,7 @@ import {
 	syncSeriesStatus,
 	syncSeriesStatusWithCompletionConfirmation,
 } from "#/lib/queries/seriesQuery.server";
+import { getLocalDateString } from "#/lib/utils";
 import { inferStatusFromInstances } from "./mediaItemDetails";
 import { getRelatedMediaItems } from "./relatedItems.server";
 
@@ -243,7 +244,7 @@ export async function updateMediaItemStatusForUser(
 ): Promise<SeriesCompletionConfirmation | null> {
 	const item = await requireOwnedMediaItem(mediaItemId, userId);
 
-	const today = new Date().toISOString().slice(0, 10);
+	const today = getLocalDateString(new Date());
 
 	if (status === MediaItemStatus.IN_PROGRESS) {
 		await startInstanceIfNeeded(mediaItemId, today);
