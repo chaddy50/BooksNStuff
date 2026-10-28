@@ -5,11 +5,8 @@ import {
 	BarChart,
 	CartesianGrid,
 	Cell,
-	Label,
 	Line,
 	LineChart,
-	Pie,
-	PieChart,
 	ResponsiveContainer,
 	Tooltip,
 	XAxis,
@@ -21,6 +18,8 @@ import type {
 	GenreDataPoint,
 	ReportDataPoint,
 } from "#/features/screens/reports/types";
+import { GenrePieChart } from "./GenrePieChart";
+import { GenrePieLegend } from "./GenrePieLegend";
 
 const PIE_COLORS = [
 	"#69359c",
@@ -38,7 +37,7 @@ const PIE_COLORS = [
 const GENRE_LEGEND_LIMIT = 5;
 const OTHER_SEGMENT_COLOR = "#9ca3af";
 
-type GenrePieSegment = {
+export type GenrePieSegment = {
 	label: string;
 	value: number;
 	genreNames: string[];
@@ -77,13 +76,16 @@ export function buildGenrePieSegments(
 	return [...topSegments, otherSegment];
 }
 
-function getSegmentColor(segment: GenrePieSegment, index: number): string {
+export function getSegmentColor(
+	segment: GenrePieSegment,
+	index: number,
+): string {
 	return segment.isOther
 		? OTHER_SEGMENT_COLOR
 		: PIE_COLORS[index % PIE_COLORS.length];
 }
 
-const TOOLTIP_CONTENT_STYLE = {
+export const TOOLTIP_CONTENT_STYLE = {
 	backgroundColor: "var(--card)",
 	border: "1px solid var(--border)",
 	borderRadius: "var(--radius)",
@@ -160,90 +162,23 @@ export function ReportChart({ reportType, data }: Props) {
 			genreData,
 			t("insights.report.other"),
 		);
+		const legendEntries = segments.map((segment, index) => ({
+			label: segment.label,
+			color: getSegmentColor(segment, index),
+			onClick: () =>
+				navigateToDrillDownForGenres(segment.label, segment.genreNames),
+		}));
 		return (
 			<div className="flex flex-col md:flex-row md:items-center gap-4">
-				<div className="h-55 md:h-[clamp(140px,20vh,220px)] md:flex-1">
-					<ResponsiveContainer width="100%" height="100%">
-						<PieChart>
-							<Pie
-								data={segments}
-								cx="50%"
-								cy="50%"
-								innerRadius="59%"
-								outerRadius="82%"
-								dataKey="value"
-								nameKey="label"
-								style={{ cursor: "pointer" }}
-							>
-								<Label
-									content={({ viewBox }) => {
-										const { cx, cy } = viewBox as { cx: number; cy: number };
-										return (
-											<text textAnchor="middle">
-												<tspan
-													x={cx}
-													y={cy - 6}
-													fontSize={24}
-													fontWeight="bold"
-													fill="var(--card-foreground)"
-												>
-													{total}
-												</tspan>
-												<tspan
-													x={cx}
-													y={cy + 16}
-													fontSize={12}
-													fill="var(--muted-foreground)"
-												>
-													{t("insights.report.progressLabels.items")}
-												</tspan>
-											</text>
-										);
-									}}
-								/>
-								{segments.map((segment, index) => (
-									<Cell
-										key={segment.label}
-										fill={getSegmentColor(segment, index)}
-										onClick={() =>
-											navigateToDrillDownForGenres(
-												segment.label,
-												segment.genreNames,
-											)
-										}
-									/>
-								))}
-							</Pie>
-							<Tooltip
-								formatter={(value, name) => [value, name]}
-								contentStyle={TOOLTIP_CONTENT_STYLE}
-								itemStyle={{ color: "var(--card-foreground)" }}
-							/>
-						</PieChart>
-					</ResponsiveContainer>
-				</div>
-				<ul className="flex flex-row flex-wrap md:flex-col gap-x-3 gap-y-1.5 md:max-w-36">
-					{segments.map((segment, index) => (
-						<li key={segment.label}>
-							<button
-								type="button"
-								className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-								onClick={() =>
-									navigateToDrillDownForGenres(
-										segment.label,
-										segment.genreNames,
-									)
-								}
-							>
-								<span
-									className="h-2.5 w-2.5 shrink-0 rounded-full"
-									style={{ backgroundColor: getSegmentColor(segment, index) }}
-								/>
-								<span className="truncate">{segment.label}</span>
-							</button>
-						</li>
-					))}
-				</ul>
+				<GenrePieChart
+					segments={segments}
+					total={total}
+					totalLabel={t("insights.report.progressLabels.items")}
+					onSelectSegment={(segment) =>
+						navigateToDrillDownForGenres(segment.label, segment.genreNames)
+					}
+				/>
+				<GenrePieLegend entries={legendEntries} />
 			</div>
 		);
 	}
