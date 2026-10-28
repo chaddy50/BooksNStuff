@@ -35,6 +35,54 @@ const PIE_COLORS = [
 	"#14b8a6",
 ];
 
+const GENRE_LEGEND_LIMIT = 5;
+const OTHER_SEGMENT_COLOR = "#9ca3af";
+
+type GenrePieSegment = {
+	label: string;
+	value: number;
+	genreNames: string[];
+	isOther: boolean;
+};
+
+export function buildGenrePieSegments(
+	genreData: GenreDataPoint[],
+	otherLabel: string,
+	topCount = GENRE_LEGEND_LIMIT,
+): GenrePieSegment[] {
+	if (genreData.length <= topCount) {
+		return genreData.map((entry) => ({
+			label: entry.genre,
+			value: entry.value,
+			genreNames: [entry.genre],
+			isOther: false,
+		}));
+	}
+
+	const topEntries = genreData.slice(0, topCount);
+	const remainingEntries = genreData.slice(topCount);
+	const topSegments = topEntries.map((entry) => ({
+		label: entry.genre,
+		value: entry.value,
+		genreNames: [entry.genre],
+		isOther: false,
+	}));
+	const otherSegment: GenrePieSegment = {
+		label: otherLabel,
+		value: remainingEntries.reduce((sum, entry) => sum + entry.value, 0),
+		genreNames: remainingEntries.map((entry) => entry.genre),
+		isOther: true,
+	};
+
+	return [...topSegments, otherSegment];
+}
+
+function getSegmentColor(segment: GenrePieSegment, index: number): string {
+	return segment.isOther
+		? OTHER_SEGMENT_COLOR
+		: PIE_COLORS[index % PIE_COLORS.length];
+}
+
 const TOOLTIP_CONTENT_STYLE = {
 	backgroundColor: "var(--card)",
 	border: "1px solid var(--border)",
@@ -82,6 +130,14 @@ export function ReportChart({ reportType, data }: Props) {
 		});
 	}
 
+	function navigateToDrillDownForGenres(label: string, genreNames: string[]) {
+		navigate({
+			to: "/reports/$reportType/drilldown",
+			params: { reportType },
+			search: { key: label, genres: genreNames },
+		});
+	}
+
 	function formatTick(yearMonth: string): string {
 		const timeData = data as ReportDataPoint[];
 		if (!spansMultipleYears(timeData)) {
@@ -100,61 +156,94 @@ export function ReportChart({ reportType, data }: Props) {
 	if (reportType === "items_completed_by_genre") {
 		const genreData = data as GenreDataPoint[];
 		const total = genreData.reduce((sum, d) => sum + d.value, 0);
+		const segments = buildGenrePieSegments(
+			genreData,
+			t("insights.report.other"),
+		);
 		return (
-			<div className="h-55 md:h-[clamp(140px,20vh,220px)]">
-				<ResponsiveContainer width="100%" height="100%">
-					<PieChart>
-						<Pie
-							data={genreData}
-							cx="50%"
-							cy="50%"
-							innerRadius="59%"
-							outerRadius="82%"
-							dataKey="value"
-							nameKey="genre"
-							style={{ cursor: "pointer" }}
-						>
-							<Label
-								content={({ viewBox }) => {
-									const { cx, cy } = viewBox as { cx: number; cy: number };
-									return (
-										<text textAnchor="middle">
-											<tspan
-												x={cx}
-												y={cy - 6}
-												fontSize={24}
-												fontWeight="bold"
-												fill="var(--card-foreground)"
-											>
-												{total}
-											</tspan>
-											<tspan
-												x={cx}
-												y={cy + 16}
-												fontSize={12}
-												fill="var(--muted-foreground)"
-											>
-												{t("insights.report.progressLabels.items")}
-											</tspan>
-										</text>
-									);
-								}}
-							/>
-							{genreData.map((entry, index) => (
-								<Cell
-									key={entry.genre}
-									fill={PIE_COLORS[index % PIE_COLORS.length]}
-									onClick={() => navigateToDrillDown(entry.genre)}
+			<div className="flex flex-col md:flex-row md:items-center gap-4">
+				<div className="h-55 md:h-[clamp(140px,20vh,220px)] md:flex-1">
+					<ResponsiveContainer width="100%" height="100%">
+						<PieChart>
+							<Pie
+								data={segments}
+								cx="50%"
+								cy="50%"
+								innerRadius="59%"
+								outerRadius="82%"
+								dataKey="value"
+								nameKey="label"
+								style={{ cursor: "pointer" }}
+							>
+								<Label
+									content={({ viewBox }) => {
+										const { cx, cy } = viewBox as { cx: number; cy: number };
+										return (
+											<text textAnchor="middle">
+												<tspan
+													x={cx}
+													y={cy - 6}
+													fontSize={24}
+													fontWeight="bold"
+													fill="var(--card-foreground)"
+												>
+													{total}
+												</tspan>
+												<tspan
+													x={cx}
+													y={cy + 16}
+													fontSize={12}
+													fill="var(--muted-foreground)"
+												>
+													{t("insights.report.progressLabels.items")}
+												</tspan>
+											</text>
+										);
+									}}
 								/>
-							))}
-						</Pie>
-						<Tooltip
-							formatter={(value, name) => [value, name]}
-							contentStyle={TOOLTIP_CONTENT_STYLE}
-							itemStyle={{ color: "var(--card-foreground)" }}
-						/>
-					</PieChart>
-				</ResponsiveContainer>
+								{segments.map((segment, index) => (
+									<Cell
+										key={segment.label}
+										fill={getSegmentColor(segment, index)}
+										onClick={() =>
+											navigateToDrillDownForGenres(
+												segment.label,
+												segment.genreNames,
+											)
+										}
+									/>
+								))}
+							</Pie>
+							<Tooltip
+								formatter={(value, name) => [value, name]}
+								contentStyle={TOOLTIP_CONTENT_STYLE}
+								itemStyle={{ color: "var(--card-foreground)" }}
+							/>
+						</PieChart>
+					</ResponsiveContainer>
+				</div>
+				<ul className="flex flex-row flex-wrap md:flex-col gap-x-3 gap-y-1.5 md:max-w-36">
+					{segments.map((segment, index) => (
+						<li key={segment.label}>
+							<button
+								type="button"
+								className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+								onClick={() =>
+									navigateToDrillDownForGenres(
+										segment.label,
+										segment.genreNames,
+									)
+								}
+							>
+								<span
+									className="h-2.5 w-2.5 shrink-0 rounded-full"
+									style={{ backgroundColor: getSegmentColor(segment, index) }}
+								/>
+								<span className="truncate">{segment.label}</span>
+							</button>
+						</li>
+					))}
+				</ul>
 			</div>
 		);
 	}

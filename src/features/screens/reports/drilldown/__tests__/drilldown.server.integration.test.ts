@@ -222,7 +222,7 @@ describe("fetchDrillDownItemsForGenre", () => {
 
 			const result = await fetchDrillDownItemsForGenre(
 				USER,
-				"Fiction",
+				["Fiction"],
 				"2024-01-01",
 				"2024-03-15",
 			);
@@ -246,7 +246,7 @@ describe("fetchDrillDownItemsForGenre", () => {
 
 			const result = await fetchDrillDownItemsForGenre(
 				USER,
-				"Fiction",
+				["Fiction"],
 				"2024-01-01",
 				"2024-03-15",
 			);
@@ -266,7 +266,7 @@ describe("fetchDrillDownItemsForGenre", () => {
 
 			const result = await fetchDrillDownItemsForGenre(
 				USER,
-				"Fiction",
+				["Fiction"],
 				"2024-01-01",
 				"2024-03-15",
 			);
@@ -288,7 +288,7 @@ describe("fetchDrillDownItemsForGenre", () => {
 
 			const result = await fetchDrillDownItemsForGenre(
 				USER,
-				"Fiction",
+				["Fiction"],
 				"2024-01-01",
 				"2024-03-15",
 			);
@@ -306,12 +306,58 @@ describe("fetchDrillDownItemsForGenre", () => {
 
 			const result = await fetchDrillDownItemsForGenre(
 				USER,
-				"Fiction",
+				["Fiction"],
 				"2024-01-01",
 				"2024-03-15",
 			);
 
 			expect(result).toHaveLength(0);
+		});
+	});
+
+	describe("multiple genre names", () => {
+		it("returns items from every listed genre", async () => {
+			const fictionId = await insertGenre({ userId: USER, name: "Fiction" });
+			const historyId = await insertGenre({ userId: USER, name: "History" });
+			const poetryId = await insertGenre({ userId: USER, name: "Poetry" });
+			const fictionItemId = await insertMediaItem({
+				type: MediaItemType.BOOK,
+				userId: USER,
+				genreId: fictionId,
+			});
+			const historyItemId = await insertMediaItem({
+				type: MediaItemType.BOOK,
+				userId: USER,
+				genreId: historyId,
+			});
+			const poetryItemId = await insertMediaItem({
+				type: MediaItemType.BOOK,
+				userId: USER,
+				genreId: poetryId,
+			});
+			await insertInstance({
+				mediaItemId: fictionItemId,
+				completedAt: "2024-03-05",
+			});
+			await insertInstance({
+				mediaItemId: historyItemId,
+				completedAt: "2024-03-10",
+			});
+			await insertInstance({
+				mediaItemId: poetryItemId,
+				completedAt: "2024-03-12",
+			});
+
+			const result = await fetchDrillDownItemsForGenre(
+				USER,
+				["Fiction", "History"],
+				"2024-01-01",
+				"2024-03-15",
+			);
+
+			expect(result.map((item) => item.id).sort()).toEqual(
+				[fictionItemId, historyItemId].sort(),
+			);
 		});
 	});
 
@@ -341,7 +387,7 @@ describe("fetchDrillDownItemsForGenre", () => {
 
 			const result = await fetchDrillDownItemsForGenre(
 				USER,
-				"Fiction",
+				["Fiction"],
 				"2024-01-01",
 				"2024-03-15",
 				[MediaItemType.BOOK],
@@ -382,13 +428,13 @@ describe("fetchDrillDownItemsForGenre", () => {
 
 			const userResult = await fetchDrillDownItemsForGenre(
 				USER,
-				"Fiction",
+				["Fiction"],
 				"2024-01-01",
 				"2024-03-15",
 			);
 			const otherResult = await fetchDrillDownItemsForGenre(
 				OTHER_USER,
-				"Fiction",
+				["Fiction"],
 				"2024-01-01",
 				"2024-03-15",
 			);
