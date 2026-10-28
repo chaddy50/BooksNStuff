@@ -50,6 +50,13 @@ function buildTypeFilterSql(mediaTypes?: MediaItemType[] | null) {
 	)}]::text[])`;
 }
 
+function buildGenreFilterSql(genreNames: string[]) {
+	return sql`g.name = ANY(ARRAY[${sql.join(
+		genreNames.map((name) => sql`${name}`),
+		sql`, `,
+	)}]::text[])`;
+}
+
 export async function fetchDrillDownItemsForMonth(
 	userId: string,
 	month: string, // "YYYY-MM"
@@ -89,7 +96,7 @@ export async function fetchDrillDownItemsForMonth(
 
 export async function fetchDrillDownItemsForGenre(
 	userId: string,
-	genre: string,
+	genreNames: string[],
 	startDate: string,
 	endDate: string,
 	mediaTypes?: MediaItemType[] | null,
@@ -119,7 +126,7 @@ export async function fetchDrillDownItemsForGenre(
 				AND inst.completed_at IS NOT NULL
 				AND inst.completed_at >= ${startDate}
 				AND inst.completed_at <= ${endDate}
-				AND g.name = ${genre}
+				AND ${buildGenreFilterSql(genreNames)}
 				${typeFilterSql}
 			ORDER BY mi.id, inst.completed_at DESC
 		) sub

@@ -228,6 +228,7 @@ export const en = {
 			itemsCompletedByGenre: "Items Completed by Genre",
 			avgScoreByGenre: "Avg Score by Genre",
 			avgScore: "Avg Score",
+			other: "Other",
 			progressLabels: {
 				pages: "Pages",
 				items: "Items",
