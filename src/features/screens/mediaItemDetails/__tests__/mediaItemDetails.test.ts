@@ -55,4 +55,31 @@ describe("inferStatusFromInstances", () => {
 			]),
 		).toBe(MediaItemStatus.COMPLETED);
 	});
+
+	it("preserves ON_HOLD when an instance is still unfinished", () => {
+		expect(
+			inferStatusFromInstances(
+				[{ startedAt: "2024-01-01", completedAt: null }],
+				MediaItemStatus.ON_HOLD,
+			),
+		).toBe(MediaItemStatus.ON_HOLD);
+	});
+
+	it("preserves DROPPED when an instance is still unfinished", () => {
+		expect(
+			inferStatusFromInstances(
+				[{ startedAt: "2024-01-01", completedAt: null }],
+				MediaItemStatus.DROPPED,
+			),
+		).toBe(MediaItemStatus.DROPPED);
+	});
+
+	it("still returns COMPLETED for an ON_HOLD item once an instance gets a completedAt date", () => {
+		expect(
+			inferStatusFromInstances(
+				[{ startedAt: "2024-01-01", completedAt: "2024-01-15" }],
+				MediaItemStatus.ON_HOLD,
+			),
+		).toBe(MediaItemStatus.COMPLETED);
+	});
 });

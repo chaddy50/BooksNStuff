@@ -174,6 +174,7 @@ function buildSaveInstanceData(
 		progressPercent: parsedProgressPercent,
 		seasonReviews: emptyArrayToUndefined(values.seasonReviews),
 		consumptionInfo: nullToUndefined(values.consumptionInfo),
+		today: getLocalDateString(new Date()),
 	};
 }
 
@@ -387,7 +388,9 @@ export function InstanceEditForm({
 					parsedProgressPercent,
 				),
 			});
-			await updateMediaItemStatus({ data: { mediaItemId, status } });
+			await updateMediaItemStatus({
+				data: { mediaItemId, status, today: getLocalDateString(new Date()) },
+			});
 			onSave();
 		} catch {
 			setOtherStatusErrorMessage(t("mediaItemDetails.setOtherStatusFailed"));
@@ -440,8 +443,16 @@ export function InstanceEditForm({
 		if (!instance) return;
 		setSaving(true);
 		try {
-			await deleteInstance({ data: { instanceId: instance.id } });
+			const confirmation = await deleteInstance({
+				data: {
+					instanceId: instance.id,
+					today: getLocalDateString(new Date()),
+				},
+			});
 			onSave();
+			if (confirmation) {
+				onSeriesCompletionNeeded(confirmation);
+			}
 		} finally {
 			setSaving(false);
 		}

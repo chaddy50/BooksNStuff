@@ -103,6 +103,27 @@ describe("InstanceEditForm", () => {
 		expect(saveInstance).toHaveBeenCalled();
 	});
 
+	it("includes the caller's local date in the save payload", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2024-05-15T12:00:00"));
+		try {
+			const { saveInstance } = await import(
+				"#/features/screens/mediaItemDetails/mediaItemDetails"
+			);
+			vi.mocked(saveInstance).mockClear();
+			render(<InstanceEditForm {...baseProps} />);
+
+			fireEvent.click(screen.getByText("mediaItemDetails.save"));
+
+			await vi.waitFor(() => expect(saveInstance).toHaveBeenCalled());
+			expect(vi.mocked(saveInstance).mock.calls[0][0].data.today).toBe(
+				"2024-05-15",
+			);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it("prefills the progress field from the instance's stored progressPercent", () => {
 		render(
 			<InstanceEditForm
@@ -649,7 +670,10 @@ describe("InstanceEditForm", () => {
 		await vi.waitFor(() => expect(updateMediaItemStatus).toHaveBeenCalled());
 		expect(saveInstance).toHaveBeenCalled();
 		expect(updateMediaItemStatus).toHaveBeenCalledWith({
-			data: { mediaItemId: baseProps.mediaItemId, status: "in_progress" },
+			data: expect.objectContaining({
+				mediaItemId: baseProps.mediaItemId,
+				status: "in_progress",
+			}),
 		});
 		expect(onSave).toHaveBeenCalledTimes(1);
 	});
@@ -680,9 +704,34 @@ describe("InstanceEditForm", () => {
 		await vi.waitFor(() => expect(updateMediaItemStatus).toHaveBeenCalled());
 		expect(saveInstance).toHaveBeenCalled();
 		expect(updateMediaItemStatus).toHaveBeenCalledWith({
-			data: { mediaItemId: baseProps.mediaItemId, status: "in_progress" },
+			data: expect.objectContaining({
+				mediaItemId: baseProps.mediaItemId,
+				status: "in_progress",
+			}),
 		});
 		expect(onSave).toHaveBeenCalledTimes(1);
+	});
+
+	it("sends the caller's local date when setting another status", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2024-05-15T12:00:00"));
+		try {
+			const { updateMediaItemStatus } = await import(
+				"#/features/screens/mediaItemDetails/mediaItemDetails"
+			);
+			vi.mocked(updateMediaItemStatus).mockClear();
+
+			render(<InstanceEditForm {...baseProps} instance={savedInstance} />);
+			fireEvent.click(screen.getByText("mediaItemDetails.setOtherStatus"));
+			fireEvent.click(screen.getByText("status.on_hold"));
+
+			await vi.waitFor(() => expect(updateMediaItemStatus).toHaveBeenCalled());
+			expect(vi.mocked(updateMediaItemStatus).mock.calls[0][0].data.today).toBe(
+				"2024-05-15",
+			);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("does not show a status/date summary when creating a new instance", () => {
@@ -717,7 +766,10 @@ describe("InstanceEditForm", () => {
 			"Pausing here for now",
 		);
 		expect(updateMediaItemStatus).toHaveBeenCalledWith({
-			data: { mediaItemId: baseProps.mediaItemId, status: "on_hold" },
+			data: expect.objectContaining({
+				mediaItemId: baseProps.mediaItemId,
+				status: "on_hold",
+			}),
 		});
 		expect(onSave).toHaveBeenCalledTimes(1);
 	});
@@ -742,7 +794,10 @@ describe("InstanceEditForm", () => {
 
 		await vi.waitFor(() => expect(updateMediaItemStatus).toHaveBeenCalled());
 		expect(updateMediaItemStatus).toHaveBeenCalledWith({
-			data: { mediaItemId: baseProps.mediaItemId, status: "dropped" },
+			data: expect.objectContaining({
+				mediaItemId: baseProps.mediaItemId,
+				status: "dropped",
+			}),
 		});
 		expect(onSave).toHaveBeenCalledTimes(1);
 	});
@@ -1068,6 +1123,52 @@ describe("InstanceEditForm scrolling into view", () => {
 			/>,
 		);
 		fireEvent.click(screen.getByText("mediaItemDetails.save"));
+
+		await vi.waitFor(() => {
+			expect(onSave).toHaveBeenCalled();
+		});
+		expect(onSeriesCompletionNeeded).not.toHaveBeenCalled();
+	});
+
+	it("calls onSeriesCompletionNeeded when deleteInstance returns a confirmation", async () => {
+		const { deleteInstance } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		const confirmation = { seriesId: 9, seriesName: "Ongoing Trilogy" };
+		vi.mocked(deleteInstance).mockResolvedValueOnce(confirmation);
+		const onSeriesCompletionNeeded = vi.fn();
+
+		render(
+			<InstanceEditForm
+				{...baseProps}
+				instance={savedInstance}
+				onSeriesCompletionNeeded={onSeriesCompletionNeeded}
+			/>,
+		);
+		fireEvent.click(screen.getByText("mediaItemDetails.removeEntry"));
+
+		await vi.waitFor(() => {
+			expect(onSeriesCompletionNeeded).toHaveBeenCalledWith(confirmation);
+		});
+	});
+
+	it("does not call onSeriesCompletionNeeded when deleteInstance returns null", async () => {
+		const { deleteInstance } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		vi.mocked(deleteInstance).mockResolvedValueOnce(null);
+		const onSave = vi.fn();
+		const onSeriesCompletionNeeded = vi.fn();
+
+		render(
+			<InstanceEditForm
+				{...baseProps}
+				instance={savedInstance}
+				onSave={onSave}
+				onSeriesCompletionNeeded={onSeriesCompletionNeeded}
+			/>,
+		);
+		fireEvent.click(screen.getByText("mediaItemDetails.removeEntry"));
 
 		await vi.waitFor(() => {
 			expect(onSave).toHaveBeenCalled();

@@ -114,6 +114,8 @@ export type SaveInstanceInput = {
 	progressPercent?: string;
 	seasonReviews?: SeasonReview[];
 	consumptionInfo?: { method: string; controlMethod?: string };
+	/** The caller's local date, used to stamp statusChangedAt. Falls back to the server's own date when omitted. */
+	today?: string;
 };
 
 /** Empty-string form fields mean "cleared", so they are stored as null too. */
@@ -143,6 +145,68 @@ function buildInstanceValues(data: SaveInstanceInput) {
 	};
 }
 
+/** The caller's local date when supplied, otherwise the server's own. */
+function resolveToday(callerToday: string | undefined): string {
+	return callerToday ?? getLocalDateString(new Date());
+}
+
+async function upsertInstance(
+	mediaItemId: number,
+	instanceId: number | undefined,
+	values: ReturnType<typeof buildInstanceValues>,
+): Promise<void> {
+	if (instanceId) {
+		await db
+			.update(mediaItemInstances)
+			.set(values)
+			.where(
+				and(
+					eq(mediaItemInstances.id, instanceId),
+					eq(mediaItemInstances.mediaItemId, mediaItemId),
+				),
+			);
+		return;
+	}
+	await db.insert(mediaItemInstances).values({ mediaItemId, ...values });
+}
+
+/** Writes an item's status, stamping statusChangedAt only when it actually changed. */
+async function writeItemStatus(
+	mediaItemId: number,
+	userId: string,
+	newStatus: MediaItemStatus,
+	previousStatus: MediaItemStatus,
+	today: string,
+): Promise<void> {
+	const hasStatusChanged = newStatus !== previousStatus;
+	await db
+		.update(mediaItems)
+		.set({
+			status: newStatus,
+			...(hasStatusChanged && { statusChangedAt: today }),
+		})
+		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
+}
+
+async function syncSeriesAfterItemStatusChange(
+	seriesId: number | null,
+	userId: string,
+	previousStatus: MediaItemStatus,
+	newStatus: MediaItemStatus,
+): Promise<SeriesCompletionConfirmation | null> {
+	if (!seriesId) return null;
+
+	const isItemNewlyCompleting =
+		previousStatus !== MediaItemStatus.COMPLETED &&
+		newStatus === MediaItemStatus.COMPLETED;
+
+	return syncSeriesStatusWithCompletionConfirmation(
+		seriesId,
+		userId,
+		isItemNewlyCompleting,
+	);
+}
+
 export async function saveInstanceForUser(
 	data: SaveInstanceInput,
 	userId: string,
@@ -155,20 +219,7 @@ export async function saveInstanceForUser(
 		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
 	if (!item) throw new Error("Media item not found");
 
-	const values = buildInstanceValues(data);
-	if (instanceId) {
-		await db
-			.update(mediaItemInstances)
-			.set(values)
-			.where(
-				and(
-					eq(mediaItemInstances.id, instanceId),
-					eq(mediaItemInstances.mediaItemId, mediaItemId),
-				),
-			);
-	} else {
-		await db.insert(mediaItemInstances).values({ mediaItemId, ...values });
-	}
+	await upsertInstance(mediaItemId, instanceId, buildInstanceValues(data));
 
 	const instances = await db
 		.select({
@@ -178,22 +229,81 @@ export async function saveInstanceForUser(
 		.from(mediaItemInstances)
 		.where(eq(mediaItemInstances.mediaItemId, mediaItemId));
 
-	const newStatus = inferStatusFromInstances(instances);
-	await db
-		.update(mediaItems)
-		.set({ status: newStatus })
-		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
+	const newStatus = inferStatusFromInstances(instances, item.status);
+	await writeItemStatus(
+		mediaItemId,
+		userId,
+		newStatus,
+		item.status,
+		resolveToday(data.today),
+	);
 
-	if (!item.seriesId) return null;
-
-	const isItemNewlyCompleting =
-		item.status !== MediaItemStatus.COMPLETED &&
-		newStatus === MediaItemStatus.COMPLETED;
-
-	return syncSeriesStatusWithCompletionConfirmation(
+	return syncSeriesAfterItemStatusChange(
 		item.seriesId,
 		userId,
-		isItemNewlyCompleting,
+		item.status,
+		newStatus,
+	);
+}
+
+export async function deleteInstanceForUser(
+	instanceId: number,
+	userId: string,
+	callerToday?: string,
+): Promise<SeriesCompletionConfirmation | null> {
+	const [instanceBeingDeleted] = await db
+		.select({
+			mediaItemId: mediaItemInstances.mediaItemId,
+			status: mediaItems.status,
+		})
+		.from(mediaItemInstances)
+		.innerJoin(mediaItems, eq(mediaItems.id, mediaItemInstances.mediaItemId))
+		.where(
+			and(eq(mediaItemInstances.id, instanceId), eq(mediaItems.userId, userId)),
+		);
+	if (!instanceBeingDeleted) return null;
+
+	await db
+		.delete(mediaItemInstances)
+		.where(eq(mediaItemInstances.id, instanceId));
+
+	const remainingInstances = await db
+		.select({
+			startedAt: mediaItemInstances.startedAt,
+			completedAt: mediaItemInstances.completedAt,
+		})
+		.from(mediaItemInstances)
+		.where(
+			eq(mediaItemInstances.mediaItemId, instanceBeingDeleted.mediaItemId),
+		);
+
+	const newStatus = inferStatusFromInstances(
+		remainingInstances,
+		instanceBeingDeleted.status,
+	);
+	await writeItemStatus(
+		instanceBeingDeleted.mediaItemId,
+		userId,
+		newStatus,
+		instanceBeingDeleted.status,
+		resolveToday(callerToday),
+	);
+
+	const [item] = await db
+		.select({ seriesId: mediaItems.seriesId })
+		.from(mediaItems)
+		.where(
+			and(
+				eq(mediaItems.id, instanceBeingDeleted.mediaItemId),
+				eq(mediaItems.userId, userId),
+			),
+		);
+
+	return syncSeriesAfterItemStatusChange(
+		item?.seriesId ?? null,
+		userId,
+		instanceBeingDeleted.status,
+		newStatus,
 	);
 }
 
@@ -237,38 +347,36 @@ async function completeUnfinishedInstance(mediaItemId: number, today: string) {
 		.where(eq(mediaItemInstances.id, unfinishedInstance.id));
 }
 
-export async function updateMediaItemStatusForUser(
+/** Starts or completes the underlying instance to match an explicit status change. */
+async function applyStatusSideEffects(
 	mediaItemId: number,
 	status: MediaItemStatus,
-	userId: string,
-): Promise<SeriesCompletionConfirmation | null> {
-	const item = await requireOwnedMediaItem(mediaItemId, userId);
-
-	const today = getLocalDateString(new Date());
-
+	today: string,
+): Promise<void> {
 	if (status === MediaItemStatus.IN_PROGRESS) {
 		await startInstanceIfNeeded(mediaItemId, today);
 	} else if (status === MediaItemStatus.COMPLETED) {
 		await completeUnfinishedInstance(mediaItemId, today);
 	}
+}
 
-	const hasStatusChanged = item.status !== status;
+export async function updateMediaItemStatusForUser(
+	mediaItemId: number,
+	status: MediaItemStatus,
+	userId: string,
+	callerToday?: string,
+): Promise<SeriesCompletionConfirmation | null> {
+	const item = await requireOwnedMediaItem(mediaItemId, userId);
+	const today = resolveToday(callerToday);
 
-	await db
-		.update(mediaItems)
-		.set({ status, ...(hasStatusChanged && { statusChangedAt: today }) })
-		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
+	await applyStatusSideEffects(mediaItemId, status, today);
+	await writeItemStatus(mediaItemId, userId, status, item.status, today);
 
-	if (!item.seriesId) return null;
-
-	const isItemNewlyCompleting =
-		item.status !== MediaItemStatus.COMPLETED &&
-		status === MediaItemStatus.COMPLETED;
-
-	return syncSeriesStatusWithCompletionConfirmation(
+	return syncSeriesAfterItemStatusChange(
 		item.seriesId,
 		userId,
-		isItemNewlyCompleting,
+		item.status,
+		status,
 	);
 }
 
@@ -360,9 +468,13 @@ export async function updateMediaItemSeries(
 			.where(itemPredicate);
 	}
 
-	// Sync the old series (item left) and new series (item joined)
+	// Sync the old series (item left) and new series (item joined). Leaving a
+	// series is not itself a completion event, so the old series is never
+	// silently auto-completed by this.
 	if (currentItem?.seriesId) {
-		await syncSeriesStatus(currentItem.seriesId, userId);
+		await syncSeriesStatus(currentItem.seriesId, userId, {
+			allowCompleting: false,
+		});
 	}
 	if (resolvedSeriesId && resolvedSeriesId !== currentItem?.seriesId) {
 		await syncSeriesStatus(resolvedSeriesId, userId);
@@ -474,5 +586,7 @@ export async function removeFromLibrary(
 		return;
 	}
 
-	await syncSeriesStatus(item.seriesId, userId);
+	// Removing an item is not a completion event — don't let a departure
+	// silently auto-complete the series it leaves behind.
+	await syncSeriesStatus(item.seriesId, userId, { allowCompleting: false });
 }

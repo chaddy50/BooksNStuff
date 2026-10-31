@@ -22,6 +22,7 @@ import {
 	truncateAll,
 } from "#/tests/integration/helpers";
 import {
+	deleteInstanceForUser,
 	getMediaItemDetailsForUser,
 	removeFromLibrary,
 	saveInstanceForUser,
@@ -253,6 +254,107 @@ describe("updateMediaItemSeries", () => {
 
 		expect(await readItem(itemB)).toEqual(before);
 	});
+
+	it("does not auto-complete the old series when its last active item moves out", async () => {
+		const oldSeriesId = await insertSeries({
+			userId: USER_A,
+			name: "In Progress Trilogy",
+			type: MediaItemType.MOVIE,
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		const movingItemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.MOVIE,
+			seriesId: oldSeriesId,
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.MOVIE,
+			seriesId: oldSeriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+
+		await updateMediaItemSeries(
+			{ mediaItemId: movingItemId, type: MediaItemType.MOVIE, seriesId: null },
+			USER_A,
+		);
+
+		const [oldSeriesRow] = await testDb
+			.select({ status: series.status })
+			.from(series)
+			.where(eq(series.id, oldSeriesId));
+		expect(oldSeriesRow?.status).toBe(MediaItemStatus.IN_PROGRESS);
+	});
+
+	it("leaves an On Hold series On Hold when its only On Hold item moves out, leaving done+backlog items", async () => {
+		const oldSeriesId = await insertSeries({
+			userId: USER_A,
+			name: "Paused Trilogy",
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.ON_HOLD,
+		});
+		const movingItemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			seriesId: oldSeriesId,
+			status: MediaItemStatus.ON_HOLD,
+		});
+		await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			seriesId: oldSeriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+		await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			seriesId: oldSeriesId,
+			status: MediaItemStatus.BACKLOG,
+		});
+
+		await updateMediaItemSeries(
+			{ mediaItemId: movingItemId, type: MediaItemType.BOOK, seriesId: null },
+			USER_A,
+		);
+
+		const [oldSeriesRow] = await testDb
+			.select({ status: series.status })
+			.from(series)
+			.where(eq(series.id, oldSeriesId));
+		expect(oldSeriesRow?.status).toBe(MediaItemStatus.ON_HOLD);
+	});
+
+	it("leaves an On Hold series On Hold when a new not-yet-started item joins it", async () => {
+		const seriesId = await insertSeries({
+			userId: USER_A,
+			name: "Paused Trilogy",
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.ON_HOLD,
+		});
+		await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+		const newItemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.BACKLOG,
+		});
+
+		await updateMediaItemSeries(
+			{ mediaItemId: newItemId, type: MediaItemType.BOOK, seriesId },
+			USER_A,
+		);
+
+		const [seriesRow] = await testDb
+			.select({ status: series.status })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(seriesRow?.status).toBe(MediaItemStatus.ON_HOLD);
+	});
 });
 
 describe("updateMediaItemCreator", () => {
@@ -415,6 +517,35 @@ describe("removeFromLibrary", () => {
 		await removeFromLibrary(itemB, USER_A);
 
 		expect(await readItem(itemB)).toBeDefined();
+	});
+
+	it("does not auto-complete the series when removing its last active item", async () => {
+		const seriesId = await insertSeries({
+			userId: USER_A,
+			name: "In Progress Trilogy",
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		const inProgressItemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+
+		await removeFromLibrary(inProgressItemId, USER_A);
+
+		const [seriesRow] = await testDb
+			.select({ status: series.status })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(seriesRow?.status).toBe(MediaItemStatus.IN_PROGRESS);
 	});
 });
 
@@ -606,6 +737,98 @@ describe("saveInstanceForUser / getMediaItemDetailsForUser progress", () => {
 
 		expect((await readItem(itemId))?.status).toBe(MediaItemStatus.IN_PROGRESS);
 	});
+
+	it("keeps an ON_HOLD item ON_HOLD when saving its still-unfinished instance", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.ON_HOLD,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+		});
+
+		await saveInstanceForUser(
+			{
+				mediaItemId: itemId,
+				instanceId,
+				startedAt: "2024-01-01",
+				reviewText: "Still paused",
+			},
+			USER_A,
+		);
+
+		expect((await readItem(itemId))?.status).toBe(MediaItemStatus.ON_HOLD);
+	});
+
+	it("completes a DROPPED item once its unfinished instance is saved with a completedAt date", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.DROPPED,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+		});
+
+		await saveInstanceForUser(
+			{
+				mediaItemId: itemId,
+				instanceId,
+				startedAt: "2024-01-01",
+				completedAt: "2024-02-01",
+			},
+			USER_A,
+		);
+
+		expect((await readItem(itemId))?.status).toBe(MediaItemStatus.COMPLETED);
+	});
+
+	it("stamps statusChangedAt with the caller-supplied date when the status actually changes", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.BACKLOG,
+		});
+
+		await saveInstanceForUser(
+			{
+				mediaItemId: itemId,
+				startedAt: "2024-06-01",
+				today: "2024-06-01",
+			},
+			USER_A,
+		);
+
+		expect((await readItem(itemId))?.statusChangedAt).toBe("2024-06-01");
+	});
+
+	it("leaves statusChangedAt untouched when the derived status does not change", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+		});
+
+		await saveInstanceForUser(
+			{
+				mediaItemId: itemId,
+				instanceId,
+				startedAt: "2024-01-01",
+				reviewText: "Still reading",
+				today: "2024-06-01",
+			},
+			USER_A,
+		);
+
+		expect((await readItem(itemId))?.statusChangedAt).toBeNull();
+	});
 });
 
 describe("saveInstanceForUser series completion confirmation", () => {
@@ -751,6 +974,24 @@ describe("updateMediaItemStatusForUser", () => {
 		expect(details.statusChangedAt).toBe(today);
 	});
 
+	it("stamps statusChangedAt with the caller-supplied date instead of the server's own date", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+
+		await updateMediaItemStatusForUser(
+			itemId,
+			MediaItemStatus.ON_HOLD,
+			USER_A,
+			"2024-06-01",
+		);
+
+		const details = await getMediaItemDetailsForUser(itemId, USER_A);
+		expect(details.statusChangedAt).toBe("2024-06-01");
+	});
+
 	it("leaves statusChangedAt untouched when the status does not change", async () => {
 		const itemId = await insertMediaItem({
 			userId: USER_A,
@@ -845,5 +1086,110 @@ describe("updateMediaItemStatusForUser", () => {
 			.from(series)
 			.where(eq(series.id, seriesId));
 		expect(seriesRow?.status).toBe(MediaItemStatus.COMPLETED);
+	});
+});
+
+describe("deleteInstanceForUser", () => {
+	it("keeps an ON_HOLD item ON_HOLD when deleting an unrelated instance leaves one still unfinished", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.ON_HOLD,
+		});
+		const oldCompletedInstanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2023-01-01",
+			completedAt: "2023-01-15",
+		});
+		await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+		});
+
+		await deleteInstanceForUser(oldCompletedInstanceId, USER_A);
+
+		const [row] = await testDb
+			.select({ status: mediaItems.status })
+			.from(mediaItems)
+			.where(eq(mediaItems.id, itemId));
+		expect(row?.status).toBe(MediaItemStatus.ON_HOLD);
+	});
+
+	it("returns a confirmation and leaves the series status unchanged when deleting an instance newly completes the last active item of an Ongoing series", async () => {
+		const seriesId = await insertSeries({
+			userId: USER_A,
+			name: "Ongoing Trilogy",
+			type: MediaItemType.BOOK,
+		});
+		await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2023-01-01",
+			completedAt: "2023-01-15",
+		});
+		const unfinishedInstanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+		});
+
+		const confirmation = await deleteInstanceForUser(
+			unfinishedInstanceId,
+			USER_A,
+		);
+
+		expect(confirmation).toEqual({ seriesId, seriesName: "Ongoing Trilogy" });
+		const [seriesRow] = await testDb
+			.select({ status: series.status })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(seriesRow?.status).not.toBe(MediaItemStatus.COMPLETED);
+	});
+
+	it("is a no-op for an instance belonging to another user's item", async () => {
+		const { itemB } = await seedBothUsersOwnSameItem();
+		const instanceId = await insertInstance({
+			mediaItemId: itemB,
+			startedAt: "2024-01-01",
+		});
+
+		await deleteInstanceForUser(instanceId, USER_A);
+
+		const remaining = await testDb
+			.select()
+			.from(mediaItemInstances)
+			.where(eq(mediaItemInstances.id, instanceId));
+		expect(remaining).toHaveLength(1);
+	});
+
+	it("stamps statusChangedAt with the caller-supplied date when deleting changes the status", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.COMPLETED,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+			completedAt: "2024-01-15",
+		});
+
+		await deleteInstanceForUser(instanceId, USER_A, "2024-06-01");
+
+		const [row] = await testDb
+			.select({ statusChangedAt: mediaItems.statusChangedAt })
+			.from(mediaItems)
+			.where(eq(mediaItems.id, itemId));
+		expect(row?.statusChangedAt).toBe("2024-06-01");
 	});
 });
