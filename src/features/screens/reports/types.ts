@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type {
 	MediaItemStatus,
 	MediaItemType,
@@ -36,6 +37,16 @@ export type AverageScoreDataPoint = {
 export type InsightsReport = {
 	reportType: DashboardReportType;
 	data: ReportDataPoint[] | GenreDataPoint[] | AverageScoreDataPoint[];
+};
+
+export const insightsDateRangeSchema = z.object({
+	startDate: z.string().optional(),
+	endDate: z.string().optional(),
+});
+
+export type InsightsDateRange = {
+	startDate: string;
+	endDate: string;
 };
 
 export type DrillDownItem = {

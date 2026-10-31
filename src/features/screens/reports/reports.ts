@@ -7,15 +7,19 @@ import { fetchAverageScoreByGenre } from "./reportTypes/averageScoreByGenre.serv
 import { fetchItemsCompletedByGenre } from "./reportTypes/itemsCompletedByGenre.server";
 import { fetchItemsCompletedByMonth } from "./reportTypes/itemsCompletedByMonth.server";
 import { fetchProgressByMonth } from "./reportTypes/progressByMonth.server";
-import { INSIGHTS_REPORT_TYPES, type InsightsReport } from "./types";
-import { getYearToDateRange } from "./utils.server";
+import {
+	INSIGHTS_REPORT_TYPES,
+	type InsightsReport,
+	insightsDateRangeSchema,
+} from "./types";
 
 // ---- Exported server functions ----------------------------------------------
 
-export const getInsightsReports = createServerFn({ method: "GET" }).handler(
-	async (): Promise<InsightsReport[]> => {
+export const getInsightsReports = createServerFn({ method: "GET" })
+	.inputValidator(insightsDateRangeSchema.required())
+	.handler(async ({ data }): Promise<InsightsReport[]> => {
 		const user = await getLoggedInUser();
-		const { startDate, endDate } = getYearToDateRange();
+		const { startDate, endDate } = data;
 
 		const [
 			progressByMonth,
@@ -40,7 +44,6 @@ export const getInsightsReports = createServerFn({ method: "GET" }).handler(
 			reportType,
 			data: dataByReportType[reportType],
 		}));
-	},
-);
+	});
 
 export { getDrillDownItems };

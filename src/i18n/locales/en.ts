@@ -237,6 +237,18 @@ export const en = {
 			},
 			noItems: "No items found.",
 		},
+		dateRange: {
+			label: "Date range",
+			apply: "Apply",
+			presets: {
+				thisMonth: "This month",
+				lastMonth: "Last month",
+				last3Months: "Last 3 months",
+				last6Months: "Last 6 months",
+				last12Months: "Last 12 months",
+				yearToDate: "Year to date",
+			},
+		},
 	},
 	nav: {
 		menu: "Menu",
