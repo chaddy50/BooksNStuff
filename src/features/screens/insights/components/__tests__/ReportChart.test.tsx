@@ -32,7 +32,7 @@ function mockContainerWidth(width: number) {
 			const isResponsiveContainer = this.classList.contains(
 				"recharts-responsive-container",
 			);
-			return {
+			const rect = {
 				width: isResponsiveContainer ? width : 0,
 				height: isResponsiveContainer ? 300 : 0,
 				top: 0,
@@ -41,8 +41,8 @@ function mockContainerWidth(width: number) {
 				right: isResponsiveContainer ? width : 0,
 				x: 0,
 				y: 0,
-				toJSON: () => {},
-			} as DOMRect;
+			};
+			return { ...rect, toJSON: () => rect } as DOMRect;
 		},
 	);
 }
