@@ -1,4 +1,4 @@
-import { CalendarIcon, CheckIcon } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { Popover as PopoverPrimitive } from "radix-ui";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,11 +7,9 @@ import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import type { InsightsDateRange } from "#/features/screens/reports/types";
-import {
-	INSIGHTS_DATE_RANGE_PRESETS,
-	matchPreset,
-} from "#/features/screens/reports/utils";
-import { cn, formatDateRange, getLocalDateString } from "#/lib/utils";
+import { matchPreset } from "#/features/screens/reports/utils";
+import { formatDateRange, getLocalDateString } from "#/lib/utils";
+import { PresetList } from "./components/PresetList";
 
 interface DateRangePickerProps {
 	startDate: string;
@@ -87,27 +85,10 @@ export function DateRangePicker({
 					className="bg-popover text-popover-foreground z-50 w-72 rounded-md border p-3 shadow-md"
 				>
 					<span className="sr-only">{t("insights.dateRange.label")}</span>
-					<div className="flex flex-col gap-1">
-						{INSIGHTS_DATE_RANGE_PRESETS.map((preset) => (
-							<button
-								key={preset.key}
-								type="button"
-								onClick={() => handlePresetSelect(preset.getRange())}
-								className={cn(
-									"flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
-									selectedPreset === preset.key &&
-										"bg-accent text-accent-foreground",
-								)}
-							>
-								<span className="size-4 shrink-0 flex items-center justify-center">
-									{selectedPreset === preset.key && (
-										<CheckIcon className="size-4" />
-									)}
-								</span>
-								{t(`insights.dateRange.presets.${preset.key}`)}
-							</button>
-						))}
-					</div>
+					<PresetList
+						selectedPreset={selectedPreset}
+						onSelect={handlePresetSelect}
+					/>
 					<div className="flex items-center gap-2 mt-3 border-t border-border pt-3">
 						<div className="flex flex-col gap-1">
 							<Label htmlFor={fromInputId}>{t("views.form.dateFrom")}</Label>

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { TopBar } from "#/features/navigation/topBar/TopBar";
 import { applyInsightsDateRangeDefaults } from "#/features/screens/reports/utils";
-import { DateRangePicker } from "./components/DateRangePicker";
+import { DateRangePicker } from "./components/dateRangePicker/DateRangePicker";
 import { ReportTile } from "./components/ReportTile";
 
 const route = getRouteApi("/_authenticated/_app/insights");

@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DateRangePicker } from "#/features/screens/insights/components/DateRangePicker";
+import { DateRangePicker } from "#/features/screens/insights/components/dateRangePicker/DateRangePicker";
 
 vi.mock("react-i18next", () => ({
 	useTranslation: () => ({

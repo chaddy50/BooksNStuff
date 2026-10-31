@@ -48,7 +48,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("#/features/navigation/topBar/TopBar", () => ({
-	TopBar: ({ right }: { right?: React.ReactNode }) => <>{right}</>,
+	TopBar: ({ right }: { right?: React.ReactNode }) => right ?? null,
 }));
 
 afterEach(() => {
