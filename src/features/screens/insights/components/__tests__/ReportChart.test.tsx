@@ -1,8 +1,15 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { GenreDataPoint } from "#/features/screens/reports/types";
-import { buildGenrePieSegments, ReportChart } from "../ReportChart";
+import type {
+	AverageScoreDataPoint,
+	GenreDataPoint,
+} from "#/features/screens/reports/types";
+import {
+	buildAverageScoreTooltipContent,
+	buildGenrePieSegments,
+	ReportChart,
+} from "../ReportChart";
 
 const navigateSpy = vi.fn();
 
@@ -160,5 +167,30 @@ describe("ReportChart legend (items_completed_by_genre)", () => {
 				genres: ["History", "Poetry"],
 			},
 		});
+	});
+});
+
+describe("buildAverageScoreTooltipContent", () => {
+	it("returns the genre label, average score, and contributing item count", () => {
+		const dataPoint: AverageScoreDataPoint = {
+			genre: "Fantasy",
+			value: 8.5,
+			count: 3,
+		};
+
+		const content = buildAverageScoreTooltipContent(
+			[{ payload: dataPoint }],
+			"Fantasy",
+		);
+
+		expect(content).toEqual({ genre: "Fantasy", value: 8.5, count: 3 });
+	});
+
+	it("returns null when there is no payload", () => {
+		expect(buildAverageScoreTooltipContent(undefined, "Fantasy")).toBeNull();
+	});
+
+	it("returns null when the payload is empty", () => {
+		expect(buildAverageScoreTooltipContent([], "Fantasy")).toBeNull();
 	});
 });
