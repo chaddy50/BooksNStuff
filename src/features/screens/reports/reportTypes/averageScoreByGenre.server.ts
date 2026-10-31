@@ -3,20 +3,21 @@ import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "#/database/index";
 import { genres, mediaItemInstances, mediaItems } from "#/database/schema";
 import type { MediaItemType } from "#/lib/enums";
-import type { GenreDataPoint } from "../types";
+import type { AverageScoreDataPoint } from "../types";
 
 export async function fetchAverageScoreByGenre(
 	userId: string,
 	startDate: string,
 	endDate: string,
 	mediaTypes?: MediaItemType[] | null,
-): Promise<GenreDataPoint[]> {
+): Promise<AverageScoreDataPoint[]> {
 	const hasTypeFilter = mediaTypes && mediaTypes.length > 0;
 
 	const rows = await db
 		.select({
 			genre: genres.name,
 			value: sql<number>`ROUND(AVG(${mediaItemInstances.rating}::float)::numeric, 1)`,
+			count: sql<number>`COUNT(${mediaItemInstances.id})`,
 		})
 		.from(mediaItemInstances)
 		.innerJoin(mediaItems, eq(mediaItemInstances.mediaItemId, mediaItems.id))
@@ -36,5 +37,9 @@ export async function fetchAverageScoreByGenre(
 		.groupBy(genres.name)
 		.orderBy(sql`AVG(${mediaItemInstances.rating}::float) DESC`);
 
-	return rows.map((row) => ({ genre: row.genre, value: Number(row.value) }));
+	return rows.map((row) => ({
+		genre: row.genre,
+		value: Number(row.value),
+		count: Number(row.count),
+	}));
 }

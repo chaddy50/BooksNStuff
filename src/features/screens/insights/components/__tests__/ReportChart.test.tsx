@@ -1,8 +1,15 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { GenreDataPoint } from "#/features/screens/reports/types";
-import { buildGenrePieSegments, ReportChart } from "../ReportChart";
+import type {
+	AverageScoreDataPoint,
+	GenreDataPoint,
+} from "#/features/screens/reports/types";
+import {
+	buildAverageScoreTooltipContent,
+	buildGenrePieSegments,
+	ReportChart,
+} from "../ReportChart";
 
 const navigateSpy = vi.fn();
 
@@ -195,11 +202,13 @@ describe("ReportChart avg_score_by_genre axis", () => {
 	it("labels the x-axis with every whole-number rating step from 0 to 5", () => {
 		mockContainerWidth(600);
 
+		const scoreData: AverageScoreDataPoint[] = [
+			{ genre: "Fantasy", value: 4.3, count: 7 },
+			{ genre: "Sci-Fi", value: 3.1, count: 4 },
+		];
+
 		const { container } = render(
-			<ReportChart
-				reportType="avg_score_by_genre"
-				data={[genre("Fantasy", 4.3), genre("Sci-Fi", 3.1)]}
-			/>,
+			<ReportChart reportType="avg_score_by_genre" data={scoreData} />,
 		);
 
 		const tickLabels = Array.from(
@@ -209,5 +218,30 @@ describe("ReportChart avg_score_by_genre axis", () => {
 		).map((tick) => tick.textContent);
 
 		expect(tickLabels).toEqual(["0", "1", "2", "3", "4", "5"]);
+	});
+});
+
+describe("buildAverageScoreTooltipContent", () => {
+	it("returns the genre label, average score, and contributing item count", () => {
+		const dataPoint: AverageScoreDataPoint = {
+			genre: "Fantasy",
+			value: 8.5,
+			count: 3,
+		};
+
+		const content = buildAverageScoreTooltipContent(
+			[{ payload: dataPoint }],
+			"Fantasy",
+		);
+
+		expect(content).toEqual({ genre: "Fantasy", value: 8.5, count: 3 });
+	});
+
+	it("returns null when there is no payload", () => {
+		expect(buildAverageScoreTooltipContent(undefined, "Fantasy")).toBeNull();
+	});
+
+	it("returns null when the payload is empty", () => {
+		expect(buildAverageScoreTooltipContent([], "Fantasy")).toBeNull();
 	});
 });

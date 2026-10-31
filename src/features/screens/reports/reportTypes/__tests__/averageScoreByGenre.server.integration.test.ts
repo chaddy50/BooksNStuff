@@ -293,6 +293,84 @@ describe("instance counting", () => {
 		const genre = result.find((row) => row.genre === "Fiction");
 
 		expect(genre?.value).toBe(7);
+		expect(genre?.count).toBe(2);
+	});
+
+	it("returns a count of 1 for a single rated completed instance", async () => {
+		const genreId = await insertGenre({ userId: USER, name: "Fiction" });
+		const itemId = await insertMediaItem({
+			type: MediaItemType.BOOK,
+			userId: USER,
+			genreId,
+		});
+		await insertInstance({
+			mediaItemId: itemId,
+			completedAt: "2024-03-10",
+			rating: "8",
+		});
+
+		const result = await fetchAverageScoreByGenre(USER, START, END);
+		const genre = result.find((row) => row.genre === "Fiction");
+
+		expect(genre?.count).toBe(1);
+	});
+
+	it("counts instances across different items in the same genre", async () => {
+		const genreId = await insertGenre({ userId: USER, name: "Fiction" });
+		const itemId1 = await insertMediaItem({
+			type: MediaItemType.BOOK,
+			userId: USER,
+			genreId,
+		});
+		const itemId2 = await insertMediaItem({
+			type: MediaItemType.BOOK,
+			userId: USER,
+			genreId,
+		});
+		await insertInstance({
+			mediaItemId: itemId1,
+			completedAt: "2024-03-05",
+			rating: "6",
+		});
+		await insertInstance({
+			mediaItemId: itemId2,
+			completedAt: "2024-03-10",
+			rating: "8",
+		});
+
+		const result = await fetchAverageScoreByGenre(USER, START, END);
+		const genre = result.find((row) => row.genre === "Fiction");
+
+		expect(genre?.count).toBe(2);
+	});
+
+	it("a zero-rated (cleared) instance doesn't count toward the total", async () => {
+		const genreId = await insertGenre({ userId: USER, name: "Fiction" });
+		const ratedItemId = await insertMediaItem({
+			type: MediaItemType.BOOK,
+			userId: USER,
+			genreId,
+		});
+		const unratedItemId = await insertMediaItem({
+			type: MediaItemType.BOOK,
+			userId: USER,
+			genreId,
+		});
+		await insertInstance({
+			mediaItemId: ratedItemId,
+			completedAt: "2024-03-05",
+			rating: "9",
+		});
+		await insertInstance({
+			mediaItemId: unratedItemId,
+			completedAt: "2024-03-10",
+			rating: "0",
+		});
+
+		const result = await fetchAverageScoreByGenre(USER, START, END);
+		const genre = result.find((row) => row.genre === "Fiction");
+
+		expect(genre?.count).toBe(1);
 	});
 });
 
@@ -561,6 +639,6 @@ describe("cross-user isolation", () => {
 
 		const result = await fetchAverageScoreByGenre(USER, START, END);
 
-		expect(result).toEqual([{ genre: "Fiction", value: 10 }]);
+		expect(result).toEqual([{ genre: "Fiction", value: 10, count: 1 }]);
 	});
 });

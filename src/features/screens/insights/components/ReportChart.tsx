@@ -13,6 +13,7 @@ import {
 	YAxis,
 } from "recharts";
 import type {
+	AverageScoreDataPoint,
 	DashboardReportType,
 	GenreDataPoint,
 	ReportDataPoint,
@@ -90,6 +91,21 @@ export function getSegmentColor(
 		: PIE_COLORS[index % PIE_COLORS.length];
 }
 
+export function buildAverageScoreTooltipContent(
+	payload: ReadonlyArray<{ payload?: AverageScoreDataPoint }> | undefined,
+	label: unknown,
+): { genre: string; value: number; count: number } | null {
+	const dataPoint = payload?.[0]?.payload;
+	if (!dataPoint) {
+		return null;
+	}
+	return {
+		genre: String(label),
+		value: dataPoint.value,
+		count: dataPoint.count,
+	};
+}
+
 export const TOOLTIP_CONTENT_STYLE = {
 	backgroundColor: "var(--card)",
 	border: "1px solid var(--border)",
@@ -122,7 +138,7 @@ function formatTooltipLabel(yearMonth: string): string {
 
 type Props = {
 	reportType: DashboardReportType;
-	data: ReportDataPoint[] | GenreDataPoint[];
+	data: ReportDataPoint[] | GenreDataPoint[] | AverageScoreDataPoint[];
 };
 
 export function ReportChart({ reportType, data }: Props) {
@@ -189,7 +205,7 @@ export function ReportChart({ reportType, data }: Props) {
 	}
 
 	if (reportType === "avg_score_by_genre") {
-		const genreData = data as GenreDataPoint[];
+		const genreData = data as AverageScoreDataPoint[];
 		const chartHeight = Math.max(220, genreData.length * 36);
 		return (
 			<ResponsiveContainer width="100%" height={chartHeight}>
@@ -222,15 +238,24 @@ export function ReportChart({ reportType, data }: Props) {
 					/>
 					<Tooltip
 						content={({ active, payload, label }) => {
-							if (!active || !payload || payload.length === 0) {
+							const tooltipContent = buildAverageScoreTooltipContent(
+								payload,
+								label,
+							);
+							if (!active || !tooltipContent) {
 								return null;
 							}
 							return (
 								<div style={{ ...TOOLTIP_CONTENT_STYLE, padding: "6px 10px" }}>
-									<p style={{ marginBottom: 2 }}>{label}</p>
+									<p style={{ marginBottom: 2 }}>{tooltipContent.genre}</p>
 									<p>
 										{t("insights.report.avgScore")}:{" "}
-										{Number(payload[0]?.value).toFixed(1)}
+										{tooltipContent.value.toFixed(1)}
+									</p>
+									<p style={{ color: "var(--muted-foreground)" }}>
+										{t("insights.report.avgScoreItemCount", {
+											count: tooltipContent.count,
+										})}
 									</p>
 								</div>
 							);
@@ -241,7 +266,7 @@ export function ReportChart({ reportType, data }: Props) {
 						dataKey="value"
 						radius={[0, 4, 4, 0]}
 						onClick={(barData: unknown) =>
-							navigateToDrillDown((barData as GenreDataPoint).genre)
+							navigateToDrillDown((barData as AverageScoreDataPoint).genre)
 						}
 					>
 						{genreData.map((entry, index) => (
