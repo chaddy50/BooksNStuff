@@ -145,6 +145,68 @@ function buildInstanceValues(data: SaveInstanceInput) {
 	};
 }
 
+/** The caller's local date when supplied, otherwise the server's own. */
+function resolveToday(callerToday: string | undefined): string {
+	return callerToday ?? getLocalDateString(new Date());
+}
+
+async function upsertInstance(
+	mediaItemId: number,
+	instanceId: number | undefined,
+	values: ReturnType<typeof buildInstanceValues>,
+): Promise<void> {
+	if (instanceId) {
+		await db
+			.update(mediaItemInstances)
+			.set(values)
+			.where(
+				and(
+					eq(mediaItemInstances.id, instanceId),
+					eq(mediaItemInstances.mediaItemId, mediaItemId),
+				),
+			);
+		return;
+	}
+	await db.insert(mediaItemInstances).values({ mediaItemId, ...values });
+}
+
+/** Writes an item's status, stamping statusChangedAt only when it actually changed. */
+async function writeItemStatus(
+	mediaItemId: number,
+	userId: string,
+	newStatus: MediaItemStatus,
+	previousStatus: MediaItemStatus,
+	today: string,
+): Promise<void> {
+	const hasStatusChanged = newStatus !== previousStatus;
+	await db
+		.update(mediaItems)
+		.set({
+			status: newStatus,
+			...(hasStatusChanged && { statusChangedAt: today }),
+		})
+		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
+}
+
+async function syncSeriesAfterItemStatusChange(
+	seriesId: number | null,
+	userId: string,
+	previousStatus: MediaItemStatus,
+	newStatus: MediaItemStatus,
+): Promise<SeriesCompletionConfirmation | null> {
+	if (!seriesId) return null;
+
+	const isItemNewlyCompleting =
+		previousStatus !== MediaItemStatus.COMPLETED &&
+		newStatus === MediaItemStatus.COMPLETED;
+
+	return syncSeriesStatusWithCompletionConfirmation(
+		seriesId,
+		userId,
+		isItemNewlyCompleting,
+	);
+}
+
 export async function saveInstanceForUser(
 	data: SaveInstanceInput,
 	userId: string,
@@ -157,20 +219,7 @@ export async function saveInstanceForUser(
 		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
 	if (!item) throw new Error("Media item not found");
 
-	const values = buildInstanceValues(data);
-	if (instanceId) {
-		await db
-			.update(mediaItemInstances)
-			.set(values)
-			.where(
-				and(
-					eq(mediaItemInstances.id, instanceId),
-					eq(mediaItemInstances.mediaItemId, mediaItemId),
-				),
-			);
-	} else {
-		await db.insert(mediaItemInstances).values({ mediaItemId, ...values });
-	}
+	await upsertInstance(mediaItemId, instanceId, buildInstanceValues(data));
 
 	const instances = await db
 		.select({
@@ -181,33 +230,26 @@ export async function saveInstanceForUser(
 		.where(eq(mediaItemInstances.mediaItemId, mediaItemId));
 
 	const newStatus = inferStatusFromInstances(instances, item.status);
-	const hasStatusChanged = newStatus !== item.status;
-	const today = data.today ?? getLocalDateString(new Date());
-	await db
-		.update(mediaItems)
-		.set({
-			status: newStatus,
-			...(hasStatusChanged && { statusChangedAt: today }),
-		})
-		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
+	await writeItemStatus(
+		mediaItemId,
+		userId,
+		newStatus,
+		item.status,
+		resolveToday(data.today),
+	);
 
-	if (!item.seriesId) return null;
-
-	const isItemNewlyCompleting =
-		item.status !== MediaItemStatus.COMPLETED &&
-		newStatus === MediaItemStatus.COMPLETED;
-
-	return syncSeriesStatusWithCompletionConfirmation(
+	return syncSeriesAfterItemStatusChange(
 		item.seriesId,
 		userId,
-		isItemNewlyCompleting,
+		item.status,
+		newStatus,
 	);
 }
 
 export async function deleteInstanceForUser(
 	instanceId: number,
 	userId: string,
-	today?: string,
+	callerToday?: string,
 ): Promise<SeriesCompletionConfirmation | null> {
 	const [instanceBeingDeleted] = await db
 		.select({
@@ -239,21 +281,13 @@ export async function deleteInstanceForUser(
 		remainingInstances,
 		instanceBeingDeleted.status,
 	);
-	const hasStatusChanged = newStatus !== instanceBeingDeleted.status;
-	await db
-		.update(mediaItems)
-		.set({
-			status: newStatus,
-			...(hasStatusChanged && {
-				statusChangedAt: today ?? getLocalDateString(new Date()),
-			}),
-		})
-		.where(
-			and(
-				eq(mediaItems.id, instanceBeingDeleted.mediaItemId),
-				eq(mediaItems.userId, userId),
-			),
-		);
+	await writeItemStatus(
+		instanceBeingDeleted.mediaItemId,
+		userId,
+		newStatus,
+		instanceBeingDeleted.status,
+		resolveToday(callerToday),
+	);
 
 	const [item] = await db
 		.select({ seriesId: mediaItems.seriesId })
@@ -264,16 +298,12 @@ export async function deleteInstanceForUser(
 				eq(mediaItems.userId, userId),
 			),
 		);
-	if (!item?.seriesId) return null;
 
-	const isItemNewlyCompleting =
-		instanceBeingDeleted.status !== MediaItemStatus.COMPLETED &&
-		newStatus === MediaItemStatus.COMPLETED;
-
-	return syncSeriesStatusWithCompletionConfirmation(
-		item.seriesId,
+	return syncSeriesAfterItemStatusChange(
+		item?.seriesId ?? null,
 		userId,
-		isItemNewlyCompleting,
+		instanceBeingDeleted.status,
+		newStatus,
 	);
 }
 
@@ -317,6 +347,19 @@ async function completeUnfinishedInstance(mediaItemId: number, today: string) {
 		.where(eq(mediaItemInstances.id, unfinishedInstance.id));
 }
 
+/** Starts or completes the underlying instance to match an explicit status change. */
+async function applyStatusSideEffects(
+	mediaItemId: number,
+	status: MediaItemStatus,
+	today: string,
+): Promise<void> {
+	if (status === MediaItemStatus.IN_PROGRESS) {
+		await startInstanceIfNeeded(mediaItemId, today);
+	} else if (status === MediaItemStatus.COMPLETED) {
+		await completeUnfinishedInstance(mediaItemId, today);
+	}
+}
+
 export async function updateMediaItemStatusForUser(
 	mediaItemId: number,
 	status: MediaItemStatus,
@@ -324,32 +367,16 @@ export async function updateMediaItemStatusForUser(
 	callerToday?: string,
 ): Promise<SeriesCompletionConfirmation | null> {
 	const item = await requireOwnedMediaItem(mediaItemId, userId);
+	const today = resolveToday(callerToday);
 
-	const today = callerToday ?? getLocalDateString(new Date());
+	await applyStatusSideEffects(mediaItemId, status, today);
+	await writeItemStatus(mediaItemId, userId, status, item.status, today);
 
-	if (status === MediaItemStatus.IN_PROGRESS) {
-		await startInstanceIfNeeded(mediaItemId, today);
-	} else if (status === MediaItemStatus.COMPLETED) {
-		await completeUnfinishedInstance(mediaItemId, today);
-	}
-
-	const hasStatusChanged = item.status !== status;
-
-	await db
-		.update(mediaItems)
-		.set({ status, ...(hasStatusChanged && { statusChangedAt: today }) })
-		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
-
-	if (!item.seriesId) return null;
-
-	const isItemNewlyCompleting =
-		item.status !== MediaItemStatus.COMPLETED &&
-		status === MediaItemStatus.COMPLETED;
-
-	return syncSeriesStatusWithCompletionConfirmation(
+	return syncSeriesAfterItemStatusChange(
 		item.seriesId,
 		userId,
-		isItemNewlyCompleting,
+		item.status,
+		status,
 	);
 }
 
