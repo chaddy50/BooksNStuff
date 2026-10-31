@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import type {
+	AverageScoreDataPoint,
 	DashboardReportType,
 	GenreDataPoint,
 	ReportDataPoint,
@@ -9,7 +10,7 @@ import { ReportChart } from "./ReportChart";
 
 type Props = {
 	reportType: DashboardReportType;
-	data: ReportDataPoint[] | GenreDataPoint[];
+	data: ReportDataPoint[] | GenreDataPoint[] | AverageScoreDataPoint[];
 };
 
 export function ReportTile({ reportType, data }: Props) {

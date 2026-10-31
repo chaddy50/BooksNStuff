@@ -27,9 +27,15 @@ export type GenreDataPoint = {
 	value: number;
 };
 
+export type AverageScoreDataPoint = {
+	genre: string;
+	value: number;
+	count: number;
+};
+
 export type InsightsReport = {
 	reportType: DashboardReportType;
-	data: ReportDataPoint[] | GenreDataPoint[];
+	data: ReportDataPoint[] | GenreDataPoint[] | AverageScoreDataPoint[];
 };
 
 export type DrillDownItem = {

@@ -16,7 +16,10 @@ const REPORTS: InsightsReport[] = [
 		reportType: "items_completed_by_genre",
 		data: [{ genre: "Fantasy", value: 3 }],
 	},
-	{ reportType: "avg_score_by_genre", data: [{ genre: "Fantasy", value: 4 }] },
+	{
+		reportType: "avg_score_by_genre",
+		data: [{ genre: "Fantasy", value: 4, count: 5 }],
+	},
 	{ reportType: "progress_by_month", data: [{ month: "2026-01", value: 10 }] },
 ];
 
