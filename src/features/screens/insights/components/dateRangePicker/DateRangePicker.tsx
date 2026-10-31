@@ -1,14 +1,13 @@
 import { CalendarIcon } from "lucide-react";
 import { Popover as PopoverPrimitive } from "radix-ui";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "#/components/ui/button";
-import { Input } from "#/components/ui/input";
-import { Label } from "#/components/ui/label";
 import type { InsightsDateRange } from "#/features/screens/reports/types";
 import { matchPreset } from "#/features/screens/reports/utils";
 import { formatDateRange, getLocalDateString } from "#/lib/utils";
+import { CustomRangeInputs } from "./components/CustomRangeInputs";
 import { PresetList } from "./components/PresetList";
 
 interface DateRangePickerProps {
@@ -23,8 +22,6 @@ export function DateRangePicker({
 	onApply,
 }: DateRangePickerProps) {
 	const { t } = useTranslation();
-	const fromInputId = useId();
-	const toInputId = useId();
 	const [isOpen, setIsOpen] = useState(false);
 	const [pendingStartDate, setPendingStartDate] = useState(startDate);
 	const [pendingEndDate, setPendingEndDate] = useState(endDate);
@@ -89,29 +86,13 @@ export function DateRangePicker({
 						selectedPreset={selectedPreset}
 						onSelect={handlePresetSelect}
 					/>
-					<div className="flex items-center gap-2 mt-3 border-t border-border pt-3">
-						<div className="flex flex-col gap-1">
-							<Label htmlFor={fromInputId}>{t("views.form.dateFrom")}</Label>
-							<Input
-								id={fromInputId}
-								type="date"
-								max={today}
-								value={pendingStartDate}
-								onChange={(e) => handleStartDateChange(e.target.value)}
-							/>
-						</div>
-						<span className="text-muted-foreground mt-5">—</span>
-						<div className="flex flex-col gap-1">
-							<Label htmlFor={toInputId}>{t("views.form.dateTo")}</Label>
-							<Input
-								id={toInputId}
-								type="date"
-								max={today}
-								value={pendingEndDate}
-								onChange={(e) => handleEndDateChange(e.target.value)}
-							/>
-						</div>
-					</div>
+					<CustomRangeInputs
+						startDate={pendingStartDate}
+						endDate={pendingEndDate}
+						max={today}
+						onStartDateChange={handleStartDateChange}
+						onEndDateChange={handleEndDateChange}
+					/>
 					<Button className="w-full mt-3" onClick={handleApply}>
 						{t("insights.dateRange.apply")}
 					</Button>
