@@ -12,13 +12,13 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
-
 import type {
 	AverageScoreDataPoint,
 	DashboardReportType,
 	GenreDataPoint,
 	ReportDataPoint,
 } from "#/features/screens/reports/types";
+import { MAXIMUM_RATING } from "#/lib/rating";
 import { GenrePieChart } from "./GenrePieChart";
 import { GenrePieLegend } from "./GenrePieLegend";
 
@@ -34,6 +34,11 @@ const PIE_COLORS = [
 	"#ec4899",
 	"#14b8a6",
 ];
+
+const AVG_SCORE_AXIS_TICKS = Array.from(
+	{ length: MAXIMUM_RATING + 1 },
+	(_, index) => index,
+);
 
 const GENRE_LEGEND_LIMIT = 5;
 const OTHER_SEGMENT_COLOR = "#9ca3af";
@@ -217,7 +222,8 @@ export function ReportChart({ reportType, data }: Props) {
 					/>
 					<XAxis
 						type="number"
-						domain={[0, 5]}
+						domain={[0, MAXIMUM_RATING]}
+						ticks={AVG_SCORE_AXIS_TICKS}
 						tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
 						axisLine={false}
 						tickLine={false}
