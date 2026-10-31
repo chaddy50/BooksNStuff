@@ -550,6 +550,116 @@ describe("syncSeriesStatus", () => {
 			.where(eq(series.id, seriesId));
 		expect(row?.nextItemStatus).toBe(NextItemStatus.PURCHASED);
 	});
+
+	it("leaves the series at its current status instead of completing it when allowCompleting is false", async () => {
+		const seriesId = await makeSeries({
+			name: "In Progress Series",
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		await insertMediaItem({
+			userId: USER,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+
+		await syncSeriesStatus(seriesId, USER, { allowCompleting: false });
+
+		const [row] = await testDb
+			.select({ status: series.status })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(row?.status).toBe(MediaItemStatus.IN_PROGRESS);
+	});
+
+	it("still completes the series when allowCompleting is false but it is already Completed", async () => {
+		const seriesId = await makeSeries({ status: MediaItemStatus.COMPLETED });
+		await insertMediaItem({
+			userId: USER,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+		await patchSeries(seriesId, { rating: "3.0" });
+
+		await syncSeriesStatus(seriesId, USER, { allowCompleting: false });
+
+		const [row] = await testDb
+			.select({ status: series.status, rating: series.rating })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(row?.status).toBe(MediaItemStatus.COMPLETED);
+	});
+
+	it("leaves an On Hold series unchanged instead of inferring IN_PROGRESS from done+BACKLOG items", async () => {
+		const seriesId = await makeSeries({
+			name: "Paused Trilogy",
+			status: MediaItemStatus.ON_HOLD,
+		});
+		await insertMediaItem({
+			userId: USER,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+		await insertMediaItem({
+			userId: USER,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.BACKLOG,
+		});
+
+		await syncSeriesStatus(seriesId, USER);
+
+		const [row] = await testDb
+			.select({ status: series.status })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(row?.status).toBe(MediaItemStatus.ON_HOLD);
+	});
+
+	it("leaves a Waiting-for-next-release Ongoing series unchanged instead of silently completing it", async () => {
+		const seriesId = await makeSeries({
+			name: "Waiting Trilogy",
+			status: MediaItemStatus.WAITING_FOR_NEXT_RELEASE,
+		});
+		await insertMediaItem({
+			userId: USER,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+
+		await syncSeriesStatus(seriesId, USER);
+
+		const [row] = await testDb
+			.select({ status: series.status })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(row?.status).toBe(MediaItemStatus.WAITING_FOR_NEXT_RELEASE);
+	});
+
+	it("completes a Waiting-for-next-release series once it's no longer marked Ongoing", async () => {
+		const seriesId = await makeSeries({
+			name: "Waiting Trilogy",
+			status: MediaItemStatus.WAITING_FOR_NEXT_RELEASE,
+		});
+		await insertMediaItem({
+			userId: USER,
+			type: MediaItemType.BOOK,
+			seriesId,
+			status: MediaItemStatus.COMPLETED,
+		});
+		await patchSeries(seriesId, { isComplete: true });
+
+		await syncSeriesStatus(seriesId, USER);
+
+		const [row] = await testDb
+			.select({ status: series.status })
+			.from(series)
+			.where(eq(series.id, seriesId));
+		expect(row?.status).toBe(MediaItemStatus.COMPLETED);
+	});
 });
 
 // ---------------------------------------------------------------------------

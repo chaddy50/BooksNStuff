@@ -114,6 +114,8 @@ export type SaveInstanceInput = {
 	progressPercent?: string;
 	seasonReviews?: SeasonReview[];
 	consumptionInfo?: { method: string; controlMethod?: string };
+	/** The caller's local date, used to stamp statusChangedAt. Falls back to the server's own date when omitted. */
+	today?: string;
 };
 
 /** Empty-string form fields mean "cleared", so they are stored as null too. */
@@ -178,16 +180,94 @@ export async function saveInstanceForUser(
 		.from(mediaItemInstances)
 		.where(eq(mediaItemInstances.mediaItemId, mediaItemId));
 
-	const newStatus = inferStatusFromInstances(instances);
+	const newStatus = inferStatusFromInstances(instances, item.status);
+	const hasStatusChanged = newStatus !== item.status;
+	const today = data.today ?? getLocalDateString(new Date());
 	await db
 		.update(mediaItems)
-		.set({ status: newStatus })
+		.set({
+			status: newStatus,
+			...(hasStatusChanged && { statusChangedAt: today }),
+		})
 		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
 
 	if (!item.seriesId) return null;
 
 	const isItemNewlyCompleting =
 		item.status !== MediaItemStatus.COMPLETED &&
+		newStatus === MediaItemStatus.COMPLETED;
+
+	return syncSeriesStatusWithCompletionConfirmation(
+		item.seriesId,
+		userId,
+		isItemNewlyCompleting,
+	);
+}
+
+export async function deleteInstanceForUser(
+	instanceId: number,
+	userId: string,
+	today?: string,
+): Promise<SeriesCompletionConfirmation | null> {
+	const [instanceBeingDeleted] = await db
+		.select({
+			mediaItemId: mediaItemInstances.mediaItemId,
+			status: mediaItems.status,
+		})
+		.from(mediaItemInstances)
+		.innerJoin(mediaItems, eq(mediaItems.id, mediaItemInstances.mediaItemId))
+		.where(
+			and(eq(mediaItemInstances.id, instanceId), eq(mediaItems.userId, userId)),
+		);
+	if (!instanceBeingDeleted) return null;
+
+	await db
+		.delete(mediaItemInstances)
+		.where(eq(mediaItemInstances.id, instanceId));
+
+	const remainingInstances = await db
+		.select({
+			startedAt: mediaItemInstances.startedAt,
+			completedAt: mediaItemInstances.completedAt,
+		})
+		.from(mediaItemInstances)
+		.where(
+			eq(mediaItemInstances.mediaItemId, instanceBeingDeleted.mediaItemId),
+		);
+
+	const newStatus = inferStatusFromInstances(
+		remainingInstances,
+		instanceBeingDeleted.status,
+	);
+	const hasStatusChanged = newStatus !== instanceBeingDeleted.status;
+	await db
+		.update(mediaItems)
+		.set({
+			status: newStatus,
+			...(hasStatusChanged && {
+				statusChangedAt: today ?? getLocalDateString(new Date()),
+			}),
+		})
+		.where(
+			and(
+				eq(mediaItems.id, instanceBeingDeleted.mediaItemId),
+				eq(mediaItems.userId, userId),
+			),
+		);
+
+	const [item] = await db
+		.select({ seriesId: mediaItems.seriesId })
+		.from(mediaItems)
+		.where(
+			and(
+				eq(mediaItems.id, instanceBeingDeleted.mediaItemId),
+				eq(mediaItems.userId, userId),
+			),
+		);
+	if (!item?.seriesId) return null;
+
+	const isItemNewlyCompleting =
+		instanceBeingDeleted.status !== MediaItemStatus.COMPLETED &&
 		newStatus === MediaItemStatus.COMPLETED;
 
 	return syncSeriesStatusWithCompletionConfirmation(
@@ -241,10 +321,11 @@ export async function updateMediaItemStatusForUser(
 	mediaItemId: number,
 	status: MediaItemStatus,
 	userId: string,
+	callerToday?: string,
 ): Promise<SeriesCompletionConfirmation | null> {
 	const item = await requireOwnedMediaItem(mediaItemId, userId);
 
-	const today = getLocalDateString(new Date());
+	const today = callerToday ?? getLocalDateString(new Date());
 
 	if (status === MediaItemStatus.IN_PROGRESS) {
 		await startInstanceIfNeeded(mediaItemId, today);
@@ -360,9 +441,13 @@ export async function updateMediaItemSeries(
 			.where(itemPredicate);
 	}
 
-	// Sync the old series (item left) and new series (item joined)
+	// Sync the old series (item left) and new series (item joined). Leaving a
+	// series is not itself a completion event, so the old series is never
+	// silently auto-completed by this.
 	if (currentItem?.seriesId) {
-		await syncSeriesStatus(currentItem.seriesId, userId);
+		await syncSeriesStatus(currentItem.seriesId, userId, {
+			allowCompleting: false,
+		});
 	}
 	if (resolvedSeriesId && resolvedSeriesId !== currentItem?.seriesId) {
 		await syncSeriesStatus(resolvedSeriesId, userId);
@@ -474,5 +559,7 @@ export async function removeFromLibrary(
 		return;
 	}
 
-	await syncSeriesStatus(item.seriesId, userId);
+	// Removing an item is not a completion event — don't let a departure
+	// silently auto-complete the series it leaves behind.
+	await syncSeriesStatus(item.seriesId, userId, { allowCompleting: false });
 }

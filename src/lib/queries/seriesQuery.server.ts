@@ -265,7 +265,19 @@ async function resolveNextItemStatus(
 		: (current?.nextItemStatus ?? null);
 }
 
-export async function syncSeriesStatus(seriesId: number, userId: string) {
+export async function syncSeriesStatus(
+	seriesId: number,
+	userId: string,
+	options: { allowCompleting?: boolean } = {},
+) {
+	const allowCompleting = options.allowCompleting ?? true;
+
+	const [seriesRow] = await db
+		.select({ status: series.status, isComplete: series.isComplete })
+		.from(series)
+		.where(and(eq(series.id, seriesId), eq(series.userId, userId)));
+	if (!seriesRow) return;
+
 	const items = await db
 		.select({ id: mediaItems.id, status: mediaItems.status })
 		.from(mediaItems)
@@ -276,9 +288,25 @@ export async function syncSeriesStatus(seriesId: number, userId: string) {
 	if (items.length === 0) return;
 
 	const statuses = items.map((i) => i.status);
-	const newStatus = inferSeriesStatus(statuses);
+	const inferredStatus = inferSeriesStatus(statuses, seriesRow.status);
 
-	if (newStatus === null) return;
+	if (inferredStatus === null) return;
+
+	// A series the user chose to keep "waiting" shouldn't silently complete just
+	// because an unrelated, already-finished item was touched again.
+	const isStuckWaitingForRelease =
+		inferredStatus === MediaItemStatus.COMPLETED &&
+		seriesRow.status === MediaItemStatus.WAITING_FOR_NEXT_RELEASE &&
+		!seriesRow.isComplete;
+	const isBlockedFromCompleting =
+		!allowCompleting &&
+		inferredStatus === MediaItemStatus.COMPLETED &&
+		seriesRow.status !== MediaItemStatus.COMPLETED;
+
+	const newStatus =
+		isStuckWaitingForRelease || isBlockedFromCompleting
+			? seriesRow.status
+			: inferredStatus;
 
 	const newRating =
 		newStatus === MediaItemStatus.COMPLETED

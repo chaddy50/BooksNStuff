@@ -13,6 +13,7 @@ import {
 	updateMediaItemStatus,
 } from "#/features/screens/mediaItemDetails/mediaItemDetails";
 import { MediaItemStatus } from "#/lib/enums";
+import { getLocalDateString } from "#/lib/utils";
 
 interface StatusSelectProps {
 	mediaItemDetails: MediaItemDetails;
@@ -31,6 +32,7 @@ export function StatusSelect(props: StatusSelectProps) {
 			data: {
 				mediaItemId: mediaItemDetails.id,
 				status: status as MediaItemStatus,
+				today: getLocalDateString(new Date()),
 			},
 		});
 		router.invalidate();

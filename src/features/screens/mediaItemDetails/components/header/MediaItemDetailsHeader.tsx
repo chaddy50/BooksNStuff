@@ -21,6 +21,7 @@ import {
 	getUnfinishedInstance,
 } from "#/features/screens/mediaItemDetails/mediaItemDetailsHeader";
 import { MediaItemStatus } from "#/lib/enums";
+import { getLocalDateString } from "#/lib/utils";
 import { MediaItemDetailsHeaderBackdrop } from "./MediaItemDetailsHeaderBackdrop";
 import { MediaItemDetailsHeaderCreatorLine } from "./MediaItemDetailsHeaderCreatorLine";
 import { MediaItemDetailsHeaderCurrentInstance } from "./MediaItemDetailsHeaderCurrentInstance";
@@ -55,6 +56,7 @@ export function MediaItemDetailsHeader(props: MediaItemDetailsHeaderProps) {
 				data: {
 					mediaItemId: mediaItemDetails.id,
 					status: MediaItemStatus.IN_PROGRESS,
+					today: getLocalDateString(new Date()),
 				},
 			});
 			router.invalidate();

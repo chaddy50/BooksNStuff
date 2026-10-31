@@ -188,26 +188,32 @@ describe("MediaItemDetailsHeader", () => {
 	});
 
 	it("starts progress immediately when the start button is clicked, without opening the editor", async () => {
-		const { updateMediaItemStatus } = await import(
-			"#/features/screens/mediaItemDetails/mediaItemDetails"
-		);
-		const onUpdateProgress = vi.fn();
-		renderMediaItemDetailsHeader({
-			mediaItemDetails: makeMediaItemDetails({ id: 7 }),
-			onUpdateProgress,
-		});
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2024-05-15T12:00:00"));
+		try {
+			const { updateMediaItemStatus } = await import(
+				"#/features/screens/mediaItemDetails/mediaItemDetails"
+			);
+			const onUpdateProgress = vi.fn();
+			renderMediaItemDetailsHeader({
+				mediaItemDetails: makeMediaItemDetails({ id: 7 }),
+				onUpdateProgress,
+			});
 
-		fireEvent.click(
-			screen.getByRole("button", { name: "mediaItemDetails.startReading" }),
-		);
+			fireEvent.click(
+				screen.getByRole("button", { name: "mediaItemDetails.startReading" }),
+			);
 
-		await vi.waitFor(() =>
-			expect(updateMediaItemStatus).toHaveBeenCalledWith({
-				data: { mediaItemId: 7, status: "in_progress" },
-			}),
-		);
-		expect(invalidate).toHaveBeenCalledTimes(1);
-		expect(onUpdateProgress).not.toHaveBeenCalled();
+			await vi.waitFor(() =>
+				expect(updateMediaItemStatus).toHaveBeenCalledWith({
+					data: { mediaItemId: 7, status: "in_progress", today: "2024-05-15" },
+				}),
+			);
+			expect(invalidate).toHaveBeenCalledTimes(1);
+			expect(onUpdateProgress).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("calls onUpdateProgress with the unfinished instance's id when its summary is clicked", () => {

@@ -6,6 +6,7 @@ import { MediaItemStatus } from "#/lib/enums";
  */
 export function inferSeriesStatus(
 	statuses: MediaItemStatus[],
+	currentStatus?: MediaItemStatus,
 ): MediaItemStatus | null {
 	if (statuses.length === 0) {
 		return null;
@@ -39,8 +40,17 @@ export function inferSeriesStatus(
 		return MediaItemStatus.ON_HOLD;
 	}
 
-	// Some items done, some still remaining — series is in progress
+	// Some items done, some still remaining — series is in progress, unless the
+	// user deliberately paused/parked it and nothing is genuinely active yet.
+	// This is a soft inference, not a hard fact, so it shouldn't silently
+	// override a deliberate pause the way a genuinely in-progress item does.
 	if (doneItems.length > 0) {
+		if (
+			currentStatus === MediaItemStatus.ON_HOLD ||
+			currentStatus === MediaItemStatus.WAITING_FOR_NEXT_RELEASE
+		) {
+			return currentStatus;
+		}
 		return MediaItemStatus.IN_PROGRESS;
 	}
 

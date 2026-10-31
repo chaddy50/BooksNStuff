@@ -4,7 +4,6 @@ import { z } from "zod";
 
 import { db } from "#/database/index";
 import {
-	mediaItemInstances,
 	mediaItemStatusEnum,
 	mediaItems,
 	mediaTypeEnum,
@@ -12,6 +11,7 @@ import {
 } from "#/database/schema";
 import { getLoggedInUser } from "#/features/screens/auth/session";
 import {
+	deleteInstanceForUser,
 	getMediaItemDetailsForUser,
 	removeFromLibrary as removeFromLibraryForUser,
 	saveInstanceForUser,
@@ -22,16 +22,22 @@ import {
 } from "#/features/screens/mediaItemDetails/mediaItemDetails.server";
 import { MediaItemStatus, NextItemStatus, PurchaseStatus } from "#/lib/enums";
 import { transitionReleasedItems } from "#/lib/queries/itemQuery.server";
-import {
-	getNextItemInSeries,
-	syncSeriesStatus,
-} from "#/lib/queries/seriesQuery.server";
+import { getNextItemInSeries } from "#/lib/queries/seriesQuery.server";
 
 type InstanceDateRow = { startedAt: string | null; completedAt: string | null };
 
 /** Derives a media item's status from the dates across all of its instances. */
-export function inferStatusFromInstances(instances: InstanceDateRow[]) {
+export function inferStatusFromInstances(
+	instances: InstanceDateRow[],
+	currentStatus?: MediaItemStatus,
+): MediaItemStatus {
 	if (instances.some((i) => i.startedAt && !i.completedAt)) {
+		if (
+			currentStatus === MediaItemStatus.ON_HOLD ||
+			currentStatus === MediaItemStatus.DROPPED
+		) {
+			return currentStatus;
+		}
 		return MediaItemStatus.IN_PROGRESS;
 	}
 	if (instances.some((i) => i.completedAt)) {
@@ -77,11 +83,12 @@ export const updateMediaItemStatus = createServerFn({ method: "POST" })
 		z.object({
 			mediaItemId: z.number(),
 			status: z.enum(mediaItemStatusEnum.enumValues),
+			today: z.string().optional(),
 		}),
 	)
-	.handler(async ({ data: { mediaItemId, status } }) => {
+	.handler(async ({ data: { mediaItemId, status, today } }) => {
 		const user = await getLoggedInUser();
-		return updateMediaItemStatusForUser(mediaItemId, status, user.id);
+		return updateMediaItemStatusForUser(mediaItemId, status, user.id, today);
 	});
 
 export type SeriesCompletionConfirmation = NonNullable<
@@ -128,6 +135,7 @@ export const saveInstance = createServerFn({ method: "POST" })
 			consumptionInfo: z
 				.object({ method: z.string(), controlMethod: z.string().optional() })
 				.optional(),
+			today: z.string().optional(),
 		}),
 	)
 	.handler(async ({ data }) => {
@@ -136,61 +144,12 @@ export const saveInstance = createServerFn({ method: "POST" })
 	});
 
 export const deleteInstance = createServerFn({ method: "POST" })
-	.inputValidator(z.object({ instanceId: z.number() }))
-	.handler(async ({ data: { instanceId } }) => {
+	.inputValidator(
+		z.object({ instanceId: z.number(), today: z.string().optional() }),
+	)
+	.handler(async ({ data: { instanceId, today } }) => {
 		const user = await getLoggedInUser();
-		const [instanceBeingDeleted] = await db
-			.select({
-				mediaItemId: mediaItemInstances.mediaItemId,
-			})
-			.from(mediaItemInstances)
-			.innerJoin(mediaItems, eq(mediaItems.id, mediaItemInstances.mediaItemId))
-			.where(
-				and(
-					eq(mediaItemInstances.id, instanceId),
-					eq(mediaItems.userId, user.id),
-				),
-			);
-
-		if (!instanceBeingDeleted) return;
-
-		await db
-			.delete(mediaItemInstances)
-			.where(eq(mediaItemInstances.id, instanceId));
-
-		const remainingInstances = await db
-			.select({
-				startedAt: mediaItemInstances.startedAt,
-				completedAt: mediaItemInstances.completedAt,
-			})
-			.from(mediaItemInstances)
-			.where(
-				eq(mediaItemInstances.mediaItemId, instanceBeingDeleted.mediaItemId),
-			);
-
-		await db
-			.update(mediaItems)
-			.set({ status: inferStatusFromInstances(remainingInstances) })
-			.where(
-				and(
-					eq(mediaItems.id, instanceBeingDeleted.mediaItemId),
-					eq(mediaItems.userId, user.id),
-				),
-			);
-
-		const [item] = await db
-			.select({ seriesId: mediaItems.seriesId })
-			.from(mediaItems)
-			.where(
-				and(
-					eq(mediaItems.id, instanceBeingDeleted.mediaItemId),
-					eq(mediaItems.userId, user.id),
-				),
-			);
-
-		if (item?.seriesId) {
-			await syncSeriesStatus(item.seriesId, user.id);
-		}
+		return deleteInstanceForUser(instanceId, user.id, today);
 	});
 
 export const updateMediaItemMetadata = createServerFn({ method: "POST" })
