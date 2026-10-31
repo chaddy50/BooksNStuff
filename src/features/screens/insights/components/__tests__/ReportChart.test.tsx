@@ -16,8 +16,36 @@ vi.mock("@tanstack/react-router", () => ({
 
 afterEach(() => {
 	cleanup();
-	navigateSpy.mockClear();
+	vi.restoreAllMocks();
 });
+
+/**
+ * Only the ResponsiveContainer's own element needs a real measured size for its chart to
+ * render at all in jsdom. Every other element — including the hidden span Recharts uses to
+ * measure tick label widths for overlap avoidance — must keep jsdom's default zero size, or
+ * every tick label reads as exactly as wide as the chart and Recharts hides all but one to
+ * avoid a false "overlap".
+ */
+function mockContainerWidth(width: number) {
+	vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+		function (this: Element) {
+			const isResponsiveContainer = this.classList.contains(
+				"recharts-responsive-container",
+			);
+			return {
+				width: isResponsiveContainer ? width : 0,
+				height: isResponsiveContainer ? 300 : 0,
+				top: 0,
+				left: 0,
+				bottom: 0,
+				right: isResponsiveContainer ? width : 0,
+				x: 0,
+				y: 0,
+				toJSON: () => {},
+			} as DOMRect;
+		},
+	);
+}
 
 function genre(name: string, value: number): GenreDataPoint {
 	return { genre: name, value };
@@ -160,5 +188,26 @@ describe("ReportChart legend (items_completed_by_genre)", () => {
 				genres: ["History", "Poetry"],
 			},
 		});
+	});
+});
+
+describe("ReportChart avg_score_by_genre axis", () => {
+	it("labels the x-axis with every whole-number rating step from 0 to 5", () => {
+		mockContainerWidth(600);
+
+		const { container } = render(
+			<ReportChart
+				reportType="avg_score_by_genre"
+				data={[genre("Fantasy", 4.3), genre("Sci-Fi", 3.1)]}
+			/>,
+		);
+
+		const tickLabels = Array.from(
+			container.querySelectorAll(
+				".recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value",
+			),
+		).map((tick) => tick.textContent);
+
+		expect(tickLabels).toEqual(["0", "1", "2", "3", "4", "5"]);
 	});
 });
