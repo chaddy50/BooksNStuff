@@ -5,6 +5,7 @@ import { Button } from "#/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -135,10 +136,10 @@ export function BackupSection() {
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>{t("settings.backup.confirmTitle")}</DialogTitle>
+						<DialogDescription>
+							{t("settings.backup.confirmDescription")}
+						</DialogDescription>
 					</DialogHeader>
-					<p className="text-sm text-muted-foreground">
-						{t("settings.backup.confirmDescription")}
-					</p>
 					<DialogFooter>
 						<Button
 							variant="outline"

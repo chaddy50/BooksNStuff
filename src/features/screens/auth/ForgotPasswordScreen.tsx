@@ -22,8 +22,9 @@ export function ForgotPasswordScreen() {
 				email,
 				redirectTo: "/reset-password",
 			});
+		} catch {
+			// Same outcome either way, to avoid email enumeration.
 		} finally {
-			// Always show the same message to avoid email enumeration
 			setIsSubmitted(true);
 			setIsSubmitting(false);
 		}

@@ -6,6 +6,7 @@ import { Button } from "#/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "#/components/ui/dialog";
@@ -312,6 +313,9 @@ export function PodcastArcPickerDialog(props: PodcastArcPickerDialogProps) {
 					<DialogTitle>
 						{isEditMode ? t("podcast.editArcTitle") : podcastTitle}
 					</DialogTitle>
+					<DialogDescription className="sr-only">
+						{t("podcast.arcPickerDescription")}
+					</DialogDescription>
 				</DialogHeader>
 
 				<div className="flex flex-col gap-4 min-w-0">

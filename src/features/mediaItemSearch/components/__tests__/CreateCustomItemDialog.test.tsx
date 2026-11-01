@@ -21,6 +21,14 @@ afterEach(cleanup);
 afterEach(() => navigate.mockClear());
 
 describe("CreateCustomItemDialog", () => {
+	it("gives the dialog an accessible description", () => {
+		render(<CreateCustomItemDialog isOpen onClose={vi.fn()} />);
+
+		expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+			"search.createCustomDescription",
+		);
+	});
+
 	it("navigates with an empty genre suggestion list after creating a custom item", async () => {
 		const { createCustomItem } = await import(
 			"#/features/mediaItemSearch/mediaItemSearch"

@@ -5,6 +5,7 @@ export const en = {
 		allTypes: "All",
 		allStatuses: "All",
 		filterAndSort: "Filter & Sort",
+		filterAndSortDescription: "Choose filters and a sort order for this list.",
 		clearFilters: "Clear filters",
 		applyFilters: "Apply",
 	},
@@ -90,6 +91,7 @@ export const en = {
 		noInstances: "No history yet.",
 		releaseDate: "Released",
 		edit: "Edit",
+		editMetadataDescription: "Update this item's details.",
 		save: "Save",
 		cancel: "Cancel",
 		removeEntry: "Remove Entry",
@@ -139,6 +141,7 @@ export const en = {
 		title: "Related",
 		addButton: "+ Add Related Item",
 		dialogTitle: "Add Related Item",
+		dialogDescription: "Search your library for an item to relate to this one.",
 		searchPlaceholder: "Search your library...",
 		empty: "No related items yet.",
 		noResults: "No matching items in your library.",
@@ -148,6 +151,8 @@ export const en = {
 		addButton: "Add Item",
 		placeholder: "Search for books, movies, TV shows, games, podcasts...",
 		title: "Search & Add",
+		description:
+			"Search for media to add to your library, or create a custom item.",
 		prompt: "Start typing to search.",
 		searching: "Searching...",
 		noResults: "No results found.",
@@ -155,6 +160,8 @@ export const en = {
 		adding: "Adding...",
 		createCustom: "Create manually",
 		createCustomTitle: "Create Custom Item",
+		createCustomDescription:
+			"Manually add an item that wasn't found in search.",
 		creating: "Creating...",
 		type: "Type",
 		selectType: "Select a type...",
@@ -168,6 +175,7 @@ export const en = {
 		episodeLoadError: "Failed to load episodes.",
 		addArcError: "Failed to add arc.",
 		arcTitle: "Arc title",
+		arcPickerDescription: "Select the episodes included in this arc.",
 		arcTitlePlaceholder: "e.g. Blueprint for Armageddon",
 		episodes: "Episodes",
 		episodesCount: "episodes",
@@ -191,6 +199,7 @@ export const en = {
 		enjoyment: "Enjoyment",
 		depth: "Depth",
 		addComment: "+ Comment",
+		commentDescription: "Write a comment for this rating.",
 	},
 	seriesDetails: {
 		items: "Items in Series",
@@ -198,6 +207,8 @@ export const en = {
 		complete: "Complete",
 		ongoing: "Ongoing",
 		edit: "Edit Series",
+		editDescription:
+			"Update this series' name, description, and completion status.",
 		delete: "Delete Series",
 		deleteTitle: "Delete this series?",
 		deleteDescription:
@@ -262,6 +273,7 @@ export const en = {
 	},
 	nav: {
 		menu: "Menu",
+		menuDescription: "Browse your views and groups, or go to settings.",
 		dashboard: "Dashboard",
 		library: "Library",
 		series: "Series",
@@ -385,6 +397,7 @@ export const en = {
 		// The sidebar's add row is narrow and the icon already says "add".
 		addButton: "Group",
 		createGroup: "Create Group",
+		dialogDescription: "Name this group of views.",
 		editGroup: "Edit Group",
 		deleteGroup: "Delete Group",
 		deleteTitle: "Delete this group?",
@@ -403,9 +416,11 @@ export const en = {
 	},
 	views: {
 		newView: "New View",
+		createDescription: "Set up filters and sorting for a new view.",
 		// The sidebar's add row is narrow and the icon already says "add".
 		addButton: "View",
 		editView: "Edit View",
+		editDescription: "Update this view's filters and sorting.",
 		deleteView: "Delete View",
 		deleteTitle: "Delete this view?",
 		deleteDescription: 'Delete "{{name}}"? This can\'t be undone.',
@@ -540,6 +555,7 @@ export const en = {
 		edit: "Edit Creator",
 		delete: "Delete Creator",
 		biography: "Biography",
+		editDescription: "Update this creator's name and biography.",
 	},
 	genreDetails: {
 		items: "Items",

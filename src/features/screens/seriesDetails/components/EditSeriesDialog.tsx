@@ -8,6 +8,7 @@ import { Button } from "#/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "#/components/ui/dialog";
@@ -78,6 +79,9 @@ export function EditSeriesDialog({ seriesDetails }: EditSeriesDialogProps) {
 				<DialogContent className="sm:max-w-lg">
 					<DialogHeader>
 						<DialogTitle>{t("seriesDetails.edit")}</DialogTitle>
+						<DialogDescription className="sr-only">
+							{t("seriesDetails.editDescription")}
+						</DialogDescription>
 					</DialogHeader>
 
 					<div className="flex flex-col gap-4 overflow-y-auto max-h-[65vh] pr-1">

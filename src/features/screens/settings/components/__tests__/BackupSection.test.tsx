@@ -83,4 +83,20 @@ describe("BackupSection", () => {
 			).toBeInTheDocument();
 		});
 	});
+
+	it("gives the confirm dialog a visible, accessible description", async () => {
+		renderBackupSection();
+		triggerFileUpload(JSON.stringify({ version: 1, items: [] }));
+		await waitFor(() => {
+			expect(
+				screen.getByText("settings.backup.confirmTitle"),
+			).toBeInTheDocument();
+		});
+
+		const description = screen.getByText("settings.backup.confirmDescription");
+		expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+			"settings.backup.confirmDescription",
+		);
+		expect(description).not.toHaveClass("sr-only");
+	});
 });

@@ -6,6 +6,7 @@ import { Button } from "#/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -83,6 +84,9 @@ export function FictionRatingRow({
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>{title}</DialogTitle>
+					<DialogDescription className="sr-only">
+						{t("fictionRating.commentDescription")}
+					</DialogDescription>
 				</DialogHeader>
 				<AutoResizeTextarea
 					value={draft}
