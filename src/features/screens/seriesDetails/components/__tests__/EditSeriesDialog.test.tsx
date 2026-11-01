@@ -3,9 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { EditSeriesDialog } from "#/features/screens/seriesDetails/components/EditSeriesDialog";
 import type { SeriesDetails } from "#/features/screens/seriesDetails/seriesDetails";
 
-const t = (key: string) => key;
+const translate = (key: string) => key;
 vi.mock("react-i18next", () => ({
-	useTranslation: () => ({ t }),
+	useTranslation: () => ({ t: translate }),
 }));
 
 vi.mock("@tanstack/react-router", () => ({

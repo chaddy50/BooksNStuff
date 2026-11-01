@@ -2,9 +2,9 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SearchPopup } from "#/features/mediaItemSearch/MediaItemSearchPopup";
 
-const t = (key: string) => key;
+const translate = (key: string) => key;
 vi.mock("react-i18next", () => ({
-	useTranslation: () => ({ t }),
+	useTranslation: () => ({ t: translate }),
 }));
 
 vi.mock("#/features/mediaItemSearch/mediaItemSearch", () => ({

@@ -3,9 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PodcastArcPickerDialog } from "#/features/mediaItemSearch/components/PodcastArcPickerDialog";
 import { MediaItemType } from "#/lib/enums";
 
-const t = (key: string) => key;
+const translate = (key: string) => key;
 vi.mock("react-i18next", () => ({
-	useTranslation: () => ({ t }),
+	useTranslation: () => ({ t: translate }),
 }));
 
 vi.mock("@tanstack/react-router", () => ({
