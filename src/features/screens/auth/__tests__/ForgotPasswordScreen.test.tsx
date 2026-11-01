@@ -8,7 +8,7 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
-	Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+	Link: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 const requestPasswordReset = vi.fn();
@@ -32,7 +32,7 @@ beforeEach(() => vi.clearAllMocks());
 
 describe("ForgotPasswordScreen", () => {
 	it("requests a password reset for the entered email", async () => {
-		requestPasswordReset.mockResolvedValue(undefined);
+		requestPasswordReset.mockImplementation(() => Promise.resolve());
 		render(<ForgotPasswordScreen />);
 
 		submitEmail("person@example.com");
@@ -46,7 +46,7 @@ describe("ForgotPasswordScreen", () => {
 	});
 
 	it("shows the sent confirmation after a successful submit", async () => {
-		requestPasswordReset.mockResolvedValue(undefined);
+		requestPasswordReset.mockImplementation(() => Promise.resolve());
 		render(<ForgotPasswordScreen />);
 
 		submitEmail("person@example.com");

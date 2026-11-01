@@ -9,7 +9,7 @@ vi.mock("react-i18next", () => ({
 
 let token: string | undefined;
 vi.mock("@tanstack/react-router", () => ({
-	Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+	Link: ({ children }: { children: React.ReactNode }) => children,
 	getRouteApi: () => ({ useSearch: () => ({ token }) }),
 }));
 

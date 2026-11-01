@@ -9,7 +9,7 @@ vi.mock("react-i18next", () => ({
 
 const navigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
-	Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+	Link: ({ children }: { children: React.ReactNode }) => children,
 	useRouter: () => ({ navigate }),
 }));
 

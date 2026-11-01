@@ -11,7 +11,7 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
-	Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+	Link: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 function buildGenreItem(overrides: Partial<GenreItem> = {}): GenreItem {
