@@ -563,6 +563,10 @@ export const en = {
 	genre: {
 		noGenre: "No genre",
 		createNewGenre: "Create new genre...",
+		promptTitle: "Set a genre",
+		promptDescription:
+			"Genre is used throughout Insights, so pick or create one before continuing.",
+		newGenreBadge: "New",
 	},
 	consumption: {
 		label: "Consumed via",

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "#/components/ui/tooltip";
 import { ActionButton } from "#/features/mediaItemSearch/components/searchResults/searchResult/components/ActionButton";
@@ -9,8 +9,10 @@ vi.mock("react-i18next", () => ({
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
 
+const navigate = vi.fn();
+
 vi.mock("@tanstack/react-router", () => ({
-	useNavigate: () => vi.fn(),
+	useNavigate: () => navigate,
 }));
 
 vi.mock("#/features/mediaItemSearch/mediaItemSearch", () => ({
@@ -38,8 +40,52 @@ function renderActionButton(result: SearchResultWithStatus) {
 }
 
 afterEach(cleanup);
+afterEach(() => navigate.mockClear());
 
 describe("ActionButton", () => {
+	it("navigates with the result's suggested genres as router state", async () => {
+		const { addToLibrary } = await import(
+			"#/features/mediaItemSearch/mediaItemSearch"
+		);
+		vi.mocked(addToLibrary).mockResolvedValue({ mediaItemId: 55 });
+
+		renderActionButton({
+			...baseResult,
+			metadata: { genres: ["Fantasy", "Mystery"] },
+		});
+		fireEvent.click(
+			screen.getByRole("button", { name: "search.addToLibrary" }),
+		);
+
+		await vi.waitFor(() =>
+			expect(navigate).toHaveBeenCalledWith({
+				to: "/mediaItemDetails/$mediaItemId",
+				params: { mediaItemId: "55" },
+				state: { genreSuggestions: ["Fantasy", "Mystery"] },
+			}),
+		);
+	});
+
+	it("navigates with an empty genre suggestion list when the result has none", async () => {
+		const { addToLibrary } = await import(
+			"#/features/mediaItemSearch/mediaItemSearch"
+		);
+		vi.mocked(addToLibrary).mockResolvedValue({ mediaItemId: 56 });
+
+		renderActionButton(baseResult);
+		fireEvent.click(
+			screen.getByRole("button", { name: "search.addToLibrary" }),
+		);
+
+		await vi.waitFor(() =>
+			expect(navigate).toHaveBeenCalledWith({
+				to: "/mediaItemDetails/$mediaItemId",
+				params: { mediaItemId: "56" },
+				state: { genreSuggestions: [] },
+			}),
+		);
+	});
+
 	it("shows StatusBadge when result is already in the library", () => {
 		renderActionButton({
 			...baseResult,

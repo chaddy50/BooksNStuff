@@ -39,6 +39,10 @@ export function ActionButton(props: ActionButtionProps) {
 			await navigate({
 				to: "/mediaItemDetails/$mediaItemId",
 				params: { mediaItemId: String(mediaItemId) },
+				state: {
+					genreSuggestions:
+						(result.metadata.genres as string[] | undefined) ?? [],
+				},
 			});
 		} finally {
 			setIsAdding(false);

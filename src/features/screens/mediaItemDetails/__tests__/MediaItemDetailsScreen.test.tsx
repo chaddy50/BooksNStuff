@@ -7,11 +7,19 @@ vi.mock("react-i18next", () => ({
 }));
 
 const navigate = vi.fn();
+const invalidate = vi.fn();
 let searchParams: { tab?: string } = {};
-let loaderData: { id: number; title: string; instances: unknown[] } = {
+let locationState: { genreSuggestions?: string[] } | undefined;
+let loaderData: {
+	id: number;
+	title: string;
+	instances: unknown[];
+	genreId: number | null;
+} = {
 	id: 7,
 	title: "Test Item",
 	instances: [],
+	genreId: null,
 };
 
 vi.mock("@tanstack/react-router", () => ({
@@ -21,8 +29,21 @@ vi.mock("@tanstack/react-router", () => ({
 	}),
 	useNavigate: () => navigate,
 	useBlocker: () => ({ status: "idle" }),
-	useRouter: () => ({ invalidate: vi.fn() }),
+	useRouter: () => ({ invalidate }),
+	useRouterState: () => locationState,
 }));
+
+vi.mock(
+	"#/features/screens/mediaItemDetails/components/setGenre/SetGenreDialog",
+	() => ({
+		SetGenreDialog: (props: { isOpen: boolean; suggestedGenres: string[] }) =>
+			props.isOpen ? (
+				<div data-testid="set-genre-dialog">
+					{props.suggestedGenres.join(",")}
+				</div>
+			) : null,
+	}),
+);
 
 vi.mock("#/features/navigation/topBar/TopBar", () => ({
 	TopBar: (props: { right?: React.ReactNode }) => <div>{props.right}</div>,
@@ -88,10 +109,34 @@ afterEach(cleanup);
 beforeEach(() => {
 	vi.clearAllMocks();
 	searchParams = {};
-	loaderData = { id: 7, title: "Test Item", instances: [] };
+	locationState = undefined;
+	loaderData = { id: 7, title: "Test Item", instances: [], genreId: null };
 });
 
 describe("MediaItemDetailsScreen", () => {
+	it("auto-opens the genre dialog when just-added state is present and no genre is set", () => {
+		locationState = { genreSuggestions: ["Fantasy"] };
+		render(<MediaItemDetailsScreen />);
+
+		expect(screen.getByTestId("set-genre-dialog")).toHaveTextContent("Fantasy");
+	});
+
+	it("does not auto-open the genre dialog on a normal visit with no navigation state", () => {
+		locationState = undefined;
+		loaderData = { ...loaderData, genreId: null };
+		render(<MediaItemDetailsScreen />);
+
+		expect(screen.queryByTestId("set-genre-dialog")).not.toBeInTheDocument();
+	});
+
+	it("does not auto-open the genre dialog when the item already has a genre", () => {
+		locationState = { genreSuggestions: ["Fantasy"] };
+		loaderData = { ...loaderData, genreId: 3 };
+		render(<MediaItemDetailsScreen />);
+
+		expect(screen.queryByTestId("set-genre-dialog")).not.toBeInTheDocument();
+	});
+
 	it("defaults to the overview tab when no tab is in the URL", () => {
 		render(<MediaItemDetailsScreen />);
 

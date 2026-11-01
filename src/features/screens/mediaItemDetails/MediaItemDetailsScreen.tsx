@@ -12,6 +12,8 @@ import { MediaItemDetailsTabStrip } from "./components/MediaItemDetailsTabStrip"
 import { OverviewTab } from "./components/overview/OverviewTab";
 import { RelatedItems } from "./components/relatedItems/RelatedItems";
 import { SeriesCompletionPromptDialog } from "./components/SeriesCompletionPromptDialog";
+import { SetGenreDialog } from "./components/setGenre/SetGenreDialog";
+import { useGenrePrompt } from "./components/setGenre/useGenrePrompt";
 import { useSeriesCompletionPrompt } from "./components/useSeriesCompletionPrompt";
 import { removeFromLibrary } from "./mediaItemDetails";
 import type { MediaItemDetailsTabId } from "./types";
@@ -27,6 +29,7 @@ export function MediaItemDetailsScreen() {
 	const { tab } = route.useSearch();
 	const { t } = useTranslation();
 	const navigate = useNavigate();
+	const genrePrompt = useGenrePrompt({ genreId: mediaItemDetails.genreId });
 	const deleteConfirmation = useDeleteConfirmation({
 		onDelete: async () => {
 			await removeFromLibrary({ data: { mediaItemId: mediaItemDetails.id } });
@@ -89,6 +92,13 @@ export function MediaItemDetailsScreen() {
 				isResolving={completionPrompt.isResolving}
 				onMarkWaiting={completionPrompt.markWaiting}
 				onMarkComplete={completionPrompt.markComplete}
+			/>
+
+			<SetGenreDialog
+				isOpen={genrePrompt.isOpen}
+				onClose={genrePrompt.close}
+				mediaItemId={mediaItemDetails.id}
+				suggestedGenres={genrePrompt.suggestedGenres}
 			/>
 
 			<div
