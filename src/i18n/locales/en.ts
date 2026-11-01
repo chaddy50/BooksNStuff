@@ -220,6 +220,16 @@ export const en = {
 		emptyNextInSeries: "Nothing marked as next up.",
 		emptyRecentlyFinished: "Nothing finished in the last 30 days.",
 	},
+	notFound: {
+		title: "Page not found",
+		description: "The page you're looking for doesn't exist or may have moved.",
+	},
+	errorScreen: {
+		title: "Something went wrong",
+		description:
+			"An unexpected error occurred. You can try again or head back home.",
+		tryAgain: "Try Again",
+	},
 	insights: {
 		title: "Insights",
 		report: {

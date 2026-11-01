@@ -9,6 +9,8 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { useEffect } from "react";
 import { ThemeProvider } from "#/components/hooks/useTheme";
 import { TooltipProvider } from "#/components/ui/tooltip";
+import { ErrorScreen } from "#/features/screens/error/ErrorScreen";
+import { NotFoundScreen } from "#/features/screens/notFound/NotFoundScreen";
 import { buildThemeInitScript } from "#/lib/theme/theme";
 import "../i18n";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
@@ -20,7 +22,8 @@ interface MyRouterContext {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
-	notFoundComponent: () => <p>Page not found</p>,
+	notFoundComponent: () => <NotFoundScreen />,
+	errorComponent: ErrorScreen,
 	head: () => ({
 		meta: [
 			{
