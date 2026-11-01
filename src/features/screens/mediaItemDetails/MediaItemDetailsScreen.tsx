@@ -1,4 +1,10 @@
-import { getRouteApi, useNavigate } from "@tanstack/react-router";
+import {
+	getRouteApi,
+	useNavigate,
+	useRouter,
+	useRouterState,
+} from "@tanstack/react-router";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { DeleteButton } from "#/components/DeleteButton";
@@ -12,6 +18,7 @@ import { MediaItemDetailsTabStrip } from "./components/MediaItemDetailsTabStrip"
 import { OverviewTab } from "./components/overview/OverviewTab";
 import { RelatedItems } from "./components/relatedItems/RelatedItems";
 import { SeriesCompletionPromptDialog } from "./components/SeriesCompletionPromptDialog";
+import { SetGenreDialog } from "./components/setGenre/SetGenreDialog";
 import { useSeriesCompletionPrompt } from "./components/useSeriesCompletionPrompt";
 import { removeFromLibrary } from "./mediaItemDetails";
 import type { MediaItemDetailsTabId } from "./types";
@@ -27,6 +34,15 @@ export function MediaItemDetailsScreen() {
 	const { tab } = route.useSearch();
 	const { t } = useTranslation();
 	const navigate = useNavigate();
+	const router = useRouter();
+	const locationState = useRouterState({
+		select: (state) => state.location.state,
+	});
+	const [isGenreDialogOpen, setIsGenreDialogOpen] = useState(
+		() =>
+			locationState?.genreSuggestions !== undefined &&
+			mediaItemDetails.genreId === null,
+	);
 	const deleteConfirmation = useDeleteConfirmation({
 		onDelete: async () => {
 			await removeFromLibrary({ data: { mediaItemId: mediaItemDetails.id } });
@@ -89,6 +105,16 @@ export function MediaItemDetailsScreen() {
 				isResolving={completionPrompt.isResolving}
 				onMarkWaiting={completionPrompt.markWaiting}
 				onMarkComplete={completionPrompt.markComplete}
+			/>
+
+			<SetGenreDialog
+				isOpen={isGenreDialogOpen}
+				onClose={() => {
+					setIsGenreDialogOpen(false);
+					router.invalidate();
+				}}
+				mediaItemId={mediaItemDetails.id}
+				suggestedGenres={locationState?.genreSuggestions ?? []}
 			/>
 
 			<div

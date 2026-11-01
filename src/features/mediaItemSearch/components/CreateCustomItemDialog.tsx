@@ -94,6 +94,7 @@ export function CreateCustomItemDialog({
 			await navigate({
 				to: "/mediaItemDetails/$mediaItemId",
 				params: { mediaItemId: String(mediaItemId) },
+				state: { genreSuggestions: [] },
 			});
 			onClose();
 		} catch (err) {
