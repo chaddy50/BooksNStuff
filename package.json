@@ -1,6 +1,14 @@
 {
   "name": "media_tracker",
   "private": true,
+  "description": "Private, self-hosted media tracker for tracking and reviewing movies, TV shows, video games, books, and podcasts.",
+  "author": "chaddy50",
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chaddy50/BooksNStuff.git"
+  },
+  "homepage": "https://github.com/chaddy50/BooksNStuff#readme",
   "type": "module",
   "imports": {
     "#/*": "./src/*"
