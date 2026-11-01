@@ -188,13 +188,13 @@ async function writeItemStatus(
 		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
 }
 
-async function syncSeriesAfterItemStatusChange(
+function syncSeriesAfterItemStatusChange(
 	seriesId: number | null,
 	userId: string,
 	previousStatus: MediaItemStatus,
 	newStatus: MediaItemStatus,
 ): Promise<SeriesCompletionConfirmation | null> {
-	if (!seriesId) return null;
+	if (!seriesId) return Promise.resolve(null);
 
 	const isItemNewlyCompleting =
 		previousStatus !== MediaItemStatus.COMPLETED &&

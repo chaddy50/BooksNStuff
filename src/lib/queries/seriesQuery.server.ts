@@ -302,11 +302,11 @@ function resolveSeriesStatusAfterSync(
 	return inferredStatus;
 }
 
-async function resolveSeriesRating(
+function resolveSeriesRating(
 	newStatus: MediaItemStatus,
 	itemIds: number[],
 ): Promise<string | null> {
-	if (newStatus !== MediaItemStatus.COMPLETED) return null;
+	if (newStatus !== MediaItemStatus.COMPLETED) return Promise.resolve(null);
 	return computeCompletedSeriesRating(itemIds);
 }
 
