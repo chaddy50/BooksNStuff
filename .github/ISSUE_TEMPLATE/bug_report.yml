@@ -1,0 +1,42 @@
+name: Bug report
+description: Report something that isn't working as expected.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: repro-steps
+    attributes:
+      label: Steps to reproduce
+      description: What did you do, in order, to trigger this?
+      placeholder: |
+        1. Go to ...
+        2. Click on ...
+        3. Scroll to ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser and how you're self-hosting (Docker Compose, manual, etc.)
+      placeholder: e.g. Chrome 130, Docker Compose
+    validations:
+      required: false
