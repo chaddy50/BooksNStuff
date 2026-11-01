@@ -72,4 +72,31 @@ describe("StatusSelect", () => {
 		});
 		expect(onSeriesCompletionNeeded).not.toHaveBeenCalled();
 	});
+
+	it("sends the caller's local date instead of letting the server compute its own", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2024-05-15T12:00:00"));
+		try {
+			const { updateMediaItemStatus } = await import(
+				"#/features/screens/mediaItemDetails/mediaItemDetails"
+			);
+
+			render(
+				<StatusSelect
+					mediaItemDetails={baseMediaItemDetails}
+					onSeriesCompletionNeeded={vi.fn()}
+				/>,
+			);
+
+			fireEvent.click(screen.getByRole("combobox"));
+			fireEvent.click(screen.getByText("status.done"));
+
+			await vi.waitFor(() => expect(updateMediaItemStatus).toHaveBeenCalled());
+			expect(vi.mocked(updateMediaItemStatus).mock.calls[0][0].data.today).toBe(
+				"2024-05-15",
+			);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
 });

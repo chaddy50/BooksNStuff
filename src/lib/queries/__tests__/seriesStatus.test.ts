@@ -104,4 +104,40 @@ describe("inferSeriesStatus", () => {
 			inferSeriesStatus([MediaItemStatus.BACKLOG, MediaItemStatus.BACKLOG]),
 		).toBeNull();
 	});
+
+	it("preserves a currently ON_HOLD series instead of inferring IN_PROGRESS from done+BACKLOG items", () => {
+		expect(
+			inferSeriesStatus(
+				[MediaItemStatus.COMPLETED, MediaItemStatus.BACKLOG],
+				MediaItemStatus.ON_HOLD,
+			),
+		).toBe(MediaItemStatus.ON_HOLD);
+	});
+
+	it("preserves a currently WAITING_FOR_NEXT_RELEASE series instead of inferring IN_PROGRESS from done+BACKLOG items", () => {
+		expect(
+			inferSeriesStatus(
+				[MediaItemStatus.COMPLETED, MediaItemStatus.BACKLOG],
+				MediaItemStatus.WAITING_FOR_NEXT_RELEASE,
+			),
+		).toBe(MediaItemStatus.WAITING_FOR_NEXT_RELEASE);
+	});
+
+	it("still returns IN_PROGRESS from done+BACKLOG items when the series isn't currently paused", () => {
+		expect(
+			inferSeriesStatus(
+				[MediaItemStatus.COMPLETED, MediaItemStatus.BACKLOG],
+				MediaItemStatus.BACKLOG,
+			),
+		).toBe(MediaItemStatus.IN_PROGRESS);
+	});
+
+	it("still lets a genuinely IN_PROGRESS item override a currently ON_HOLD series", () => {
+		expect(
+			inferSeriesStatus(
+				[MediaItemStatus.IN_PROGRESS, MediaItemStatus.COMPLETED],
+				MediaItemStatus.ON_HOLD,
+			),
+		).toBe(MediaItemStatus.IN_PROGRESS);
+	});
 });
