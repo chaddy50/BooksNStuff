@@ -5,6 +5,7 @@ import { SaveAndCancelButtons } from "#/components/SaveAndCancelButtons";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "#/components/ui/dialog";
@@ -114,6 +115,9 @@ export function CreateCustomItemDialog({
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>{t("search.createCustomTitle")}</DialogTitle>
+					<DialogDescription className="sr-only">
+						{t("search.createCustomDescription")}
+					</DialogDescription>
 				</DialogHeader>
 
 				<div className="flex flex-col gap-4 overflow-y-auto max-h-[65vh] pr-1">

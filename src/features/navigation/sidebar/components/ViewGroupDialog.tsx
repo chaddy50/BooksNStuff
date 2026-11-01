@@ -9,6 +9,7 @@ import { SaveAndCancelButtons } from "#/components/SaveAndCancelButtons";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "#/components/ui/dialog";
@@ -95,6 +96,9 @@ export function ViewGroupDialog({
 					<DialogTitle>
 						{t(group ? "viewGroups.editGroup" : "viewGroups.createGroup")}
 					</DialogTitle>
+					<DialogDescription className="sr-only">
+						{t("viewGroups.dialogDescription")}
+					</DialogDescription>
 				</DialogHeader>
 				<div className="flex flex-col gap-1.5">
 					<Label htmlFor={nameInputId}>{t("viewGroups.name")}</Label>

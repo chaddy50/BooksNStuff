@@ -124,4 +124,12 @@ describe("AddRelatedItemDialog", () => {
 			expect(invalidate).toHaveBeenCalled();
 		});
 	});
+
+	it("gives the dialog an accessible description", () => {
+		renderDialog();
+
+		expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+			"relatedItems.dialogDescription",
+		);
+	});
 });

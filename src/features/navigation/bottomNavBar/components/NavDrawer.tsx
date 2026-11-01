@@ -9,6 +9,7 @@ import {
 	Sheet,
 	SheetClose,
 	SheetContent,
+	SheetDescription,
 	SheetHeader,
 	SheetTitle,
 } from "#/components/ui/sheet";
@@ -70,6 +71,9 @@ export function NavDrawer({ isOpen, onClose }: NavDrawerProps) {
 				<SheetContent>
 					<SheetHeader>
 						<SheetTitle>{t("nav.menu")}</SheetTitle>
+						<SheetDescription className="sr-only">
+							{t("nav.menuDescription")}
+						</SheetDescription>
 					</SheetHeader>
 					<div className="flex flex-col overflow-y-auto flex-1">
 						{hasAnyViewsOrGroups && (

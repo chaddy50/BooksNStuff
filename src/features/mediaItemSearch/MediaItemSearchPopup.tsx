@@ -4,6 +4,7 @@ import { Button } from "#/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "#/components/ui/dialog";
@@ -168,6 +169,9 @@ export function SearchPopup(props: SearchPopupProps) {
 				>
 					<DialogHeader className="px-4 pt-4 pb-3 border-b border-border">
 						<DialogTitle className="sr-only">{t("search.title")}</DialogTitle>
+						<DialogDescription className="sr-only">
+							{t("search.description")}
+						</DialogDescription>
 
 						<SearchEntryField
 							fieldRef={inputRef}

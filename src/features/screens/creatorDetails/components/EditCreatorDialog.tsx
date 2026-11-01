@@ -8,6 +8,7 @@ import { Button } from "#/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "#/components/ui/dialog";
@@ -70,6 +71,9 @@ export function EditCreatorDialog({ creatorDetails }: EditCreatorDialogProps) {
 				<DialogContent className="sm:max-w-lg">
 					<DialogHeader>
 						<DialogTitle>{t("creatorDetails.edit")}</DialogTitle>
+						<DialogDescription className="sr-only">
+							{t("creatorDetails.editDescription")}
+						</DialogDescription>
 					</DialogHeader>
 
 					<div className="flex flex-col gap-4 overflow-y-auto max-h-[65vh] pr-1">
