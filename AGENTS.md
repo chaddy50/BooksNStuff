@@ -7,7 +7,7 @@ Media Tracker: a TanStack Start (React) app for tracking media (movies, shows, b
 - TanStack Start + React, routes under `src/routes/`
 - Drizzle ORM + Postgres, schema/migrations managed via `db:generate` / `db:migrate` / `db:push`
 - Vitest for unit tests (`vitest.config.ts`) and integration tests (`vitest.config.integration.ts`, needs `docker-compose.test.yml` / `.env.test`)
-- Biome for lint/format (`pnpm check`, `pnpm format`, `pnpm lint`)
+- Biome for lint/format (`npm run check`, `npm run format`, `npm run lint`)
 - i18n under `src/i18n/locales/`
 
 ## Layout
@@ -21,10 +21,10 @@ Media Tracker: a TanStack Start (React) app for tracking media (movies, shows, b
 
 ## Commands
 
-- `pnpm dev` — run the app locally.
-- `pnpm test` — unit tests. `pnpm test:integration` — integration tests (spins up the test DB via the pretest hook).
-- `pnpm typecheck`, `pnpm check` — before declaring work complete, run whichever of these apply to what you changed.
-- `pnpm db:generate` / `pnpm db:migrate` — after editing `src/database/` schema.
+- `npm run dev` — run the app locally.
+- `npm test` — unit tests. `npm run test:integration` — integration tests (spins up the test DB via the pretest hook).
+- `npm run typecheck`, `npm run check` — before declaring work complete, run whichever of these apply to what you changed.
+- `npm run db:generate` / `npm run db:migrate` — after editing `src/database/` schema.
 
 ## Conventions
 
