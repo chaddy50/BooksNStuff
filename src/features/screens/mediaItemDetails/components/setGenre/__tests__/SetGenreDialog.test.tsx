@@ -8,7 +8,7 @@ vi.mock("react-i18next", () => ({
 
 vi.mock("#/lib/genres/genres", () => ({
 	getGenres: vi.fn().mockResolvedValue([]),
-	saveMediaItemGenre: vi.fn().mockResolvedValue(undefined),
+	saveMediaItemGenre: vi.fn<() => Promise<void>>().mockResolvedValue(),
 }));
 
 afterEach(cleanup);

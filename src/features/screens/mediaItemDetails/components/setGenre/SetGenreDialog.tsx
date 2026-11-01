@@ -62,7 +62,7 @@ export function SetGenreDialog({
 	}
 
 	return (
-		<Dialog open={isOpen} onOpenChange={() => {}}>
+		<Dialog open={isOpen}>
 			<DialogContent
 				className="sm:max-w-lg"
 				showCloseButton={false}

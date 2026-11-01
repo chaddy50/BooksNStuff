@@ -1,10 +1,4 @@
-import {
-	getRouteApi,
-	useNavigate,
-	useRouter,
-	useRouterState,
-} from "@tanstack/react-router";
-import { useState } from "react";
+import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { DeleteButton } from "#/components/DeleteButton";
@@ -19,6 +13,7 @@ import { OverviewTab } from "./components/overview/OverviewTab";
 import { RelatedItems } from "./components/relatedItems/RelatedItems";
 import { SeriesCompletionPromptDialog } from "./components/SeriesCompletionPromptDialog";
 import { SetGenreDialog } from "./components/setGenre/SetGenreDialog";
+import { useGenrePrompt } from "./components/setGenre/useGenrePrompt";
 import { useSeriesCompletionPrompt } from "./components/useSeriesCompletionPrompt";
 import { removeFromLibrary } from "./mediaItemDetails";
 import type { MediaItemDetailsTabId } from "./types";
@@ -34,15 +29,7 @@ export function MediaItemDetailsScreen() {
 	const { tab } = route.useSearch();
 	const { t } = useTranslation();
 	const navigate = useNavigate();
-	const router = useRouter();
-	const locationState = useRouterState({
-		select: (state) => state.location.state,
-	});
-	const [isGenreDialogOpen, setIsGenreDialogOpen] = useState(
-		() =>
-			locationState?.genreSuggestions !== undefined &&
-			mediaItemDetails.genreId === null,
-	);
+	const genrePrompt = useGenrePrompt({ genreId: mediaItemDetails.genreId });
 	const deleteConfirmation = useDeleteConfirmation({
 		onDelete: async () => {
 			await removeFromLibrary({ data: { mediaItemId: mediaItemDetails.id } });
@@ -108,13 +95,10 @@ export function MediaItemDetailsScreen() {
 			/>
 
 			<SetGenreDialog
-				isOpen={isGenreDialogOpen}
-				onClose={() => {
-					setIsGenreDialogOpen(false);
-					router.invalidate();
-				}}
+				isOpen={genrePrompt.isOpen}
+				onClose={genrePrompt.close}
 				mediaItemId={mediaItemDetails.id}
-				suggestedGenres={locationState?.genreSuggestions ?? []}
+				suggestedGenres={genrePrompt.suggestedGenres}
 			/>
 
 			<div
