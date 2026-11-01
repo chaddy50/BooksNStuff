@@ -86,4 +86,14 @@ describe("FictionRatingRow", () => {
 		const reopened = await openCommentDialog();
 		expect(reopened).toHaveValue("original");
 	});
+
+	it("gives the comment dialog an accessible description", async () => {
+		renderFictionRatingRow();
+
+		await openCommentDialog();
+
+		expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+			"fictionRating.commentDescription",
+		);
+	});
 });

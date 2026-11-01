@@ -108,4 +108,21 @@ describe("EditMetadataDialog", () => {
 		expect(trigger.className).not.toContain("text-white");
 		expect(trigger.className).toContain("text-muted-foreground");
 	});
+
+	it("gives the dialog an accessible description", () => {
+		render(
+			<EditMetadataDialog
+				mediaItemDetails={mediaItemDetails}
+				onSeriesCompletionNeeded={vi.fn()}
+			/>,
+		);
+
+		fireEvent.click(
+			screen.getByRole("button", { name: "mediaItemDetails.edit" }),
+		);
+
+		expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+			"mediaItemDetails.editMetadataDescription",
+		);
+	});
 });

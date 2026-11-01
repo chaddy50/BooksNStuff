@@ -228,4 +228,14 @@ describe("NavDrawer", () => {
 
 		expect(await screen.findByText("nav.settings")).toHaveClass("py-3");
 	});
+
+	it("gives the menu an accessible description", async () => {
+		renderDrawer();
+
+		await screen.findByText("nav.menu");
+
+		expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+			"nav.menuDescription",
+		);
+	});
 });

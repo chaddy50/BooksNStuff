@@ -7,6 +7,7 @@ import { TypeBadge } from "#/components/TypeBadge";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "#/components/ui/dialog";
@@ -79,6 +80,9 @@ export function AddRelatedItemDialog({
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>{t("relatedItems.dialogTitle")}</DialogTitle>
+					<DialogDescription className="sr-only">
+						{t("relatedItems.dialogDescription")}
+					</DialogDescription>
 				</DialogHeader>
 
 				<Input

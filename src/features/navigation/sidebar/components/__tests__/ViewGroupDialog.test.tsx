@@ -216,4 +216,12 @@ describe("ViewGroupDialog", () => {
 		);
 		expect(onClose).not.toHaveBeenCalled();
 	});
+
+	it("gives the dialog an accessible description", () => {
+		renderDialog();
+
+		expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+			"viewGroups.dialogDescription",
+		);
+	});
 });

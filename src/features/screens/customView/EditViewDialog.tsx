@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "#/components/ui/dialog";
@@ -39,6 +40,9 @@ export function EditViewDialog({
 			<DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>{t("views.editView")}</DialogTitle>
+					<DialogDescription className="sr-only">
+						{t("views.editDescription")}
+					</DialogDescription>
 				</DialogHeader>
 				<ViewFilterAndSortForm
 					initialName={view.name}

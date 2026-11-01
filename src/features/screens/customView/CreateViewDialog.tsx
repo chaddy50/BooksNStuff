@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "#/components/ui/dialog";
@@ -31,6 +32,9 @@ export function CreateViewDialog({ isOpen, onClose }: CreateViewDialogProps) {
 			<DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>{t("views.newView")}</DialogTitle>
+					<DialogDescription className="sr-only">
+						{t("views.createDescription")}
+					</DialogDescription>
 				</DialogHeader>
 				<ViewFilterAndSortForm
 					onSubmit={async ({ name, subject, filters }) => {
