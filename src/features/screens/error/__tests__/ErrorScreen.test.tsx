@@ -21,7 +21,7 @@ describe("ErrorScreen", () => {
 		render(
 			<ErrorScreen
 				error={new Error("database connection refused")}
-				reset={() => {}}
+				reset={vi.fn()}
 			/>,
 		);
 
@@ -41,7 +41,7 @@ describe("ErrorScreen", () => {
 	});
 
 	it("links back home", () => {
-		render(<ErrorScreen error={new Error("boom")} reset={() => {}} />);
+		render(<ErrorScreen error={new Error("boom")} reset={vi.fn()} />);
 
 		expect(screen.getByRole("link", { name: /nav.home/ })).toHaveAttribute(
 			"href",

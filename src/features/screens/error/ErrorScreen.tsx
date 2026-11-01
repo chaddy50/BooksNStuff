@@ -1,8 +1,7 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
-import { Link } from "@tanstack/react-router";
-import { Home, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Button } from "#/components/ui/button";
+import { ErrorScreenActions } from "./components/ErrorScreenActions";
 
 export function ErrorScreen({ reset }: ErrorComponentProps) {
 	const { t } = useTranslation();
@@ -17,17 +16,7 @@ export function ErrorScreen({ reset }: ErrorComponentProps) {
 						{t("errorScreen.description")}
 					</p>
 				</div>
-				<div className="flex flex-col gap-2">
-					<Button onClick={reset} className="w-full">
-						{t("errorScreen.tryAgain")}
-					</Button>
-					<Button asChild variant="outline" className="w-full">
-						<Link to="/">
-							<Home className="size-4" />
-							{t("nav.home")}
-						</Link>
-					</Button>
-				</div>
+				<ErrorScreenActions onTryAgain={reset} />
 			</div>
 		</div>
 	);
