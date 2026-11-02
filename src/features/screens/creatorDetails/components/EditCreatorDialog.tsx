@@ -3,6 +3,7 @@ import { Pencil } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { useToast } from "#/components/hooks/useToast";
 import { SaveAndCancelButtons } from "#/components/SaveAndCancelButtons";
 import { Button } from "#/components/ui/button";
 import {
@@ -27,17 +28,16 @@ interface EditCreatorDialogProps {
 export function EditCreatorDialog({ creatorDetails }: EditCreatorDialogProps) {
 	const { t } = useTranslation();
 	const router = useRouter();
+	const { toast } = useToast();
 
 	const [isOpen, setIsOpen] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 
 	const [name, setName] = useState(creatorDetails.name);
 	const [biography, setBiography] = useState(creatorDetails.biography ?? "");
 
 	async function handleSave() {
 		setIsSaving(true);
-		setError(null);
 		try {
 			await updateCreatorMetadata({
 				data: {
@@ -49,7 +49,9 @@ export function EditCreatorDialog({ creatorDetails }: EditCreatorDialogProps) {
 			router.invalidate();
 			setIsOpen(false);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to save changes.");
+			toast(err instanceof Error ? err.message : "Failed to save changes.", {
+				variant: "destructive",
+			});
 		} finally {
 			setIsSaving(false);
 		}
@@ -89,8 +91,6 @@ export function EditCreatorDialog({ creatorDetails }: EditCreatorDialogProps) {
 							/>
 						</FormField>
 					</div>
-
-					{error && <p className="text-sm text-destructive">{error}</p>}
 
 					<SaveAndCancelButtons
 						onSave={handleSave}

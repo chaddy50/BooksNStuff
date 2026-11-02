@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useToast } from "#/components/hooks/useToast";
 import { SaveAndCancelButtons } from "#/components/SaveAndCancelButtons";
 import {
 	Dialog,
@@ -44,6 +45,7 @@ export function CreateCustomItemDialog({
 }: CreateCustomItemDialogProps) {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
+	const { toast } = useToast();
 
 	const [title, setTitle] = useState(initialTitle ?? "");
 	const [type, setType] = useState<MediaItemType | null>(null);
@@ -52,7 +54,6 @@ export function CreateCustomItemDialog({
 	const [releaseYear, setReleaseYear] = useState("");
 	const [typeMetadata, setTypeMetadata] = useState<Record<string, unknown>>({});
 	const [isCreating, setIsCreating] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 
 	// Capture the latest initial values without making them continuous dependencies —
 	// we only want to sync them at the moment the dialog opens, not while the user is editing.
@@ -69,7 +70,6 @@ export function CreateCustomItemDialog({
 			setCoverImageUrl("");
 			setReleaseYear("");
 			setTypeMetadata({});
-			setError(null);
 		}
 	}, [isOpen]);
 
@@ -80,7 +80,6 @@ export function CreateCustomItemDialog({
 		if (shouldSubmitBeDisabled || type === null) return;
 
 		setIsCreating(true);
-		setError(null);
 		try {
 			const { mediaItemId } = await createCustomItem({
 				data: {
@@ -99,7 +98,9 @@ export function CreateCustomItemDialog({
 			});
 			onClose();
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to create item.");
+			toast(err instanceof Error ? err.message : "Failed to create item.", {
+				variant: "destructive",
+			});
 		} finally {
 			setIsCreating(false);
 		}
@@ -191,8 +192,6 @@ export function CreateCustomItemDialog({
 						<GameFields rawMetadata={{}} onChange={setTypeMetadata} />
 					)}
 				</div>
-
-				{error && <p className="text-sm text-destructive">{error}</p>}
 
 				<SaveAndCancelButtons
 					onSave={handleCreate}

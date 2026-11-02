@@ -1,9 +1,18 @@
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useDeleteConfirmation } from "#/components/hooks/useDeleteConfirmation";
 
+const toast = vi.fn();
+vi.mock("#/components/hooks/useToast", () => ({
+	useToast: () => ({ toast }),
+}));
+
+beforeEach(() => {
+	toast.mockClear();
+});
+
 describe("useDeleteConfirmation", () => {
-	it("starts with the dialog closed and no error", () => {
+	it("starts with the dialog closed", () => {
 		const { result } = renderHook(() =>
 			useDeleteConfirmation({
 				onDelete: vi.fn(),
@@ -13,7 +22,6 @@ describe("useDeleteConfirmation", () => {
 
 		expect(result.current.isDialogOpen).toBe(false);
 		expect(result.current.isDeleting).toBe(false);
-		expect(result.current.errorMessage).toBeUndefined();
 	});
 
 	it("opens the dialog when a delete is requested", () => {
@@ -58,10 +66,10 @@ describe("useDeleteConfirmation", () => {
 
 		expect(onDelete).toHaveBeenCalledTimes(1);
 		expect(result.current.isDeleting).toBe(false);
-		expect(result.current.errorMessage).toBeUndefined();
+		expect(toast).not.toHaveBeenCalled();
 	});
 
-	it("sets the failure message when onDelete rejects", async () => {
+	it("shows a destructive toast with the failure message when onDelete rejects", async () => {
 		const onDelete = vi.fn().mockRejectedValue(new Error("network down"));
 		const { result } = renderHook(() =>
 			useDeleteConfirmation({
@@ -70,24 +78,13 @@ describe("useDeleteConfirmation", () => {
 			}),
 		);
 
-		await act(() => result.current.confirmDelete());
-
-		expect(result.current.errorMessage).toBe("Couldn't delete this.");
-		expect(result.current.isDeleting).toBe(false);
-	});
-
-	it("clears a previous failure message when a delete is requested again", async () => {
-		const onDelete = vi.fn().mockRejectedValue(new Error("network down"));
-		const { result } = renderHook(() =>
-			useDeleteConfirmation({
-				onDelete,
-				failureMessage: "Couldn't delete this.",
-			}),
-		);
-
-		await act(() => result.current.confirmDelete());
 		act(() => result.current.requestDelete());
+		await act(() => result.current.confirmDelete());
 
-		expect(result.current.errorMessage).toBeUndefined();
+		expect(toast).toHaveBeenCalledWith("Couldn't delete this.", {
+			variant: "destructive",
+		});
+		expect(result.current.isDeleting).toBe(false);
+		expect(result.current.isDialogOpen).toBe(true);
 	});
 });

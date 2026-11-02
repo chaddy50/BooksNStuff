@@ -9,6 +9,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { AutoResizeTextarea } from "#/components/AutoResizeTextarea";
 import { DeleteButton } from "#/components/DeleteButton";
+import { useToast } from "#/components/hooks/useToast";
 import { useUserSettings } from "#/components/hooks/useUserSettings";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
@@ -192,6 +193,7 @@ export function InstanceEditForm({
 	ref,
 }: InstanceEditFormProps) {
 	const { t } = useTranslation();
+	const { toast } = useToast();
 	const { data: settings } = useUserSettings();
 	const hasInitializedConsumption = useRef(false);
 	const formRootRef = useRef<HTMLDivElement | null>(null);
@@ -298,10 +300,6 @@ export function InstanceEditForm({
 	const isEditingUnfinishedInstance = Boolean(
 		instance?.startedAt && !instance?.completedAt,
 	);
-	const [otherStatusErrorMessage, setOtherStatusErrorMessage] = useState<
-		string | undefined
-	>();
-
 	function addSeasonReview() {
 		if (nextAvailableSeason === undefined) return;
 		setSeasonReviews((previous) =>
@@ -393,7 +391,9 @@ export function InstanceEditForm({
 			});
 			onSave();
 		} catch {
-			setOtherStatusErrorMessage(t("mediaItemDetails.setOtherStatusFailed"));
+			toast(t("mediaItemDetails.setOtherStatusFailed"), {
+				variant: "destructive",
+			});
 		} finally {
 			setSaving(false);
 		}
@@ -596,7 +596,6 @@ export function InstanceEditForm({
 						{isEditingUnfinishedInstance && (
 							<SetOtherStatusButton
 								disabled={saving}
-								errorMessage={otherStatusErrorMessage}
 								status={status}
 								onConfirmStatus={onConfirmOtherStatus}
 							/>

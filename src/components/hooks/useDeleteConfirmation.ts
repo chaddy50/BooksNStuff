@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useToast } from "#/components/hooks/useToast";
 
 interface UseDeleteConfirmationOptions {
 	onDelete: () => Promise<void>;
@@ -8,7 +9,6 @@ interface UseDeleteConfirmationOptions {
 interface UseDeleteConfirmationResult {
 	isDialogOpen: boolean;
 	isDeleting: boolean;
-	errorMessage: string | undefined;
 	requestDelete: () => void;
 	cancelDelete: () => void;
 	confirmDelete: () => Promise<void>;
@@ -18,27 +18,24 @@ export function useDeleteConfirmation({
 	onDelete,
 	failureMessage,
 }: UseDeleteConfirmationOptions): UseDeleteConfirmationResult {
+	const { toast } = useToast();
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
 	function requestDelete() {
 		setIsDialogOpen(true);
-		setErrorMessage(null);
 	}
 
 	function cancelDelete() {
 		setIsDialogOpen(false);
-		setErrorMessage(null);
 	}
 
 	async function confirmDelete() {
 		setIsDeleting(true);
-		setErrorMessage(null);
 		try {
 			await onDelete();
 		} catch {
-			setErrorMessage(failureMessage);
+			toast(failureMessage, { variant: "destructive" });
 		} finally {
 			setIsDeleting(false);
 		}
@@ -47,7 +44,6 @@ export function useDeleteConfirmation({
 	return {
 		isDialogOpen,
 		isDeleting,
-		errorMessage: errorMessage ?? undefined,
 		requestDelete,
 		cancelDelete,
 		confirmDelete,

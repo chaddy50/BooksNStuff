@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { DeleteButton } from "#/components/DeleteButton";
 import { DeleteConfirmationDialog } from "#/components/DeleteConfirmationDialog";
 import { useDeleteConfirmation } from "#/components/hooks/useDeleteConfirmation";
+import { useToast } from "#/components/hooks/useToast";
 import { SaveAndCancelButtons } from "#/components/SaveAndCancelButtons";
 import {
 	Dialog,
@@ -47,11 +48,11 @@ export function ViewGroupDialog({
 	onClose,
 }: ViewGroupDialogProps) {
 	const { t } = useTranslation();
+	const { toast } = useToast();
 	const queryClient = useQueryClient();
 	const nameInputId = useId();
 	const [name, setName] = useState(group?.name ?? "");
 	const [isPending, setIsPending] = useState(false);
-	const [hasFailed, setHasFailed] = useState(false);
 	const deleteConfirmation = useDeleteConfirmation({
 		onDelete: async () => {
 			if (!group) {
@@ -69,7 +70,6 @@ export function ViewGroupDialog({
 
 	async function handleSave() {
 		setIsPending(true);
-		setHasFailed(false);
 		try {
 			await saveGroup(group, name);
 			await queryClient.invalidateQueries({ queryKey: ["viewGroups"] });
@@ -78,7 +78,7 @@ export function ViewGroupDialog({
 			// These handlers are passed straight to onClick, so nothing downstream
 			// can catch for us. Staying open with the failure shown beats closing
 			// as though the group had been saved.
-			setHasFailed(true);
+			toast(t("viewGroups.actionFailed"), { variant: "destructive" });
 		} finally {
 			setIsPending(false);
 		}
@@ -109,11 +109,6 @@ export function ViewGroupDialog({
 						placeholder={t("viewGroups.namePlaceholder")}
 					/>
 				</div>
-				{hasFailed && (
-					<p role="alert" className="text-xs text-destructive">
-						{t("viewGroups.actionFailed")}
-					</p>
-				)}
 				<div className="flex items-center justify-between pt-2">
 					{group ? (
 						<DeleteButton
@@ -140,7 +135,6 @@ export function ViewGroupDialog({
 						name: group?.name ?? "",
 					})}
 					isDeleting={deleteConfirmation.isDeleting}
-					errorMessage={deleteConfirmation.errorMessage}
 					onCancel={deleteConfirmation.cancelDelete}
 					onConfirm={deleteConfirmation.confirmDelete}
 				/>

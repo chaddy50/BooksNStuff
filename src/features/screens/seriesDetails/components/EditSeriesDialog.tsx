@@ -3,6 +3,7 @@ import { Pencil } from "lucide-react";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { useToast } from "#/components/hooks/useToast";
 import { SaveAndCancelButtons } from "#/components/SaveAndCancelButtons";
 import { Button } from "#/components/ui/button";
 import {
@@ -29,10 +30,10 @@ interface EditSeriesDialogProps {
 export function EditSeriesDialog({ seriesDetails }: EditSeriesDialogProps) {
 	const { t } = useTranslation();
 	const router = useRouter();
+	const { toast } = useToast();
 
 	const [isOpen, setIsOpen] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 
 	const [name, setName] = useState(seriesDetails.name);
 	const [description, setDescription] = useState(
@@ -44,7 +45,6 @@ export function EditSeriesDialog({ seriesDetails }: EditSeriesDialogProps) {
 
 	async function handleSave() {
 		setIsSaving(true);
-		setError(null);
 		try {
 			await updateSeriesMetadata({
 				data: {
@@ -57,7 +57,9 @@ export function EditSeriesDialog({ seriesDetails }: EditSeriesDialogProps) {
 			router.invalidate();
 			setIsOpen(false);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to save changes.");
+			toast(err instanceof Error ? err.message : "Failed to save changes.", {
+				variant: "destructive",
+			});
 		} finally {
 			setIsSaving(false);
 		}
@@ -108,8 +110,6 @@ export function EditSeriesDialog({ seriesDetails }: EditSeriesDialogProps) {
 							</Label>
 						</div>
 					</div>
-
-					{error && <p className="text-sm text-destructive">{error}</p>}
 
 					<SaveAndCancelButtons
 						onSave={handleSave}

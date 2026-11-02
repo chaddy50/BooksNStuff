@@ -305,7 +305,6 @@ export function ViewScreen() {
 				title={t("views.deleteTitle")}
 				description={t("views.deleteDescription", { name: view.name })}
 				isDeleting={deleteConfirmation.isDeleting}
-				errorMessage={deleteConfirmation.errorMessage}
 				onCancel={deleteConfirmation.cancelDelete}
 				onConfirm={deleteConfirmation.confirmDelete}
 			/>

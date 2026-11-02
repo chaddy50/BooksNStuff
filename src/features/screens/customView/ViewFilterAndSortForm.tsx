@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { useToast } from "#/components/hooks/useToast";
 import type { FilterAndSortOptions, ViewSubject } from "#/database/schema";
 import { FilterAndSortActions } from "#/features/filterAndSort/components/FilterAndSortActions";
 import { Filters } from "#/features/filterAndSort/components/Filters";
@@ -31,10 +32,10 @@ export function ViewFilterAndSortForm({
 	onCancel,
 	onDelete,
 }: ViewFilterAndSortFormProps) {
+	const { toast } = useToast();
 	const [name, setName] = useState(initialName);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 	const { data: tagsList = [] } = useQuery({
 		queryKey: ["tags"],
 		queryFn: () => getTags(),
@@ -60,11 +61,12 @@ export function ViewFilterAndSortForm({
 
 	async function handleSubmit() {
 		setIsSubmitting(true);
-		setError(null);
 		try {
 			await onSubmit({ name, subject, filters: buildFilters() });
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to save changes.");
+			toast(err instanceof Error ? err.message : "Failed to save changes.", {
+				variant: "destructive",
+			});
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -73,11 +75,12 @@ export function ViewFilterAndSortForm({
 	async function handleDelete() {
 		if (!onDelete) return;
 		setIsDeleting(true);
-		setError(null);
 		try {
 			await onDelete();
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to delete view.");
+			toast(err instanceof Error ? err.message : "Failed to delete view.", {
+				variant: "destructive",
+			});
 		} finally {
 			setIsDeleting(false);
 		}
@@ -92,7 +95,6 @@ export function ViewFilterAndSortForm({
 			/>
 			<Filters {...filtersProps} />
 			<SortingOptions {...sortingProps} shouldAllowCustomOrder />
-			{error && <p className="text-sm text-destructive">{error}</p>}
 			<FilterAndSortActions
 				onSubmit={handleSubmit}
 				onCancel={onCancel}

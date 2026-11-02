@@ -26,6 +26,11 @@ vi.mock("#/features/screens/customView/viewGroup", () => ({
 	deleteViewGroup: vi.fn(),
 }));
 
+const toast = vi.fn();
+vi.mock("#/components/hooks/useToast", () => ({
+	useToast: () => ({ toast }),
+}));
+
 const createViewGroupMock = vi.mocked(createViewGroup);
 const renameViewGroupMock = vi.mocked(renameViewGroup);
 const deleteViewGroupMock = vi.mocked(deleteViewGroup);
@@ -166,8 +171,10 @@ describe("ViewGroupDialog", () => {
 			screen.getByRole("button", { name: "common.confirmDelete" }),
 		);
 
-		expect(await screen.findByRole("alert")).toHaveTextContent(
-			"viewGroups.deleteFailed",
+		await waitFor(() =>
+			expect(toast).toHaveBeenCalledWith("viewGroups.deleteFailed", {
+				variant: "destructive",
+			}),
 		);
 		expect(onClose).not.toHaveBeenCalled();
 	});
@@ -209,10 +216,10 @@ describe("ViewGroupDialog", () => {
 
 		// Closing as though it had saved would leave the user believing the group
 		// exists.
-		// A live region, since the message arrives after an await with focus
-		// still on the dialog's buttons.
-		expect(await screen.findByRole("alert")).toHaveTextContent(
-			"viewGroups.actionFailed",
+		await waitFor(() =>
+			expect(toast).toHaveBeenCalledWith("viewGroups.actionFailed", {
+				variant: "destructive",
+			}),
 		);
 		expect(onClose).not.toHaveBeenCalled();
 	});

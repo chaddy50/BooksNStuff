@@ -18,6 +18,11 @@ vi.mock("#/features/screens/settings/backup", () => ({
 	importBackup: vi.fn().mockResolvedValue(undefined),
 }));
 
+const toast = vi.fn();
+vi.mock("#/components/hooks/useToast", () => ({
+	useToast: () => ({ toast }),
+}));
+
 function setupFileReaderMock(content: string) {
 	vi.spyOn(window, "FileReader").mockImplementation(() => {
 		const reader: Partial<FileReader> = {
@@ -61,16 +66,17 @@ function triggerFileUpload(content: string) {
 afterEach(() => {
 	cleanup();
 	vi.restoreAllMocks();
+	toast.mockClear();
 });
 
 describe("BackupSection", () => {
-	it("shows a parse error when the uploaded file contains invalid JSON", async () => {
+	it("shows a destructive toast when the uploaded file contains invalid JSON", async () => {
 		renderBackupSection();
 		triggerFileUpload("not valid json {{{}");
 		await waitFor(() => {
-			expect(
-				screen.getByText("settings.backup.parseError"),
-			).toBeInTheDocument();
+			expect(toast).toHaveBeenCalledWith("settings.backup.parseError", {
+				variant: "destructive",
+			});
 		});
 	});
 
@@ -98,5 +104,23 @@ describe("BackupSection", () => {
 			"settings.backup.confirmDescription",
 		);
 		expect(description).not.toHaveClass("sr-only");
+	});
+
+	it("shows a success toast when confirming a restore succeeds", async () => {
+		renderBackupSection();
+		triggerFileUpload(JSON.stringify({ version: 1, items: [] }));
+		await waitFor(() => {
+			expect(
+				screen.getByText("settings.backup.confirmTitle"),
+			).toBeInTheDocument();
+		});
+
+		fireEvent.click(screen.getByText("settings.backup.confirm"));
+
+		await waitFor(() => {
+			expect(toast).toHaveBeenCalledWith("settings.backup.success", {
+				variant: "success",
+			});
+		});
 	});
 });

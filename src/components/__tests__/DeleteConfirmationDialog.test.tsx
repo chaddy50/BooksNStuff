@@ -12,7 +12,6 @@ const onConfirm = vi.fn();
 type DialogOverrides = {
 	isOpen?: boolean;
 	isDeleting?: boolean;
-	errorMessage?: string;
 };
 
 function renderDialog(overrides: DialogOverrides = {}) {
@@ -22,7 +21,6 @@ function renderDialog(overrides: DialogOverrides = {}) {
 			title="Delete this item?"
 			description="Remove it from your library."
 			isDeleting={overrides.isDeleting ?? false}
-			errorMessage={overrides.errorMessage}
 			onCancel={onCancel}
 			onConfirm={onConfirm}
 		/>,
@@ -88,19 +86,5 @@ describe("DeleteConfirmationDialog", () => {
 
 		fireEvent.click(confirmButton);
 		expect(onConfirm).not.toHaveBeenCalled();
-	});
-
-	it("renders the error message with an alert role when provided", () => {
-		renderDialog({ errorMessage: "Couldn't delete this item." });
-
-		expect(screen.getByRole("alert")).toHaveTextContent(
-			"Couldn't delete this item.",
-		);
-	});
-
-	it("renders no alert when no error message is provided", () => {
-		renderDialog();
-
-		expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 	});
 });

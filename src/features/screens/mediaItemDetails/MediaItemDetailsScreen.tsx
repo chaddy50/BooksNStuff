@@ -82,7 +82,6 @@ export function MediaItemDetailsScreen() {
 					title: mediaItemDetails.title,
 				})}
 				isDeleting={deleteConfirmation.isDeleting}
-				errorMessage={deleteConfirmation.errorMessage}
 				onCancel={deleteConfirmation.cancelDelete}
 				onConfirm={deleteConfirmation.confirmDelete}
 			/>

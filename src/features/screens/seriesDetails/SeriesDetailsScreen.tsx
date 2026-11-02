@@ -45,7 +45,6 @@ export function SeriesDetailsScreen() {
 					name: seriesDetails.name,
 				})}
 				isDeleting={deleteConfirmation.isDeleting}
-				errorMessage={deleteConfirmation.errorMessage}
 				onCancel={deleteConfirmation.cancelDelete}
 				onConfirm={deleteConfirmation.confirmDelete}
 			/>
