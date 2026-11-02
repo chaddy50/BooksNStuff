@@ -18,6 +18,7 @@ import type {
 	GenreDataPoint,
 	ReportDataPoint,
 } from "#/features/screens/reports/types";
+import type { MediaItemType } from "#/lib/enums";
 import { MAXIMUM_RATING } from "#/lib/rating";
 import { GenrePieChart } from "./GenrePieChart";
 import { GenrePieLegend } from "./GenrePieLegend";
@@ -139,9 +140,10 @@ function formatTooltipLabel(yearMonth: string): string {
 type Props = {
 	reportType: DashboardReportType;
 	data: ReportDataPoint[] | GenreDataPoint[] | AverageScoreDataPoint[];
+	itemTypes?: MediaItemType[];
 };
 
-export function ReportChart({ reportType, data }: Props) {
+export function ReportChart({ reportType, data, itemTypes = [] }: Props) {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 
@@ -149,7 +151,7 @@ export function ReportChart({ reportType, data }: Props) {
 		navigate({
 			to: "/reports/$reportType/drilldown",
 			params: { reportType },
-			search: { key },
+			search: itemTypes.length > 0 ? { key, itemTypes } : { key },
 		});
 	}
 
@@ -157,7 +159,10 @@ export function ReportChart({ reportType, data }: Props) {
 		navigate({
 			to: "/reports/$reportType/drilldown",
 			params: { reportType },
-			search: { key: label, genres: genreNames },
+			search:
+				itemTypes.length > 0
+					? { key: label, genres: genreNames, itemTypes }
+					: { key: label, genres: genreNames },
 		});
 	}
 

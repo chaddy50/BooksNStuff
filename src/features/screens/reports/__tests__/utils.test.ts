@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { MediaItemType } from "#/lib/enums";
 import {
 	applyInsightsDateRangeDefaults,
 	getDefaultInsightsDateRange,
 	INSIGHTS_DATE_RANGE_PRESETS,
+	isBookIncludedInItemTypes,
 	matchPreset,
 } from "../utils";
 
@@ -123,5 +125,23 @@ describe("matchPreset", () => {
 		expect(
 			matchPreset({ startDate: "2020-01-01", endDate: "2020-01-15" }),
 		).toBeNull();
+	});
+});
+
+describe("isBookIncludedInItemTypes", () => {
+	it("is true when no item types are selected (all types)", () => {
+		expect(isBookIncludedInItemTypes([])).toBe(true);
+	});
+
+	it("is true when book is among the selected types", () => {
+		expect(
+			isBookIncludedInItemTypes([MediaItemType.BOOK, MediaItemType.MOVIE]),
+		).toBe(true);
+	});
+
+	it("is false when types are selected and book is not among them", () => {
+		expect(
+			isBookIncludedInItemTypes([MediaItemType.MOVIE, MediaItemType.TV_SHOW]),
+		).toBe(false);
 	});
 });

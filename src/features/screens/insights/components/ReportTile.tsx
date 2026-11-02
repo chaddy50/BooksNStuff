@@ -6,14 +6,16 @@ import type {
 	GenreDataPoint,
 	ReportDataPoint,
 } from "#/features/screens/reports/types";
+import type { MediaItemType } from "#/lib/enums";
 import { ReportChart } from "./ReportChart";
 
 type Props = {
 	reportType: DashboardReportType;
 	data: ReportDataPoint[] | GenreDataPoint[] | AverageScoreDataPoint[];
+	itemTypes?: MediaItemType[];
 };
 
-export function ReportTile({ reportType, data }: Props) {
+export function ReportTile({ reportType, data, itemTypes }: Props) {
 	const { t } = useTranslation();
 
 	function title(): string {
@@ -36,7 +38,7 @@ export function ReportTile({ reportType, data }: Props) {
 			<h2 className="text-base font-semibold text-card-foreground mb-4">
 				{title()}
 			</h2>
-			<ReportChart reportType={reportType} data={data} />
+			<ReportChart reportType={reportType} data={data} itemTypes={itemTypes} />
 		</div>
 	);
 }

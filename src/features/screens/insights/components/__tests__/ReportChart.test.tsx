@@ -175,6 +175,24 @@ describe("ReportChart legend (items_completed_by_genre)", () => {
 		});
 	});
 
+	it("includes the active item type filter when navigating to drilldown", () => {
+		render(
+			<ReportChart
+				reportType="items_completed_by_genre"
+				data={fourGenreData()}
+				itemTypes={["book"]}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Fantasy" }));
+
+		expect(navigateSpy).toHaveBeenCalledWith({
+			to: "/reports/$reportType/drilldown",
+			params: { reportType: "items_completed_by_genre" },
+			search: { key: "Fantasy", genres: ["Fantasy"], itemTypes: ["book"] },
+		});
+	});
+
 	it("clicking the Other legend entry navigates with every grouped genre name", () => {
 		render(
 			<ReportChart
@@ -218,6 +236,33 @@ describe("ReportChart avg_score_by_genre axis", () => {
 		).map((tick) => tick.textContent);
 
 		expect(tickLabels).toEqual(["0", "1", "2", "3", "4", "5"]);
+	});
+});
+
+describe("ReportChart avg_score_by_genre drilldown navigation", () => {
+	it("includes the active item type filter when navigating from a bar", () => {
+		mockContainerWidth(600);
+		const scoreData: AverageScoreDataPoint[] = [
+			{ genre: "Fantasy", value: 4.3, count: 7 },
+		];
+
+		const { container } = render(
+			<ReportChart
+				reportType="avg_score_by_genre"
+				data={scoreData}
+				itemTypes={["movie"]}
+			/>,
+		);
+
+		const bar = container.querySelector(".recharts-bar-rectangle");
+		expect(bar).not.toBeNull();
+		fireEvent.click(bar as Element);
+
+		expect(navigateSpy).toHaveBeenCalledWith({
+			to: "/reports/$reportType/drilldown",
+			params: { reportType: "avg_score_by_genre" },
+			search: { key: "Fantasy", itemTypes: ["movie"] },
+		});
 	});
 });
 

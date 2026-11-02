@@ -16,6 +16,7 @@ import type {
 	BookConsumptionMethod,
 	GameControlMethod,
 	GamePlatform,
+	MediaItemType,
 	MovieConsumptionMethod,
 	TvShowConsumptionMethod,
 } from "#/lib/enums";
@@ -42,7 +43,12 @@ const updateUserSettingsInput = z.object({
 	defaultTvShowConsumptionMethod: z.string().nullish(),
 	defaultGamePlatform: z.string().nullish(),
 	defaultGameControlMethod: z.string().nullish(),
+	defaultInsightsItemTypes: z.array(z.string()).nullish(),
 });
+
+function toNullable<T>(value: T | null | undefined): T | null {
+	return value ?? null;
+}
 
 export const updateUserSettings = createServerFn({ method: "POST" })
 	.inputValidator(updateUserSettingsInput)
@@ -50,24 +56,36 @@ export const updateUserSettings = createServerFn({ method: "POST" })
 		const user = await getLoggedInUser();
 		const values = {
 			userId: user.id,
-			defaultLibrarySortBy: (data.defaultLibrarySortBy ??
-				null) as ItemSortField | null,
-			defaultLibrarySortDirection: (data.defaultLibrarySortDirection ??
-				null) as SortDirection | null,
-			defaultSeriesSortBy: (data.defaultSeriesSortBy ??
-				null) as SeriesSortField | null,
-			defaultSeriesSortDirection: (data.defaultSeriesSortDirection ??
-				null) as SortDirection | null,
-			defaultBookConsumptionMethod: (data.defaultBookConsumptionMethod ??
-				null) as BookConsumptionMethod | null,
-			defaultMovieConsumptionMethod: (data.defaultMovieConsumptionMethod ??
-				null) as MovieConsumptionMethod | null,
-			defaultTvShowConsumptionMethod: (data.defaultTvShowConsumptionMethod ??
-				null) as TvShowConsumptionMethod | null,
-			defaultGamePlatform: (data.defaultGamePlatform ??
-				null) as GamePlatform | null,
-			defaultGameControlMethod: (data.defaultGameControlMethod ??
-				null) as GameControlMethod | null,
+			defaultLibrarySortBy: toNullable(
+				data.defaultLibrarySortBy,
+			) as ItemSortField | null,
+			defaultLibrarySortDirection: toNullable(
+				data.defaultLibrarySortDirection,
+			) as SortDirection | null,
+			defaultSeriesSortBy: toNullable(
+				data.defaultSeriesSortBy,
+			) as SeriesSortField | null,
+			defaultSeriesSortDirection: toNullable(
+				data.defaultSeriesSortDirection,
+			) as SortDirection | null,
+			defaultBookConsumptionMethod: toNullable(
+				data.defaultBookConsumptionMethod,
+			) as BookConsumptionMethod | null,
+			defaultMovieConsumptionMethod: toNullable(
+				data.defaultMovieConsumptionMethod,
+			) as MovieConsumptionMethod | null,
+			defaultTvShowConsumptionMethod: toNullable(
+				data.defaultTvShowConsumptionMethod,
+			) as TvShowConsumptionMethod | null,
+			defaultGamePlatform: toNullable(
+				data.defaultGamePlatform,
+			) as GamePlatform | null,
+			defaultGameControlMethod: toNullable(
+				data.defaultGameControlMethod,
+			) as GameControlMethod | null,
+			defaultInsightsItemTypes: toNullable(data.defaultInsightsItemTypes) as
+				| MediaItemType[]
+				| null,
 		};
 		await db
 			.insert(userSettings)
@@ -84,6 +102,7 @@ export const updateUserSettings = createServerFn({ method: "POST" })
 					defaultTvShowConsumptionMethod: values.defaultTvShowConsumptionMethod,
 					defaultGamePlatform: values.defaultGamePlatform,
 					defaultGameControlMethod: values.defaultGameControlMethod,
+					defaultInsightsItemTypes: values.defaultInsightsItemTypes,
 				},
 			});
 	});
@@ -116,4 +135,11 @@ export function applySeriesSortDefaults(
 			settings?.defaultSeriesSortDirection ?? DEFAULT_SORT_DIRECTION,
 		...search,
 	};
+}
+
+export function resolveInsightsItemTypes(
+	search: { itemTypes?: MediaItemType[] },
+	settings: UserSettings | null,
+): MediaItemType[] {
+	return search.itemTypes ?? settings?.defaultInsightsItemTypes ?? [];
 }

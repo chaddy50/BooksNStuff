@@ -3,6 +3,7 @@ import type { UserSettings } from "#/database/schema";
 import {
 	applyLibrarySortDefaults,
 	applySeriesSortDefaults,
+	resolveInsightsItemTypes,
 } from "#/features/screens/settings/settings";
 
 describe("applyLibrarySortDefaults", () => {
@@ -117,5 +118,28 @@ describe("applySeriesSortDefaults", () => {
 		);
 		expect(result.sortBy).toBe("name");
 		expect(result.sortDirection).toBe("asc");
+	});
+});
+
+describe("resolveInsightsItemTypes", () => {
+	it("returns an empty array when neither search nor settings has a value", () => {
+		expect(resolveInsightsItemTypes({}, null)).toEqual([]);
+	});
+
+	it("uses the stored default when search has no itemTypes", () => {
+		const settings = { defaultInsightsItemTypes: ["book"] } as UserSettings;
+		expect(resolveInsightsItemTypes({}, settings)).toEqual(["book"]);
+	});
+
+	it("lets an explicit empty itemTypes in search override the stored default", () => {
+		const settings = { defaultInsightsItemTypes: ["book"] } as UserSettings;
+		expect(resolveInsightsItemTypes({ itemTypes: [] }, settings)).toEqual([]);
+	});
+
+	it("lets a non-empty itemTypes in search override the stored default", () => {
+		const settings = { defaultInsightsItemTypes: ["book"] } as UserSettings;
+		expect(
+			resolveInsightsItemTypes({ itemTypes: ["movie"] }, settings),
+		).toEqual(["movie"]);
 	});
 });
