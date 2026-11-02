@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 
+import { mediaTypeEnum } from "#/database/schema";
 import { getLoggedInUser } from "#/features/screens/auth/session";
 import { MediaItemType } from "#/lib/enums";
 import { getDrillDownItems } from "./drilldown/drilldown";
@@ -12,14 +14,21 @@ import {
 	type InsightsReport,
 	insightsDateRangeSchema,
 } from "./types";
+import { isBookIncludedInItemTypes } from "./utils";
 
 // ---- Exported server functions ----------------------------------------------
 
+const getInsightsReportsInput = insightsDateRangeSchema.required().extend({
+	itemTypes: z.array(z.enum(mediaTypeEnum.enumValues)).default([]),
+});
+
 export const getInsightsReports = createServerFn({ method: "GET" })
-	.inputValidator(insightsDateRangeSchema.required())
+	.inputValidator(getInsightsReportsInput)
 	.handler(async ({ data }): Promise<InsightsReport[]> => {
 		const user = await getLoggedInUser();
-		const { startDate, endDate } = data;
+		const { startDate, endDate, itemTypes } = data;
+		const typeFilter = itemTypes.length > 0 ? itemTypes : null;
+		const isBookIncluded = isBookIncludedInItemTypes(itemTypes);
 
 		const [
 			progressByMonth,
@@ -27,10 +36,12 @@ export const getInsightsReports = createServerFn({ method: "GET" })
 			itemsCompletedByGenre,
 			avgScoreByGenre,
 		] = await Promise.all([
-			fetchProgressByMonth(user.id, MediaItemType.BOOK, startDate, endDate),
-			fetchItemsCompletedByMonth(user.id, startDate, endDate, null),
-			fetchItemsCompletedByGenre(user.id, startDate, endDate, null),
-			fetchAverageScoreByGenre(user.id, startDate, endDate, null),
+			isBookIncluded
+				? fetchProgressByMonth(user.id, MediaItemType.BOOK, startDate, endDate)
+				: Promise.resolve([]),
+			fetchItemsCompletedByMonth(user.id, startDate, endDate, typeFilter),
+			fetchItemsCompletedByGenre(user.id, startDate, endDate, typeFilter),
+			fetchAverageScoreByGenre(user.id, startDate, endDate, typeFilter),
 		]);
 
 		const dataByReportType = {
@@ -40,7 +51,11 @@ export const getInsightsReports = createServerFn({ method: "GET" })
 			avg_score_by_genre: avgScoreByGenre,
 		};
 
-		return INSIGHTS_REPORT_TYPES.map((reportType) => ({
+		const reportTypes = isBookIncluded
+			? INSIGHTS_REPORT_TYPES
+			: INSIGHTS_REPORT_TYPES.filter((type) => type !== "progress_by_month");
+
+		return reportTypes.map((reportType) => ({
 			reportType,
 			data: dataByReportType[reportType],
 		}));

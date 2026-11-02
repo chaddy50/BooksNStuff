@@ -1,5 +1,16 @@
+import { MediaItemType } from "#/lib/enums";
 import { getLocalDateString } from "#/lib/utils";
 import type { InsightsDateRange } from "./types";
+
+/**
+ * "progress_by_month" only has a well-defined metric for one media type at a
+ * time (pages/episodes/hours differ), so it stays Book-only. It's relevant
+ * whenever Book is part of the effective selection — including "all types"
+ * (an empty selection), which implicitly includes Book.
+ */
+export function isBookIncludedInItemTypes(itemTypes: MediaItemType[]): boolean {
+	return itemTypes.length === 0 || itemTypes.includes(MediaItemType.BOOK);
+}
 
 export function getDefaultInsightsDateRange(): InsightsDateRange {
 	const today = new Date();

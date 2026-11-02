@@ -243,6 +243,9 @@ export const en = {
 	},
 	insights: {
 		title: "Insights",
+		itemTypeFilter: {
+			label: "Filter by type",
+		},
 		report: {
 			progressByMonth: "Pages Read by Month",
 			itemsCompletedByMonth: "Items Completed by Month",

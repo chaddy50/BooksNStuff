@@ -562,6 +562,9 @@ export const userSettings = pgTable("user_settings", {
 	defaultGameControlMethod: text(
 		"default_game_control_method",
 	).$type<GameControlMethod>(),
+	defaultInsightsItemTypes: mediaTypeEnum(
+		"default_insights_item_types",
+	).array(),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at")
 		.defaultNow()

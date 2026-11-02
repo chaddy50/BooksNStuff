@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+import { mediaTypeEnum } from "#/database/schema";
 import { getLoggedInUser } from "#/features/screens/auth/session";
 import { MediaItemType } from "#/lib/enums";
 import type { DashboardReportType, DrillDownItemsResult } from "../types";
@@ -15,6 +16,21 @@ const GENRE_REPORT_TYPES: readonly DashboardReportType[] = [
 	"avg_score_by_genre",
 ];
 
+/**
+ * "progress_by_month" is always Book-only (see isBookIncludedInItemTypes),
+ * so its drilldown stays pinned to Book regardless of the active filter.
+ * Every other report type passes the active filter straight through.
+ */
+export function resolveDrillDownTypeFilter(
+	reportType: DashboardReportType,
+	itemTypes?: MediaItemType[],
+): MediaItemType[] | null {
+	if (reportType === "progress_by_month") {
+		return [MediaItemType.BOOK];
+	}
+	return itemTypes && itemTypes.length > 0 ? itemTypes : null;
+}
+
 export const getDrillDownItems = createServerFn({ method: "GET" })
 	.inputValidator(
 		z.object({
@@ -26,10 +42,15 @@ export const getDrillDownItems = createServerFn({ method: "GET" })
 			]),
 			key: z.string(),
 			genres: z.array(z.string()).optional(),
+			itemTypes: z.array(z.enum(mediaTypeEnum.enumValues)).optional(),
 		}),
 	)
 	.handler(async ({ data }): Promise<DrillDownItemsResult> => {
 		const user = await getLoggedInUser();
+		const typeFilter = resolveDrillDownTypeFilter(
+			data.reportType,
+			data.itemTypes,
+		);
 
 		if (GENRE_REPORT_TYPES.includes(data.reportType)) {
 			const { startDate, endDate } = getYearToDateRange();
@@ -40,13 +61,9 @@ export const getDrillDownItems = createServerFn({ method: "GET" })
 				genreNames,
 				startDate,
 				endDate,
-				null,
+				typeFilter,
 			);
 		}
 
-		return fetchDrillDownItemsForMonth(
-			user.id,
-			data.key,
-			data.reportType === "progress_by_month" ? [MediaItemType.BOOK] : null,
-		);
+		return fetchDrillDownItemsForMonth(user.id, data.key, typeFilter);
 	});

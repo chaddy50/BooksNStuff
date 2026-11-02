@@ -1,0 +1,1 @@
+ALTER TABLE "user_settings" ADD COLUMN "default_insights_item_types" "media_type"[];
