@@ -11,7 +11,12 @@ vi.mock("#/features/screens/auth/session", () => ({
 }));
 
 import { eq } from "drizzle-orm";
-import { mediaItemInstances, mediaItems, series } from "#/database/schema";
+import {
+	mediaItemInstances,
+	mediaItemProgressUpdates,
+	mediaItems,
+	series,
+} from "#/database/schema";
 import { MediaItemStatus, MediaItemType } from "#/lib/enums";
 import { testDb } from "#/tests/integration/db";
 import {
@@ -828,6 +833,119 @@ describe("saveInstanceForUser / getMediaItemDetailsForUser progress", () => {
 		);
 
 		expect((await readItem(itemId))?.statusChangedAt).toBeNull();
+	});
+});
+
+describe("progress update history", () => {
+	async function progressUpdatesFor(instanceId: number) {
+		return testDb
+			.select()
+			.from(mediaItemProgressUpdates)
+			.where(eq(mediaItemProgressUpdates.mediaItemInstanceId, instanceId));
+	}
+
+	it("records a history row with the delta when progressPercent changes", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+			progressPercent: "10",
+		});
+
+		await saveInstanceForUser(
+			{ mediaItemId: itemId, instanceId, progressPercent: "35" },
+			USER_A,
+		);
+
+		const rows = await progressUpdatesFor(instanceId);
+		expect(rows).toHaveLength(1);
+		expect(Number(rows[0]?.progressPercentDelta)).toBe(25);
+	});
+
+	it("records no history row when progressPercent is saved unchanged", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+			progressPercent: "10",
+		});
+
+		await saveInstanceForUser(
+			{ mediaItemId: itemId, instanceId, progressPercent: "10" },
+			USER_A,
+		);
+
+		expect(await progressUpdatesFor(instanceId)).toHaveLength(0);
+	});
+
+	it("records a history row with the full value as the delta for a new instance's initial progress", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+		});
+
+		await saveInstanceForUser(
+			{ mediaItemId: itemId, startedAt: "2024-01-01", progressPercent: "15" },
+			USER_A,
+		);
+
+		const [instance] = await testDb
+			.select({ id: mediaItemInstances.id })
+			.from(mediaItemInstances)
+			.where(eq(mediaItemInstances.mediaItemId, itemId));
+		const rows = await progressUpdatesFor(instance?.id ?? -1);
+		expect(rows).toHaveLength(1);
+		expect(Number(rows[0]?.progressPercentDelta)).toBe(15);
+	});
+
+	it("records a history row for the remaining delta when completedAt is saved through the edit form", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+			progressPercent: "60",
+		});
+
+		await saveInstanceForUser(
+			{ mediaItemId: itemId, instanceId, completedAt: "2024-01-20" },
+			USER_A,
+		);
+
+		const rows = await progressUpdatesFor(instanceId);
+		expect(rows).toHaveLength(1);
+		expect(Number(rows[0]?.progressPercentDelta)).toBe(40);
+	});
+
+	it("records a history row for the remaining delta when completed via the status dropdown", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+			status: MediaItemStatus.IN_PROGRESS,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+			progressPercent: "60",
+		});
+
+		await updateMediaItemStatusForUser(
+			itemId,
+			MediaItemStatus.COMPLETED,
+			USER_A,
+		);
+
+		const rows = await progressUpdatesFor(instanceId);
+		expect(rows).toHaveLength(1);
+		expect(Number(rows[0]?.progressPercentDelta)).toBe(40);
 	});
 });
 

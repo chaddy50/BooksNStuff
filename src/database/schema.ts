@@ -473,6 +473,34 @@ export const mediaItemInstances = pgTable(
 );
 
 /**
+ * One row per real change to an instance's `progressPercent`, storing the
+ * signed delta (new value minus old value) rather than the absolute value, so
+ * monthly reports can sum deltas directly without looking up a "previous" row.
+ * `recordedAt` is a plain date (the caller's local date), not a timestamp —
+ * like `startedAt`/`completedAt`, it must not drift a day across a UTC
+ * boundary depending on the server's clock.
+ */
+export const mediaItemProgressUpdates = pgTable(
+	"media_item_progress_updates",
+	{
+		id: serial("id").primaryKey(),
+		mediaItemInstanceId: integer("media_item_instance_id")
+			.notNull()
+			.references(() => mediaItemInstances.id, { onDelete: "cascade" }),
+		progressPercentDelta: decimal("progress_percent_delta", {
+			precision: 7,
+			scale: 4,
+		}).notNull(),
+		recordedAt: date("recorded_at").notNull(),
+	},
+	(table) => [
+		index("media_item_progress_updates_mediaItemInstanceId_idx").on(
+			table.mediaItemInstanceId,
+		),
+	],
+);
+
+/**
  * User-defined tags for organizing media items.
  * Each tag is unique per user (name is case-sensitive).
  */

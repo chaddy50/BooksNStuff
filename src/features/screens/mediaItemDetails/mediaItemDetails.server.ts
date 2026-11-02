@@ -7,6 +7,7 @@ import {
 	type FictionRating,
 	genres,
 	mediaItemInstances,
+	mediaItemProgressUpdates,
 	mediaItems,
 	mediaItemTags,
 	type SeasonReview,
@@ -127,6 +128,25 @@ function undefinedToNull<T>(value: T | undefined): T | null {
 	return value ?? null;
 }
 
+/** Logs a history row for a real progressPercent change; a no-op save logs nothing. */
+async function recordProgressUpdate(
+	instanceId: number,
+	previousProgressPercent: string | null,
+	nextProgressPercent: string | null,
+	recordedAt: string,
+): Promise<void> {
+	const previous = parseProgressPercentColumn(previousProgressPercent) ?? 0;
+	const next = parseProgressPercentColumn(nextProgressPercent) ?? 0;
+	const delta = next - previous;
+	if (delta === 0) return;
+
+	await db.insert(mediaItemProgressUpdates).values({
+		mediaItemInstanceId: instanceId,
+		progressPercentDelta: delta.toString(),
+		recordedAt,
+	});
+}
+
 function buildInstanceValues(data: SaveInstanceInput) {
 	const completedAt = emptyToNull(data.completedAt);
 	return {
@@ -154,8 +174,19 @@ async function upsertInstance(
 	mediaItemId: number,
 	instanceId: number | undefined,
 	values: ReturnType<typeof buildInstanceValues>,
+	today: string,
 ): Promise<void> {
 	if (instanceId) {
+		const [existingInstance] = await db
+			.select({ progressPercent: mediaItemInstances.progressPercent })
+			.from(mediaItemInstances)
+			.where(
+				and(
+					eq(mediaItemInstances.id, instanceId),
+					eq(mediaItemInstances.mediaItemId, mediaItemId),
+				),
+			);
+
 		await db
 			.update(mediaItemInstances)
 			.set(values)
@@ -165,9 +196,28 @@ async function upsertInstance(
 					eq(mediaItemInstances.mediaItemId, mediaItemId),
 				),
 			);
+
+		await recordProgressUpdate(
+			instanceId,
+			existingInstance?.progressPercent ?? null,
+			values.progressPercent,
+			today,
+		);
 		return;
 	}
-	await db.insert(mediaItemInstances).values({ mediaItemId, ...values });
+
+	const [insertedInstance] = await db
+		.insert(mediaItemInstances)
+		.values({ mediaItemId, ...values })
+		.returning({ id: mediaItemInstances.id });
+	if (insertedInstance) {
+		await recordProgressUpdate(
+			insertedInstance.id,
+			null,
+			values.progressPercent,
+			today,
+		);
+	}
 }
 
 /** Writes an item's status, stamping statusChangedAt only when it actually changed. */
@@ -219,7 +269,13 @@ export async function saveInstanceForUser(
 		.where(and(eq(mediaItems.id, mediaItemId), eq(mediaItems.userId, userId)));
 	if (!item) throw new Error("Media item not found");
 
-	await upsertInstance(mediaItemId, instanceId, buildInstanceValues(data));
+	const today = resolveToday(data.today);
+	await upsertInstance(
+		mediaItemId,
+		instanceId,
+		buildInstanceValues(data),
+		today,
+	);
 
 	const instances = await db
 		.select({
@@ -230,13 +286,7 @@ export async function saveInstanceForUser(
 		.where(eq(mediaItemInstances.mediaItemId, mediaItemId));
 
 	const newStatus = inferStatusFromInstances(instances, item.status);
-	await writeItemStatus(
-		mediaItemId,
-		userId,
-		newStatus,
-		item.status,
-		resolveToday(data.today),
-	);
+	await writeItemStatus(mediaItemId, userId, newStatus, item.status, today);
 
 	return syncSeriesAfterItemStatusChange(
 		item.seriesId,
@@ -318,7 +368,10 @@ async function requireOwnedMediaItem(mediaItemId: number, userId: string) {
 
 async function findUnfinishedInstance(mediaItemId: number) {
 	const [instance] = await db
-		.select({ id: mediaItemInstances.id })
+		.select({
+			id: mediaItemInstances.id,
+			progressPercent: mediaItemInstances.progressPercent,
+		})
 		.from(mediaItemInstances)
 		.where(
 			and(
@@ -341,6 +394,12 @@ async function startInstanceIfNeeded(mediaItemId: number, today: string) {
 async function completeUnfinishedInstance(mediaItemId: number, today: string) {
 	const unfinishedInstance = await findUnfinishedInstance(mediaItemId);
 	if (!unfinishedInstance) return;
+	await recordProgressUpdate(
+		unfinishedInstance.id,
+		unfinishedInstance.progressPercent,
+		"100.0000",
+		today,
+	);
 	await db
 		.update(mediaItemInstances)
 		.set({ completedAt: today, progressPercent: "100.0000" })

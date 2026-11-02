@@ -94,6 +94,44 @@ export async function fetchDrillDownItemsForMonth(
 	return rows.rows.map(mapDrillDownRow);
 }
 
+export async function fetchDrillDownItemsForProgressUpdateMonth(
+	userId: string,
+	month: string, // "YYYY-MM"
+	mediaTypes?: MediaItemType[] | null,
+): Promise<DrillDownItem[]> {
+	const typeFilterSql = buildTypeFilterSql(mediaTypes);
+
+	const rows = await db.execute<DrillDownRow>(sql`
+		SELECT * FROM (
+			SELECT DISTINCT ON (mi.id)
+				mi.id,
+				mi.status,
+				mi.purchase_status,
+				mi.title,
+				mi.type,
+				mi.cover_image_url,
+				inst.rating,
+				inst.completed_at,
+				mi.expected_release_date,
+				mi.series_id,
+				s.name AS series_name,
+				upd.recorded_at AS last_progress_update_at
+			FROM media_item_progress_updates upd
+			JOIN media_item_instances inst ON upd.media_item_instance_id = inst.id
+			JOIN media_items mi ON inst.media_item_id = mi.id
+			LEFT JOIN series s ON mi.series_id = s.id
+			WHERE
+				mi.user_id = ${userId}
+				AND to_char(upd.recorded_at, 'YYYY-MM') = ${month}
+				${typeFilterSql}
+			ORDER BY mi.id, upd.recorded_at DESC
+		) sub
+		ORDER BY sub.last_progress_update_at DESC
+	`);
+
+	return rows.rows.map(mapDrillDownRow);
+}
+
 export async function fetchDrillDownItemsForGenre(
 	userId: string,
 	genreNames: string[],
