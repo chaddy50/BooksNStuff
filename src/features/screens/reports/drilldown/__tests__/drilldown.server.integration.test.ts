@@ -16,12 +16,14 @@ import {
 	insertGenre,
 	insertInstance,
 	insertMediaItem,
+	insertProgressUpdate,
 	insertSeries,
 	truncateAll,
 } from "#/tests/integration/helpers";
 import {
 	fetchDrillDownItemsForGenre,
 	fetchDrillDownItemsForMonth,
+	fetchDrillDownItemsForProgressUpdateMonth,
 } from "../drilldown.server";
 
 const USER = "test-user";
@@ -192,6 +194,162 @@ describe("fetchDrillDownItemsForMonth", () => {
 			expect(result[0].seriesName).toBeNull();
 			expect(result[0].seriesId).toBeNull();
 		});
+	});
+});
+
+// ---------------------------------------------------------------------------
+// fetchDrillDownItemsForProgressUpdateMonth
+// ---------------------------------------------------------------------------
+
+describe("fetchDrillDownItemsForProgressUpdateMonth", () => {
+	it("includes an item with a progress update in the month, even if not completed that month", async () => {
+		const itemId = await insertMediaItem({
+			type: MediaItemType.BOOK,
+			userId: USER,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-03-01",
+		});
+		await insertProgressUpdate({
+			mediaItemInstanceId: instanceId,
+			progressPercentDelta: "40",
+			recordedAt: "2024-03-10",
+		});
+
+		const result = await fetchDrillDownItemsForProgressUpdateMonth(
+			USER,
+			"2024-03",
+		);
+
+		expect(result).toHaveLength(1);
+		expect(result[0].id).toBe(itemId);
+	});
+
+	it("excludes an item completed in the month but with no progress update recorded that month", async () => {
+		const itemId = await insertMediaItem({
+			type: MediaItemType.BOOK,
+			userId: USER,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			completedAt: "2024-03-20",
+		});
+		await insertProgressUpdate({
+			mediaItemInstanceId: instanceId,
+			progressPercentDelta: "100",
+			recordedAt: "2024-02-01",
+		});
+
+		const result = await fetchDrillDownItemsForProgressUpdateMonth(
+			USER,
+			"2024-03",
+		);
+
+		expect(result).toHaveLength(0);
+	});
+
+	it("deduplicates an item with multiple progress updates in the same month", async () => {
+		const itemId = await insertMediaItem({
+			type: MediaItemType.BOOK,
+			userId: USER,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-03-01",
+		});
+		await insertProgressUpdate({
+			mediaItemInstanceId: instanceId,
+			progressPercentDelta: "20",
+			recordedAt: "2024-03-05",
+		});
+		await insertProgressUpdate({
+			mediaItemInstanceId: instanceId,
+			progressPercentDelta: "20",
+			recordedAt: "2024-03-15",
+		});
+
+		const result = await fetchDrillDownItemsForProgressUpdateMonth(
+			USER,
+			"2024-03",
+		);
+
+		expect(result).toHaveLength(1);
+	});
+
+	it("filters to the specified media type only", async () => {
+		const bookItemId = await insertMediaItem({
+			type: MediaItemType.BOOK,
+			userId: USER,
+		});
+		const movieItemId = await insertMediaItem({
+			type: MediaItemType.MOVIE,
+			userId: USER,
+		});
+		const bookInstanceId = await insertInstance({
+			mediaItemId: bookItemId,
+			startedAt: "2024-03-01",
+		});
+		const movieInstanceId = await insertInstance({
+			mediaItemId: movieItemId,
+			startedAt: "2024-03-01",
+		});
+		await insertProgressUpdate({
+			mediaItemInstanceId: bookInstanceId,
+			progressPercentDelta: "50",
+			recordedAt: "2024-03-10",
+		});
+		await insertProgressUpdate({
+			mediaItemInstanceId: movieInstanceId,
+			progressPercentDelta: "50",
+			recordedAt: "2024-03-10",
+		});
+
+		const result = await fetchDrillDownItemsForProgressUpdateMonth(
+			USER,
+			"2024-03",
+			[MediaItemType.BOOK],
+		);
+
+		expect(result).toHaveLength(1);
+		expect(result[0].type).toBe(MediaItemType.BOOK);
+	});
+
+	it("only returns items for the requesting user", async () => {
+		const userItemId = await insertMediaItem({
+			type: MediaItemType.BOOK,
+			userId: USER,
+		});
+		const otherItemId = await insertMediaItem({
+			type: MediaItemType.BOOK,
+			userId: OTHER_USER,
+		});
+		const userInstanceId = await insertInstance({
+			mediaItemId: userItemId,
+			startedAt: "2024-03-01",
+		});
+		const otherInstanceId = await insertInstance({
+			mediaItemId: otherItemId,
+			startedAt: "2024-03-01",
+		});
+		await insertProgressUpdate({
+			mediaItemInstanceId: userInstanceId,
+			progressPercentDelta: "50",
+			recordedAt: "2024-03-10",
+		});
+		await insertProgressUpdate({
+			mediaItemInstanceId: otherInstanceId,
+			progressPercentDelta: "50",
+			recordedAt: "2024-03-10",
+		});
+
+		const result = await fetchDrillDownItemsForProgressUpdateMonth(
+			USER,
+			"2024-03",
+		);
+
+		expect(result).toHaveLength(1);
+		expect(result[0].id).toBe(userItemId);
 	});
 });
 

@@ -7,6 +7,7 @@ import {
 	genres,
 	type ItemSortField,
 	mediaItemInstances,
+	mediaItemProgressUpdates,
 	mediaItemRelations,
 	mediaItems,
 	mediaItemTags,
@@ -56,6 +57,7 @@ export async function truncateAll() {
 	await testDb.execute(sql`
 		TRUNCATE
 			user_settings,
+			media_item_progress_updates,
 			media_item_instances,
 			media_item_tags,
 			media_item_relations,
@@ -160,6 +162,25 @@ export async function insertInstance(
 		.returning({ id: mediaItemInstances.id });
 
 	if (!row) throw new Error("insertInstance failed");
+	return row.id;
+}
+
+type InsertProgressUpdateOptions = {
+	mediaItemInstanceId: number;
+	progressPercentDelta: string;
+	recordedAt: string;
+};
+
+/** Inserts a `media_item_progress_updates` row and returns its id. */
+export async function insertProgressUpdate(
+	options: InsertProgressUpdateOptions,
+): Promise<number> {
+	const [row] = await testDb
+		.insert(mediaItemProgressUpdates)
+		.values(options)
+		.returning({ id: mediaItemProgressUpdates.id });
+
+	if (!row) throw new Error("insertProgressUpdate failed");
 	return row.id;
 }
 

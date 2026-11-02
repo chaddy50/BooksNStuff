@@ -37,6 +37,10 @@ export function getProgressByMonthSqlExpression(
 /**
  * Progress by month — metric adapts to the single media type.
  * See getProgressByMonthSqlExpression for the per-type logic.
+ *
+ * Each progress update contributes its own slice of the full metric,
+ * scaled by the percentage it moved and attributed to the month it was
+ * recorded — not the month the item was eventually completed.
  */
 export async function fetchProgressByMonth(
 	userId: string,
@@ -44,27 +48,22 @@ export async function fetchProgressByMonth(
 	startDate: string,
 	endDate: string,
 ): Promise<ReportDataPoint[]> {
-	// Per-item metric expression (no aggregation — used in the dedup subquery).
 	const progressByMonthExpression = getProgressByMonthSqlExpression(mediaType);
 
-	// Deduplicate per (mediaItemId, month) before summing so that re-completing
-	// the same item within a month doesn't double-count its metric — consistent
-	// with the drill-down which shows unique items.
 	const rows = await db.execute<{ month: string; value: number }>(sql`
-		SELECT month, COALESCE(ROUND(SUM(progressByMonth)), 0) AS value
+		SELECT month, COALESCE(GREATEST(ROUND(SUM(contribution)), 0), 0) AS value
 		FROM (
-			SELECT DISTINCT ON (mi.id, to_char(inst.completed_at, 'YYYY-MM'))
-				to_char(inst.completed_at, 'YYYY-MM') AS month,
-				${progressByMonthExpression} AS progressByMonth
-			FROM media_item_instances inst
+			SELECT
+				to_char(upd.recorded_at, 'YYYY-MM') AS month,
+				${progressByMonthExpression} * (upd.progress_percent_delta::float / 100.0) AS contribution
+			FROM media_item_progress_updates upd
+			JOIN media_item_instances inst ON upd.media_item_instance_id = inst.id
 			JOIN media_items mi ON inst.media_item_id = mi.id
 			WHERE
 				mi.user_id = ${userId}
 				AND mi.type = ${mediaType}
-				AND inst.completed_at IS NOT NULL
-				AND inst.completed_at >= ${startDate}
-				AND inst.completed_at <= ${endDate}
-			ORDER BY mi.id, to_char(inst.completed_at, 'YYYY-MM'), inst.completed_at DESC
+				AND upd.recorded_at >= ${startDate}
+				AND upd.recorded_at <= ${endDate}
 		) sub
 		GROUP BY month
 		ORDER BY month

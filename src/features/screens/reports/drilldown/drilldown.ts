@@ -9,6 +9,7 @@ import { getYearToDateRange } from "../utils.server";
 import {
 	fetchDrillDownItemsForGenre,
 	fetchDrillDownItemsForMonth,
+	fetchDrillDownItemsForProgressUpdateMonth,
 } from "./drilldown.server";
 
 const GENRE_REPORT_TYPES: readonly DashboardReportType[] = [
@@ -61,6 +62,14 @@ export const getDrillDownItems = createServerFn({ method: "GET" })
 				genreNames,
 				startDate,
 				endDate,
+				typeFilter,
+			);
+		}
+
+		if (data.reportType === "progress_by_month") {
+			return fetchDrillDownItemsForProgressUpdateMonth(
+				user.id,
+				data.key,
 				typeFilter,
 			);
 		}

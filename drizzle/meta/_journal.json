@@ -323,6 +323,20 @@
       "when": 1793587762719,
       "tag": "0045_first_warpath",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1793590846911,
+      "tag": "0046_fat_banshee",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1793590854810,
+      "tag": "0047_backfill_media_item_progress_updates",
+      "breakpoints": true
     }
   ]
 }
