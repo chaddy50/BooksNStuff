@@ -17,6 +17,11 @@ vi.mock("react-i18next", () => ({
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
 
+const toast = vi.fn();
+vi.mock("#/components/hooks/useToast", () => ({
+	useToast: () => ({ toast }),
+}));
+
 let view: {
 	id: number;
 	name: string;
@@ -1016,7 +1021,7 @@ describe("ViewScreen delete flow", () => {
 		expect(deleteView).toHaveBeenCalledWith({ data: { id: 1 } });
 	});
 
-	it("shows an error and does not go back when the delete fails", async () => {
+	it("shows a destructive toast and does not go back when the delete fails", async () => {
 		const { deleteView } = await import("#/features/screens/customView/view");
 		vi.mocked(deleteView).mockRejectedValue(new Error("network down"));
 		render(<ViewScreen />);
@@ -1024,7 +1029,11 @@ describe("ViewScreen delete flow", () => {
 		clickDeleteView();
 		confirmDelete();
 
-		await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+		await waitFor(() =>
+			expect(toast).toHaveBeenCalledWith("views.deleteFailed", {
+				variant: "destructive",
+			}),
+		);
 		expect(historyBack).not.toHaveBeenCalled();
 	});
 });

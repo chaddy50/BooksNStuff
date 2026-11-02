@@ -8,6 +8,7 @@ import {
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { useEffect } from "react";
 import { ThemeProvider } from "#/components/hooks/useTheme";
+import { ToastProvider } from "#/components/hooks/useToast";
 import { TooltipProvider } from "#/components/ui/tooltip";
 import { ErrorScreen } from "#/features/screens/error/ErrorScreen";
 import { NotFoundScreen } from "#/features/screens/notFound/NotFoundScreen";
@@ -126,11 +127,13 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 	);
 }
 
-function AppProviders({ children }: { children: React.ReactNode }) {
+export function AppProviders({ children }: { children: React.ReactNode }) {
 	return (
 		<ThemeProvider>
 			<TanStackQueryProvider>
-				<TooltipProvider>{children}</TooltipProvider>
+				<TooltipProvider>
+					<ToastProvider>{children}</ToastProvider>
+				</TooltipProvider>
 			</TanStackQueryProvider>
 		</ThemeProvider>
 	);

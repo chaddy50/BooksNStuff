@@ -10,16 +10,11 @@ vi.mock("react-i18next", () => ({
 const onConfirmStatus = vi.fn();
 
 function renderButton(
-	overrides: {
-		disabled?: boolean;
-		errorMessage?: string;
-		status?: MediaItemStatus;
-	} = {},
+	overrides: { disabled?: boolean; status?: MediaItemStatus } = {},
 ) {
 	return render(
 		<SetOtherStatusButton
 			disabled={overrides.disabled ?? false}
-			errorMessage={overrides.errorMessage}
 			status={overrides.status ?? MediaItemStatus.IN_PROGRESS}
 			onConfirmStatus={onConfirmStatus}
 		/>,
@@ -91,22 +86,6 @@ describe("SetOtherStatusButton", () => {
 		).not.toBeInTheDocument();
 	});
 
-	it("renders the error message with an alert role when provided", () => {
-		renderButton({ errorMessage: "Couldn't update the status." });
-		fireEvent.click(screen.getByText("mediaItemDetails.setOtherStatus"));
-
-		expect(screen.getByRole("alert")).toHaveTextContent(
-			"Couldn't update the status.",
-		);
-	});
-
-	it("renders no alert when no error message is provided", () => {
-		renderButton();
-		fireEvent.click(screen.getByText("mediaItemDetails.setOtherStatus"));
-
-		expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-	});
-
 	it("shows a Resume button instead of Set Other Status while on hold", () => {
 		renderButton({ status: MediaItemStatus.ON_HOLD });
 
@@ -129,17 +108,6 @@ describe("SetOtherStatusButton", () => {
 		renderButton({ status: MediaItemStatus.ON_HOLD, disabled: true });
 
 		expect(screen.getByText("mediaItemDetails.resume")).toBeDisabled();
-	});
-
-	it("shows the error message next to Resume without needing a dialog", () => {
-		renderButton({
-			status: MediaItemStatus.ON_HOLD,
-			errorMessage: "Couldn't update the status.",
-		});
-
-		expect(screen.getByRole("alert")).toHaveTextContent(
-			"Couldn't update the status.",
-		);
 	});
 
 	it("shows a Resume button instead of Set Other Status while dropped", () => {

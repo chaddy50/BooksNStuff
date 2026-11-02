@@ -2,6 +2,7 @@ import { useRouter } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useToast } from "#/components/hooks/useToast";
 import { SaveAndCancelButtons } from "#/components/SaveAndCancelButtons";
 import { Button } from "#/components/ui/button";
 import {
@@ -46,15 +47,43 @@ interface EditMetadataDialogProps {
 	) => void;
 }
 
+function resolveSeriesSelection(seriesFieldValue: SeriesFieldValue) {
+	return {
+		seriesId:
+			seriesFieldValue.mode === "existing" ? seriesFieldValue.seriesId : null,
+		newSeriesName:
+			seriesFieldValue.mode === "new"
+				? seriesFieldValue.name.trim()
+				: undefined,
+	};
+}
+
+function resolveCreatorSelection(creatorFieldValue: CreatorFieldValue) {
+	return {
+		creatorId:
+			creatorFieldValue.mode === "existing"
+				? creatorFieldValue.creatorId
+				: null,
+		newCreatorName:
+			creatorFieldValue.mode === "new"
+				? creatorFieldValue.name.trim()
+				: undefined,
+	};
+}
+
+function resolveGenreName(genreFieldValue: GenreFieldValue) {
+	return genreFieldValue.mode === "set" ? genreFieldValue.name.trim() : null;
+}
+
 export function EditMetadataDialog(props: EditMetadataDialogProps) {
 	const { mediaItemDetails, onSeriesCompletionNeeded } = props;
 	const { t } = useTranslation();
 	const router = useRouter();
+	const { toast } = useToast();
 
 	const [isOpen, setIsOpen] = useState(false);
 	const [isArcDialogOpen, setIsArcDialogOpen] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 
 	const rawMetadata = (mediaItemDetails.metadata ?? {}) as Record<
 		string,
@@ -109,7 +138,6 @@ export function EditMetadataDialog(props: EditMetadataDialogProps) {
 
 	async function handleSave() {
 		setIsSaving(true);
-		setError(null);
 		try {
 			await updateMediaItemMetadata({
 				data: {
@@ -126,14 +154,7 @@ export function EditMetadataDialog(props: EditMetadataDialogProps) {
 				data: {
 					mediaItemId: mediaItemDetails.id,
 					type: mediaItemDetails.type,
-					seriesId:
-						seriesFieldValue.mode === "existing"
-							? seriesFieldValue.seriesId
-							: null,
-					newSeriesName:
-						seriesFieldValue.mode === "new"
-							? seriesFieldValue.name.trim()
-							: undefined,
+					...resolveSeriesSelection(seriesFieldValue),
 				},
 			});
 
@@ -141,22 +162,14 @@ export function EditMetadataDialog(props: EditMetadataDialogProps) {
 				data: {
 					mediaItemId: mediaItemDetails.id,
 					type: mediaItemDetails.type,
-					creatorId:
-						creatorFieldValue.mode === "existing"
-							? creatorFieldValue.creatorId
-							: null,
-					newCreatorName:
-						creatorFieldValue.mode === "new"
-							? creatorFieldValue.name.trim()
-							: undefined,
+					...resolveCreatorSelection(creatorFieldValue),
 				},
 			});
 
 			await saveMediaItemGenre({
 				data: {
 					mediaItemId: mediaItemDetails.id,
-					genreName:
-						genreFieldValue.mode === "set" ? genreFieldValue.name.trim() : null,
+					genreName: resolveGenreName(genreFieldValue),
 				},
 			});
 
@@ -167,7 +180,9 @@ export function EditMetadataDialog(props: EditMetadataDialogProps) {
 			router.invalidate();
 			setIsOpen(false);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to save changes.");
+			toast(err instanceof Error ? err.message : "Failed to save changes.", {
+				variant: "destructive",
+			});
 		} finally {
 			setIsSaving(false);
 		}
@@ -307,8 +322,6 @@ export function EditMetadataDialog(props: EditMetadataDialogProps) {
 							onPendingTagsChange={setPendingTags}
 						/>
 					</div>
-
-					{error && <p className="text-sm text-destructive">{error}</p>}
 
 					<SaveAndCancelButtons
 						onSave={handleSave}

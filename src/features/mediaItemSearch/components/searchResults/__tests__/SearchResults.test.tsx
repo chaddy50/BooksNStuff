@@ -17,6 +17,10 @@ vi.mock("@tanstack/react-router", () => ({
 	useNavigate: () => () => {},
 }));
 
+vi.mock("#/components/hooks/useToast", () => ({
+	useToast: () => ({ toast: vi.fn() }),
+}));
+
 const baseProps = {
 	isSearching: false,
 	query: "",

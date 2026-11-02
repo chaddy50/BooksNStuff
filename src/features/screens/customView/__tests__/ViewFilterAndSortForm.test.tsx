@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ViewFilterAndSortForm } from "../ViewFilterAndSortForm";
@@ -13,6 +13,11 @@ vi.mock("@tanstack/react-query", () => ({
 
 vi.mock("#/lib/tags", () => ({ getTags: vi.fn() }));
 vi.mock("#/lib/genres/genres", () => ({ getGenres: vi.fn() }));
+
+const toast = vi.fn();
+vi.mock("#/components/hooks/useToast", () => ({
+	useToast: () => ({ toast }),
+}));
 
 let capturedSortingOptionsProps: Record<string, unknown> | null = null;
 vi.mock("#/features/filterAndSort/components/SortingOptions", () => ({
@@ -43,6 +48,7 @@ afterEach(() => {
 	capturedSortingOptionsProps = null;
 	capturedFilterAndSortActionsProps = null;
 	cleanup();
+	vi.clearAllMocks();
 });
 
 describe("ViewFilterAndSortForm", () => {
@@ -52,7 +58,7 @@ describe("ViewFilterAndSortForm", () => {
 		expect(capturedSortingOptionsProps?.shouldAllowCustomOrder).toBe(true);
 	});
 
-	it("shows an error message when saving fails", async () => {
+	it("shows a destructive toast with the failure message when saving fails", async () => {
 		const onSubmit = vi.fn().mockRejectedValue(new Error("Network error"));
 		render(<ViewFilterAndSortForm onSubmit={onSubmit} onCancel={vi.fn()} />);
 
@@ -62,10 +68,12 @@ describe("ViewFilterAndSortForm", () => {
 			)();
 		});
 
-		expect(screen.getByText("Network error")).toBeInTheDocument();
+		expect(toast).toHaveBeenCalledWith("Network error", {
+			variant: "destructive",
+		});
 	});
 
-	it("shows an error message when deleting fails", async () => {
+	it("shows a destructive toast with the failure message when deleting fails", async () => {
 		const onDelete = vi.fn().mockRejectedValue(new Error("Could not delete"));
 		render(
 			<ViewFilterAndSortForm
@@ -81,6 +89,8 @@ describe("ViewFilterAndSortForm", () => {
 			)();
 		});
 
-		expect(screen.getByText("Could not delete")).toBeInTheDocument();
+		expect(toast).toHaveBeenCalledWith("Could not delete", {
+			variant: "destructive",
+		});
 	});
 });

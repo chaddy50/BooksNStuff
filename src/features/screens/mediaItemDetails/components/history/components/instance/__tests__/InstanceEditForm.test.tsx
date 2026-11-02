@@ -25,6 +25,11 @@ vi.mock("#/components/hooks/useUserSettings", () => ({
 	useUserSettings: vi.fn(),
 }));
 
+const toast = vi.fn();
+vi.mock("#/components/hooks/useToast", () => ({
+	useToast: () => ({ toast }),
+}));
+
 const baseProps = {
 	mediaItemId: 1,
 	mediaItemType: MediaItemType.BOOK,
@@ -59,6 +64,7 @@ function fictionRating(): FictionRating {
 
 afterEach(cleanup);
 beforeEach(async () => {
+	toast.mockClear();
 	const { useUserSettings } = await import(
 		"#/components/hooks/useUserSettings"
 	);
@@ -820,7 +826,7 @@ describe("InstanceEditForm", () => {
 		expect(updateMediaItemStatus).not.toHaveBeenCalled();
 	});
 
-	it("shows an error and does not close when setting the other status fails", async () => {
+	it("shows a destructive toast and does not close when setting the other status fails", async () => {
 		const { updateMediaItemStatus } = await import(
 			"#/features/screens/mediaItemDetails/mediaItemDetails"
 		);
@@ -840,8 +846,9 @@ describe("InstanceEditForm", () => {
 		fireEvent.click(screen.getByText("status.on_hold"));
 
 		await vi.waitFor(() =>
-			expect(screen.getByRole("alert")).toHaveTextContent(
+			expect(toast).toHaveBeenCalledWith(
 				"mediaItemDetails.setOtherStatusFailed",
+				{ variant: "destructive" },
 			),
 		);
 		expect(onSave).not.toHaveBeenCalled();

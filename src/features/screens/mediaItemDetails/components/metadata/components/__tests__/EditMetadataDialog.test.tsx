@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MediaItemType } from "#/lib/enums";
@@ -10,6 +16,25 @@ vi.mock("react-i18next", () => ({
 
 vi.mock("@tanstack/react-router", () => ({
 	useRouter: () => ({ invalidate: vi.fn() }),
+}));
+
+vi.mock("#/features/screens/mediaItemDetails/mediaItemDetails", () => ({
+	updateMediaItemMetadata: vi.fn().mockResolvedValue(undefined),
+	updateMediaItemSeries: vi.fn().mockResolvedValue(undefined),
+	updateMediaItemCreator: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("#/lib/genres/genres", () => ({
+	saveMediaItemGenre: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("#/lib/tags", () => ({
+	saveMediaItemTags: vi.fn().mockResolvedValue(undefined),
+}));
+
+const toast = vi.fn();
+vi.mock("#/components/hooks/useToast", () => ({
+	useToast: () => ({ toast }),
 }));
 
 vi.mock("#/features/mediaItemSearch/components/PodcastArcPickerDialog", () => ({
@@ -47,7 +72,10 @@ const baseMediaItemDetails = {
 
 const mediaItemDetails = baseMediaItemDetails;
 
-afterEach(cleanup);
+afterEach(() => {
+	cleanup();
+	vi.clearAllMocks();
+});
 
 describe("EditMetadataDialog", () => {
 	it("shows an Edit trigger with an accessible name", () => {
@@ -124,5 +152,33 @@ describe("EditMetadataDialog", () => {
 		expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
 			"mediaItemDetails.editMetadataDescription",
 		);
+	});
+
+	it("shows a destructive toast with the failure message and stays open when a chained update rejects", async () => {
+		const { updateMediaItemMetadata } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		vi.mocked(updateMediaItemMetadata).mockRejectedValueOnce(
+			new Error("Title is required."),
+		);
+
+		render(
+			<EditMetadataDialog
+				mediaItemDetails={mediaItemDetails}
+				onSeriesCompletionNeeded={vi.fn()}
+			/>,
+		);
+
+		fireEvent.click(
+			screen.getByRole("button", { name: "mediaItemDetails.edit" }),
+		);
+		fireEvent.click(screen.getByText("common.save"));
+
+		await waitFor(() =>
+			expect(toast).toHaveBeenCalledWith("Title is required.", {
+				variant: "destructive",
+			}),
+		);
+		expect(screen.getByRole("dialog")).toBeInTheDocument();
 	});
 });

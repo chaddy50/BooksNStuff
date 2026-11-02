@@ -14,21 +14,12 @@ interface DeleteConfirmationDialogProps {
 	title: string;
 	description: string;
 	isDeleting: boolean;
-	errorMessage?: string;
 	onCancel: () => void;
 	onConfirm: () => void;
 }
 
 export function DeleteConfirmationDialog(props: DeleteConfirmationDialogProps) {
-	const {
-		isOpen,
-		title,
-		description,
-		isDeleting,
-		errorMessage,
-		onCancel,
-		onConfirm,
-	} = props;
+	const { isOpen, title, description, isDeleting, onCancel, onConfirm } = props;
 	const { t } = useTranslation();
 
 	return (
@@ -45,12 +36,6 @@ export function DeleteConfirmationDialog(props: DeleteConfirmationDialogProps) {
 					<DialogTitle>{title}</DialogTitle>
 					<DialogDescription>{description}</DialogDescription>
 				</DialogHeader>
-
-				{errorMessage && (
-					<p role="alert" className="text-xs text-destructive">
-						{errorMessage}
-					</p>
-				)}
 
 				<DialogFooter className="pt-2">
 					<Button variant="outline" onClick={onCancel} disabled={isDeleting}>

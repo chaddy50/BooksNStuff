@@ -6,6 +6,11 @@ vi.mock("react-i18next", () => ({
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
 
+const toast = vi.fn();
+vi.mock("#/components/hooks/useToast", () => ({
+	useToast: () => ({ toast }),
+}));
+
 const navigate = vi.fn();
 const invalidate = vi.fn();
 let searchParams: { tab?: string } = {};
@@ -258,7 +263,7 @@ describe("MediaItemDetailsScreen", () => {
 		await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/" }));
 	});
 
-	it("shows an error and does not navigate when the delete fails", async () => {
+	it("shows a destructive toast and does not navigate when the delete fails", async () => {
 		const { removeFromLibrary } = await import(
 			"#/features/screens/mediaItemDetails/mediaItemDetails"
 		);
@@ -269,7 +274,9 @@ describe("MediaItemDetailsScreen", () => {
 		confirmDelete();
 
 		await vi.waitFor(() =>
-			expect(screen.getByRole("alert")).toBeInTheDocument(),
+			expect(toast).toHaveBeenCalledWith("mediaItemDetails.deleteFailed", {
+				variant: "destructive",
+			}),
 		);
 		expect(navigate).not.toHaveBeenCalledWith({ to: "/" });
 	});

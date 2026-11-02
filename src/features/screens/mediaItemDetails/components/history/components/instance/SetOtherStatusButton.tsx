@@ -14,14 +14,12 @@ import { MediaItemStatus } from "#/lib/enums";
 
 interface SetOtherStatusButtonProps {
 	disabled: boolean;
-	errorMessage?: string;
 	status: MediaItemStatus;
 	onConfirmStatus: (status: MediaItemStatus) => void;
 }
 
 export function SetOtherStatusButton({
 	disabled,
-	errorMessage,
 	status,
 	onConfirmStatus,
 }: SetOtherStatusButtonProps) {
@@ -43,11 +41,6 @@ export function SetOtherStatusButton({
 				>
 					{t("mediaItemDetails.resume")}
 				</Button>
-				{errorMessage && (
-					<p role="alert" className="text-xs text-destructive">
-						{errorMessage}
-					</p>
-				)}
 			</div>
 		);
 	}
@@ -71,11 +64,6 @@ export function SetOtherStatusButton({
 						{t("mediaItemDetails.setOtherStatusDescription")}
 					</DialogDescription>
 				</DialogHeader>
-				{errorMessage && (
-					<p role="alert" className="text-xs text-destructive">
-						{errorMessage}
-					</p>
-				)}
 				<DialogFooter className="pt-2">
 					<Button
 						variant="outline"

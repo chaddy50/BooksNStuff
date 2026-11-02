@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useToast } from "#/components/hooks/useToast";
 import { Button } from "#/components/ui/button";
 import {
 	Dialog,
@@ -18,6 +19,7 @@ import {
 
 export function BackupSection() {
 	const { t } = useTranslation();
+	const { toast } = useToast();
 	const queryClient = useQueryClient();
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -25,8 +27,6 @@ export function BackupSection() {
 	const [isImporting, setIsImporting] = useState(false);
 	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 	const [pendingBackup, setPendingBackup] = useState<BackupData | null>(null);
-	const [parseError, setParseError] = useState<string | null>(null);
-	const [importSuccess, setImportSuccess] = useState(false);
 
 	async function handleExport() {
 		setIsExporting(true);
@@ -50,8 +50,6 @@ export function BackupSection() {
 		if (!file) {
 			return;
 		}
-		setParseError(null);
-		setImportSuccess(false);
 
 		const reader = new FileReader();
 		reader.onload = (readerEvent) => {
@@ -60,7 +58,7 @@ export function BackupSection() {
 				setPendingBackup(parsed as BackupData);
 				setIsConfirmOpen(true);
 			} catch {
-				setParseError(t("settings.backup.parseError"));
+				toast(t("settings.backup.parseError"), { variant: "destructive" });
 			}
 		};
 		reader.readAsText(file);
@@ -79,7 +77,7 @@ export function BackupSection() {
 			await queryClient.invalidateQueries();
 			setIsConfirmOpen(false);
 			setPendingBackup(null);
-			setImportSuccess(true);
+			toast(t("settings.backup.success"), { variant: "success" });
 		} finally {
 			setIsImporting(false);
 		}
@@ -121,11 +119,6 @@ export function BackupSection() {
 					onChange={handleFileChange}
 				/>
 			</div>
-
-			{parseError && <p className="text-sm text-destructive">{parseError}</p>}
-			{importSuccess && (
-				<p className="text-sm text-green-600">{t("settings.backup.success")}</p>
-			)}
 
 			<Dialog
 				open={isConfirmOpen}

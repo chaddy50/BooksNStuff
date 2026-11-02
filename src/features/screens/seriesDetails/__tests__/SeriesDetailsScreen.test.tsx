@@ -26,6 +26,11 @@ vi.mock("#/features/screens/seriesDetails/seriesDetails", () => ({
 	deleteSeries: vi.fn(),
 }));
 
+const toast = vi.fn();
+vi.mock("#/components/hooks/useToast", () => ({
+	useToast: () => ({ toast }),
+}));
+
 vi.mock("#/features/navigation/topBar/TopBar", () => ({
 	TopBar: (props: { right?: React.ReactNode }) => <div>{props.right}</div>,
 }));
@@ -140,7 +145,7 @@ describe("SeriesDetailsScreen", () => {
 		expect(deleteSeries).toHaveBeenCalledWith({ data: { seriesId: 12 } });
 	});
 
-	it("shows an error and does not navigate when the delete fails", async () => {
+	it("shows a destructive toast and does not navigate when the delete fails", async () => {
 		const { deleteSeries } = await import(
 			"#/features/screens/seriesDetails/seriesDetails"
 		);
@@ -151,7 +156,9 @@ describe("SeriesDetailsScreen", () => {
 		confirmDelete();
 
 		await vi.waitFor(() =>
-			expect(screen.getByRole("alert")).toBeInTheDocument(),
+			expect(toast).toHaveBeenCalledWith("seriesDetails.deleteFailed", {
+				variant: "destructive",
+			}),
 		);
 		expect(navigate).not.toHaveBeenCalledWith({ to: "/" });
 	});

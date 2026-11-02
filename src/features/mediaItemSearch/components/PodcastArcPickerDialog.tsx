@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useToast } from "#/components/hooks/useToast";
 import { SaveAndCancelButtons } from "#/components/SaveAndCancelButtons";
 import { Button } from "#/components/ui/button";
 import {
@@ -57,6 +58,7 @@ export function PodcastArcPickerDialog(props: PodcastArcPickerDialogProps) {
 	const { isOpen, onClose } = props;
 	const { t } = useTranslation();
 	const navigate = useNavigate();
+	const { toast } = useToast();
 
 	const isEditMode = props.mode === "edit";
 	const feedUrl = isEditMode
@@ -76,7 +78,6 @@ export function PodcastArcPickerDialog(props: PodcastArcPickerDialogProps) {
 	const [arcTitle, setArcTitle] = useState("");
 	const [status, setStatus] = useState<string>(MediaItemStatus.BACKLOG);
 	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [submitError, setSubmitError] = useState<string | null>(null);
 
 	const [isSubscriberFeedExpanded, setIsSubscriberFeedExpanded] =
 		useState(false);
@@ -96,7 +97,6 @@ export function PodcastArcPickerDialog(props: PodcastArcPickerDialogProps) {
 		setArcTitle(currentArcTitle ?? "");
 		setStatus(MediaItemStatus.BACKLOG);
 		setLoadError(null);
-		setSubmitError(null);
 		setIsFewEpisodes(false);
 		setIsSubscriberFeedExpanded(false);
 		setSubscriberFeedUrl("");
@@ -268,7 +268,6 @@ export function PodcastArcPickerDialog(props: PodcastArcPickerDialogProps) {
 
 		if (!isEditMode) {
 			setIsSubmitting(true);
-			setSubmitError(null);
 			try {
 				const { mediaItemId } = await addPodcastArc({
 					data: {
@@ -285,7 +284,7 @@ export function PodcastArcPickerDialog(props: PodcastArcPickerDialogProps) {
 					params: { mediaItemId: String(mediaItemId) },
 				});
 			} catch {
-				setSubmitError(t("podcast.addArcError"));
+				toast(t("podcast.addArcError"), { variant: "destructive" });
 			} finally {
 				setIsSubmitting(false);
 			}
@@ -467,10 +466,6 @@ export function PodcastArcPickerDialog(props: PodcastArcPickerDialogProps) {
 								</SelectContent>
 							</Select>
 						</FormField>
-					)}
-
-					{submitError && (
-						<p className="text-sm text-destructive">{submitError}</p>
 					)}
 
 					<SaveAndCancelButtons

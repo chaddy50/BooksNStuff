@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CreateCustomItemDialog } from "#/features/mediaItemSearch/components/CreateCustomItemDialog";
 import { MediaItemType } from "#/lib/enums";
@@ -17,8 +23,26 @@ vi.mock("#/features/mediaItemSearch/mediaItemSearch", () => ({
 	createCustomItem: vi.fn(),
 }));
 
-afterEach(cleanup);
-afterEach(() => navigate.mockClear());
+const toast = vi.fn();
+vi.mock("#/components/hooks/useToast", () => ({
+	useToast: () => ({ toast }),
+}));
+
+afterEach(() => {
+	cleanup();
+	vi.clearAllMocks();
+});
+
+function fillRequiredFieldsAndSubmit() {
+	fireEvent.change(screen.getByPlaceholderText("Title"), {
+		target: { value: "Dune" },
+	});
+	fireEvent.click(screen.getByRole("combobox"));
+	fireEvent.click(screen.getByText("mediaType.movie"));
+	fireEvent.click(
+		screen.getByRole("button", { name: "search.createCustomTitle" }),
+	);
+}
 
 describe("CreateCustomItemDialog", () => {
 	it("gives the dialog an accessible description", () => {
@@ -55,5 +79,26 @@ describe("CreateCustomItemDialog", () => {
 				state: { genreSuggestions: [] },
 			}),
 		);
+	});
+
+	it("shows a destructive toast with the failure message and stays open when createCustomItem rejects", async () => {
+		const { createCustomItem } = await import(
+			"#/features/mediaItemSearch/mediaItemSearch"
+		);
+		vi.mocked(createCustomItem).mockRejectedValue(
+			new Error("Title already exists."),
+		);
+		const onClose = vi.fn();
+
+		render(<CreateCustomItemDialog isOpen onClose={onClose} />);
+
+		fillRequiredFieldsAndSubmit();
+
+		await waitFor(() =>
+			expect(toast).toHaveBeenCalledWith("Title already exists.", {
+				variant: "destructive",
+			}),
+		);
+		expect(onClose).not.toHaveBeenCalled();
 	});
 });
