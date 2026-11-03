@@ -12,7 +12,12 @@ import {
 } from "drizzle-orm";
 
 import { db } from "#/database/index";
-import { mediaItemInstances, mediaItems, series } from "#/database/schema";
+import {
+	mediaItemInstances,
+	mediaItems,
+	nextUpItemOrder,
+	series,
+} from "#/database/schema";
 import { MediaItemStatus } from "#/lib/enums";
 import { fetchCurrentProgressByMediaItemId } from "#/lib/queries/progressQuery.server";
 import {
@@ -130,6 +135,20 @@ export async function fetchExplicitNextUpItems(userId: string) {
 			),
 		)
 		.orderBy(asc(mediaItems.sortTitle));
+}
+
+export async function fetchNextUpOrderPositions(
+	userId: string,
+): Promise<Map<number, number>> {
+	const rows = await db
+		.select({
+			mediaItemId: nextUpItemOrder.mediaItemId,
+			position: nextUpItemOrder.position,
+		})
+		.from(nextUpItemOrder)
+		.where(eq(nextUpItemOrder.userId, userId));
+
+	return new Map(rows.map((row) => [row.mediaItemId, row.position]));
 }
 
 export async function fetchInProgressSeriesIds(
@@ -251,6 +270,54 @@ export async function fetchNextInSeriesItems(
 	return nextInSeriesItems;
 }
 
+/**
+ * Every item currently in the Next Up section — explicit `NEXT_UP` items plus
+ * deduped auto-detected next-in-series picks — in the section's default order
+ * (explicit items alphabetically, then auto items). Shared by
+ * `fetchDashboardData` and `handleReorderNextUpItems` so both agree on what's
+ * actually in the section right now.
+ */
+async function fetchMergedNextUpItems(
+	userId: string,
+	inProgressItems: Awaited<ReturnType<typeof fetchInProgressItems>>,
+	recentlyFinishedItems: Awaited<ReturnType<typeof fetchRecentlyFinishedItems>>,
+	seriesLevelInProgressIds: Set<number>,
+) {
+	const [explicitNextUpItemsRaw, autoNextInSeriesItemsRaw] = await Promise.all([
+		fetchExplicitNextUpItems(userId),
+		fetchNextInSeriesItems(
+			userId,
+			inProgressItems,
+			recentlyFinishedItems,
+			seriesLevelInProgressIds,
+		),
+	]);
+
+	const explicitNextUpIds = new Set(
+		explicitNextUpItemsRaw.map((item) => item.id),
+	);
+	const dedupedAutoItems = autoNextInSeriesItemsRaw.filter(
+		(item) => !explicitNextUpIds.has(item.id),
+	);
+	return [...explicitNextUpItemsRaw, ...dedupedAutoItems];
+}
+
+/**
+ * Sorts by a saved position map; an item with no saved position sorts after
+ * every item that has one, keeping its existing relative order among the
+ * other unsaved items (stable sort).
+ */
+function applySavedOrder<T extends { id: number }>(
+	items: T[],
+	positionsByItemId: Map<number, number>,
+): T[] {
+	return [...items].sort((a, b) => {
+		const positionA = positionsByItemId.get(a.id) ?? Number.POSITIVE_INFINITY;
+		const positionB = positionsByItemId.get(b.id) ?? Number.POSITIVE_INFINITY;
+		return positionA - positionB;
+	});
+}
+
 async function attachRatings<T extends { id: number }>(
 	items: T[],
 ): Promise<(T & { rating: number })[]> {
@@ -294,23 +361,19 @@ export async function fetchDashboardData(userId: string) {
 		fetchInProgressSeriesIds(userId),
 	]);
 
-	const [explicitNextUpItemsRaw, autoNextInSeriesItemsRaw] = await Promise.all([
-		fetchExplicitNextUpItems(userId),
-		fetchNextInSeriesItems(
+	const [nextUpPositions, mergedNextUpItemsRaw] = await Promise.all([
+		fetchNextUpOrderPositions(userId),
+		fetchMergedNextUpItems(
 			userId,
 			inProgressItemsRaw,
 			recentlyFinishedItemsRaw,
 			seriesLevelInProgressIds,
 		),
 	]);
-
-	const explicitNextUpIds = new Set(
-		explicitNextUpItemsRaw.map((item) => item.id),
+	const nextInSeriesItemsRaw = applySavedOrder(
+		mergedNextUpItemsRaw,
+		nextUpPositions,
 	);
-	const dedupedAutoItems = autoNextInSeriesItemsRaw.filter(
-		(item) => !explicitNextUpIds.has(item.id),
-	);
-	const nextInSeriesItemsRaw = [...explicitNextUpItemsRaw, ...dedupedAutoItems];
 
 	const recentlyFinishedWithoutCompletedAt = recentlyFinishedItemsRaw.map(
 		({ completedAt: _completedAt, ...rest }) => rest,
@@ -325,4 +388,54 @@ export async function fetchDashboardData(userId: string) {
 	const inProgressItems = await attachProgress(inProgressItemsWithRatings);
 
 	return { inProgressItems, nextInSeriesItems, recentlyFinishedItems };
+}
+
+/**
+ * Replaces the caller's whole saved Next Up order outright, the same
+ * full-replace shape `handleReorderViewItems` uses for `viewItemOrder`. An
+ * order containing an id outside the caller's current Next Up section is
+ * refused rather than filtered down, so a stale or mistaken id can't quietly
+ * overwrite the saved order with less than the caller intended.
+ */
+export async function handleReorderNextUpItems(
+	userId: string,
+	orderedMediaItemIds: number[],
+): Promise<void> {
+	const [inProgressItems, recentlyFinishedItems, seriesLevelInProgressIds] =
+		await Promise.all([
+			fetchInProgressItems(userId),
+			fetchRecentlyFinishedItems(userId),
+			fetchInProgressSeriesIds(userId),
+		]);
+	const mergedItems = await fetchMergedNextUpItems(
+		userId,
+		inProgressItems,
+		recentlyFinishedItems,
+		seriesLevelInProgressIds,
+	);
+	const validIds = new Set(mergedItems.map((item) => item.id));
+
+	const uniqueIds = [...new Set(orderedMediaItemIds)];
+	if (uniqueIds.length !== orderedMediaItemIds.length) {
+		throw new Error("Next Up reorder included a duplicate media item id");
+	}
+	if (uniqueIds.some((id) => !validIds.has(id))) {
+		throw new Error(
+			"Next Up reorder included an item outside the Next Up section",
+		);
+	}
+
+	await db.transaction(async (tx) => {
+		await tx.delete(nextUpItemOrder).where(eq(nextUpItemOrder.userId, userId));
+
+		if (uniqueIds.length > 0) {
+			await tx.insert(nextUpItemOrder).values(
+				uniqueIds.map((mediaItemId, position) => ({
+					userId,
+					mediaItemId,
+					position,
+				})),
+			);
+		}
+	});
 }

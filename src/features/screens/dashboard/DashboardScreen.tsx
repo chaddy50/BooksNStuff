@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { TopBar } from "#/features/navigation/topBar/TopBar";
 import { DashboardSection } from "./components/DashboardSection";
+import { NextUpSection } from "./components/NextUpSection";
 
 const route = getRouteApi("/_authenticated/_app/");
 
@@ -25,14 +26,11 @@ export function DashboardScreen() {
 					/>
 				</div>
 				<div className="shrink-0">
-					<DashboardSection
-						variant="scroll"
+					<NextUpSection
 						cardWidth="w-40 md:w-[clamp(8rem,14.5vh,12rem)]"
 						title={t("dashboard.nextInSeries")}
 						items={nextInSeriesItems}
 						emptyMessage={t("dashboard.emptyNextInSeries")}
-						shouldShowRating={false}
-						shouldShowPurchaseStatus
 					/>
 				</div>
 				<div className="shrink-0">

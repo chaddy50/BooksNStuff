@@ -39,6 +39,10 @@ vi.mock("@tanstack/react-router", () => ({
 
 vi.mock("#/features/navigation/topBar/TopBar", () => ({ TopBar: () => null }));
 
+vi.mock("#/components/hooks/useToast", () => ({
+	useToast: () => ({ toast: vi.fn() }),
+}));
+
 function renderDashboardScreen() {
 	return render(
 		<TooltipProvider>
@@ -84,6 +88,33 @@ describe("DashboardScreen purchase badge exception", () => {
 		expect(
 			within(sectionByTitle("dashboard.recentlyFinished")).queryByTestId(
 				"purchased-badge",
+			),
+		).not.toBeInTheDocument();
+	});
+});
+
+describe("DashboardScreen next up reordering", () => {
+	it("renders the Next Up section's drag handle, unique to NextUpSection", () => {
+		renderDashboardScreen();
+
+		expect(
+			within(sectionByTitle("dashboard.nextInSeries")).getByText(
+				"dashboard.dragToReorderNextUp",
+			),
+		).toBeInTheDocument();
+	});
+
+	it("does not render a drag handle in the In Progress or Recently Finished sections", () => {
+		renderDashboardScreen();
+
+		expect(
+			within(sectionByTitle("dashboard.inProgress")).queryByText(
+				"dashboard.dragToReorderNextUp",
+			),
+		).not.toBeInTheDocument();
+		expect(
+			within(sectionByTitle("dashboard.recentlyFinished")).queryByText(
+				"dashboard.dragToReorderNextUp",
 			),
 		).not.toBeInTheDocument();
 	});

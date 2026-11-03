@@ -665,3 +665,28 @@ export const viewItemOrder = pgTable(
 		),
 	],
 );
+
+/**
+ * One row per media item that has been hand-placed in the dashboard's Next Up
+ * row. Keyed by `userId` directly rather than a view — Next Up has no saved
+ * filter configuration to hang an order off of.
+ */
+export const nextUpItemOrder = pgTable(
+	"next_up_item_order",
+	{
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		mediaItemId: integer("media_item_id")
+			.notNull()
+			.references(() => mediaItems.id, { onDelete: "cascade" }),
+		position: integer("position").notNull(),
+	},
+	(table) => [
+		primaryKey({ columns: [table.userId, table.mediaItemId] }),
+		index("next_up_item_order_userId_position_idx").on(
+			table.userId,
+			table.position,
+		),
+	],
+);
