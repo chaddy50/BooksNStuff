@@ -5,8 +5,9 @@ import { mediaTypeEnum } from "#/database/schema";
 import { ReportDrilldownScreen } from "#/features/screens/reports/ReportDrilldownScreen";
 import { getDrillDownItems } from "#/features/screens/reports/reports";
 import type { DashboardReportType } from "#/features/screens/reports/types";
+import { insightsDateRangeSchema } from "#/features/screens/reports/types";
 
-const searchSchema = z.object({
+const searchSchema = insightsDateRangeSchema.extend({
 	key: z.string(),
 	genres: z.array(z.string()).optional(),
 	itemTypes: z.array(z.enum(mediaTypeEnum.enumValues)).optional(),
@@ -24,6 +25,8 @@ export const Route = createFileRoute(
 				key: deps.key,
 				genres: deps.genres,
 				itemTypes: deps.itemTypes,
+				startDate: deps.startDate,
+				endDate: deps.endDate,
 			},
 		}),
 	component: ReportDrilldownScreen,

@@ -75,6 +75,8 @@ export function InsightsScreen() {
 							reportType={reportType}
 							data={data}
 							itemTypes={itemTypes}
+							startDate={startDate}
+							endDate={endDate}
 						/>
 					))}
 				</div>
