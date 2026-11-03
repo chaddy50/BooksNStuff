@@ -230,6 +230,8 @@ export const en = {
 		emptyInProgress: "Nothing in progress.",
 		emptyNextInSeries: "Nothing marked as next up.",
 		emptyRecentlyFinished: "Nothing finished in the last 30 days.",
+		dragToReorderNextUp: "Drag to reorder",
+		reorderNextUpFailed: "Could not save the new order.",
 	},
 	notFound: {
 		title: "Page not found",

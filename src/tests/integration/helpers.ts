@@ -11,6 +11,7 @@ import {
 	mediaItemRelations,
 	mediaItems,
 	mediaItemTags,
+	nextUpItemOrder,
 	type SeasonReview,
 	type SeriesSortField,
 	type SortDirection,
@@ -48,8 +49,9 @@ import { testDb } from "./db";
  * `media_item_instances`, `media_item_tags`, `media_item_relations`, `views`,
  * and `view_groups` all use plain-text userId (no FK to `user`), so those need
  * no auth rows. `view_item_order` needs none either — it inherits ownership
- * from the view it points at. `user_settings` is the exception — it
- * references `user.id`, so seed a row with `insertUser` before touching it.
+ * from the view it points at. `user_settings` and `next_up_item_order` are the
+ * exceptions — both reference `user.id`, so seed a row with `insertUser`
+ * before touching either.
  */
 export async function truncateAll() {
 	// `user` is a reserved word and must stay quoted. Truncating it cascades to
@@ -62,6 +64,7 @@ export async function truncateAll() {
 			media_item_tags,
 			media_item_relations,
 			view_item_order,
+			next_up_item_order,
 			media_items,
 			series,
 			creators,
@@ -278,8 +281,9 @@ export async function insertCreator(
 }
 
 /**
- * Inserts a better-auth `user` row. Only `user_settings` needs one — every
- * other app table stores userId as plain text.
+ * Inserts a better-auth `user` row. Only `user_settings` and
+ * `next_up_item_order` need one — every other app table stores userId as
+ * plain text.
  */
 export async function insertUser(userId: string): Promise<void> {
 	await testDb.insert(user).values({
@@ -353,6 +357,23 @@ export async function insertViewItemOrder(
 ): Promise<void> {
 	await testDb.insert(viewItemOrder).values({
 		viewId: options.viewId,
+		mediaItemId: options.mediaItemId,
+		position: options.position,
+	});
+}
+
+type InsertNextUpItemOrderOptions = {
+	userId: string;
+	mediaItemId: number;
+	position: number;
+};
+
+/** Places a media item at a position inside the dashboard's Next Up order. */
+export async function insertNextUpItemOrder(
+	options: InsertNextUpItemOrderOptions,
+): Promise<void> {
+	await testDb.insert(nextUpItemOrder).values({
+		userId: options.userId,
 		mediaItemId: options.mediaItemId,
 		position: options.position,
 	});
