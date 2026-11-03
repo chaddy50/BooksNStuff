@@ -335,7 +335,7 @@ describe("fetchDashboardData next up ordering", () => {
 // handleReorderNextUpItems
 // ---------------------------------------------------------------------------
 
-async function readNextUpOrderRows(userId: string) {
+function readNextUpOrderRows(userId: string) {
 	return testDb
 		.select()
 		.from(nextUpItemOrder)

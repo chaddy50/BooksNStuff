@@ -59,9 +59,12 @@ vi.mock("#/components/hooks/useToast", () => ({
 	useToast: () => ({ toast }),
 }));
 
-const reorderNextUpItems = vi.fn().mockResolvedValue(undefined);
+const reorderNextUpItems = vi
+	.fn<(args: { data: { orderedMediaItemIds: number[] } }) => Promise<void>>()
+	.mockResolvedValue();
 vi.mock("#/features/screens/dashboard/dashboard", () => ({
-	reorderNextUpItems: (...args: unknown[]) => reorderNextUpItems(...args),
+	reorderNextUpItems: (args: { data: { orderedMediaItemIds: number[] } }) =>
+		reorderNextUpItems(args),
 }));
 
 function makeItem(id: number, title: string): DashboardItem {
@@ -103,7 +106,7 @@ beforeEach(() => {
 	capturedOnDragEnd = null;
 	toast.mockClear();
 	reorderNextUpItems.mockClear();
-	reorderNextUpItems.mockResolvedValue(undefined);
+	reorderNextUpItems.mockResolvedValue();
 });
 
 afterEach(cleanup);
@@ -125,7 +128,7 @@ describe("NextUpSection", () => {
 	it("reorders on screen and saves the full reordered id list", async () => {
 		renderSection();
 
-		await act(async () => {
+		await act(() => {
 			capturedOnDragEnd?.({ active: { id: 3 }, over: { id: 1 } });
 		});
 
@@ -138,7 +141,7 @@ describe("NextUpSection", () => {
 	it("does nothing when the item is dropped outside the row", async () => {
 		renderSection();
 
-		await act(async () => {
+		await act(() => {
 			capturedOnDragEnd?.({ active: { id: 3 }, over: null });
 		});
 
@@ -150,7 +153,7 @@ describe("NextUpSection", () => {
 		reorderNextUpItems.mockRejectedValue(new Error("boom"));
 		renderSection();
 
-		await act(async () => {
+		await act(() => {
 			capturedOnDragEnd?.({ active: { id: 3 }, over: { id: 1 } });
 		});
 		// Let the rejected promise's .catch handler run.
@@ -165,25 +168,25 @@ describe("NextUpSection", () => {
 	});
 
 	it("saves two quick drags in the order they were dropped, not the order their saves resolve", async () => {
-		let releaseFirstSave: () => void = () => {};
+		let releaseFirstSave: (() => void) | undefined;
 		reorderNextUpItems.mockReturnValueOnce(
 			new Promise<void>((resolve) => {
-				releaseFirstSave = () => resolve();
+				releaseFirstSave = resolve;
 			}),
 		);
-		reorderNextUpItems.mockResolvedValueOnce(undefined);
+		reorderNextUpItems.mockResolvedValueOnce();
 		renderSection();
 
-		await act(async () => {
+		await act(() => {
 			capturedOnDragEnd?.({ active: { id: 3 }, over: { id: 1 } });
 		});
-		await act(async () => {
+		await act(() => {
 			capturedOnDragEnd?.({ active: { id: 2 }, over: { id: 1 } });
 		});
 
 		expect(reorderNextUpItems).toHaveBeenCalledTimes(1);
 
-		releaseFirstSave();
+		releaseFirstSave?.();
 		await act(async () => {
 			await Promise.resolve();
 			await Promise.resolve();
