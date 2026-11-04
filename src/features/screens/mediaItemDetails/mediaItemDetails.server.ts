@@ -483,6 +483,9 @@ export async function updateMediaItemSeries(
 		.where(
 			and(eq(mediaItems.id, data.mediaItemId), eq(mediaItems.userId, userId)),
 		);
+	if (!currentItem) {
+		throw new Error("Unauthorized");
+	}
 
 	let resolvedSeriesId = data.seriesId;
 	let resolvedSeriesName: string | null = null;
@@ -500,7 +503,8 @@ export async function updateMediaItemSeries(
 			.select({ name: series.name })
 			.from(series)
 			.where(and(eq(series.id, data.seriesId), eq(series.userId, userId)));
-		resolvedSeriesName = existing?.name ?? null;
+		if (!existing) throw new Error("Series not found");
+		resolvedSeriesName = existing.name;
 	}
 
 	const itemPredicate = and(
@@ -579,7 +583,8 @@ export async function updateMediaItemCreator(
 			.select({ name: creators.name })
 			.from(creators)
 			.where(and(eq(creators.id, data.creatorId), eq(creators.userId, userId)));
-		resolvedCreatorName = existing?.name ?? null;
+		if (!existing) throw new Error("Creator not found");
+		resolvedCreatorName = existing.name;
 	}
 
 	const itemPredicate = and(

@@ -260,6 +260,33 @@ describe("updateMediaItemSeries", () => {
 		expect(await readItem(itemB)).toEqual(before);
 	});
 
+	it("rejects a seriesId owned by another user", async () => {
+		const itemA = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.MOVIE,
+			metadata: {},
+		});
+		const before = await readItem(itemA);
+		const othersSeriesId = await insertSeries({
+			userId: USER_B,
+			name: "B's series",
+			type: MediaItemType.MOVIE,
+		});
+
+		await expect(
+			updateMediaItemSeries(
+				{
+					mediaItemId: itemA,
+					type: MediaItemType.MOVIE,
+					seriesId: othersSeriesId,
+				},
+				USER_A,
+			),
+		).rejects.toThrow("Series not found");
+
+		expect(await readItem(itemA)).toEqual(before);
+	});
+
 	it("does not auto-complete the old series when its last active item moves out", async () => {
 		const oldSeriesId = await insertSeries({
 			userId: USER_A,
@@ -446,6 +473,32 @@ describe("updateMediaItemCreator", () => {
 		).rejects.toThrow("Unauthorized");
 
 		expect(await readItem(itemB)).toEqual(before);
+	});
+
+	it("rejects a creatorId owned by another user", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.MOVIE,
+			metadata: {},
+		});
+		const before = await readItem(itemId);
+		const othersCreatorId = await insertCreator({
+			userId: USER_B,
+			name: "Someone Else",
+		});
+
+		await expect(
+			updateMediaItemCreator(
+				{
+					mediaItemId: itemId,
+					type: MediaItemType.MOVIE,
+					creatorId: othersCreatorId,
+				},
+				USER_A,
+			),
+		).rejects.toThrow("Creator not found");
+
+		expect(await readItem(itemId)).toEqual(before);
 	});
 });
 
