@@ -6,16 +6,22 @@ vi.mock("react-i18next", () => ({
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
 
+let scrollHeight = 100;
+let clientHeight = 50;
+
 beforeEach(() => {
+	scrollHeight = 100;
+	clientHeight = 50;
+
 	// jsdom never lays out, so scrollHeight/clientHeight default to 0 on every
 	// element — stub them so the overflow check finds a reason to show the toggle.
 	Object.defineProperty(HTMLParagraphElement.prototype, "scrollHeight", {
 		configurable: true,
-		get: () => 100,
+		get: () => scrollHeight,
 	});
 	Object.defineProperty(HTMLParagraphElement.prototype, "clientHeight", {
 		configurable: true,
-		get: () => 50,
+		get: () => clientHeight,
 	});
 });
 
@@ -33,5 +39,22 @@ describe("ExpandableTextBlock", () => {
 			"ml-auto",
 			"block",
 		);
+	});
+
+	it("re-checks overflow when the text changes without a remount", () => {
+		scrollHeight = 50;
+		clientHeight = 50;
+		const { rerender } = render(<ExpandableTextBlock text="short text" />);
+
+		expect(
+			screen.queryByRole("button", { name: "common.showMore" }),
+		).not.toBeInTheDocument();
+
+		scrollHeight = 100;
+		rerender(<ExpandableTextBlock text="a much longer piece of text" />);
+
+		expect(
+			screen.getByRole("button", { name: "common.showMore" }),
+		).toBeInTheDocument();
 	});
 });
