@@ -1,5 +1,5 @@
-import { getLocalDateString } from "#/lib/utils";
 import type { ReportDataPoint } from "./types";
+import { getDefaultInsightsDateRange } from "./utils";
 
 /**
  * This file uses the .server.ts convention — it must never be statically
@@ -7,14 +7,7 @@ import type { ReportDataPoint } from "./types";
  * bodies or other server-only modules.
  */
 
-export function getYearToDateRange(): { startDate: string; endDate: string } {
-	const today = new Date();
-	const startOfYear = new Date(today.getFullYear(), 0, 1);
-	return {
-		startDate: getLocalDateString(startOfYear),
-		endDate: getLocalDateString(today),
-	};
-}
+export const getYearToDateRange = getDefaultInsightsDateRange;
 
 /**
  * Builds an ascending array of calendar months from startDate's month through
