@@ -16,6 +16,10 @@ export function InitialsAvatar({ name }: InitialsAvatarProps) {
 function getInitials(name: string): string {
 	const segments = name.split(/\s+/).filter((segment) => segment.length > 0);
 
+	if (segments.length === 0) {
+		return "";
+	}
+
 	if (segments.length === 1) {
 		return segments[0].slice(0, 2).toUpperCase();
 	}
