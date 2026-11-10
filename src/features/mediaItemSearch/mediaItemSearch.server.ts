@@ -167,13 +167,16 @@ export async function handleAddToLibrary(
 		);
 
 	if (existingItem) {
-		await backfillMissingRelations(
+		const { backfilledSeriesId } = await backfillMissingRelations(
 			existingItem.id,
 			existingItem.seriesId,
 			existingItem.creatorId,
 			seriesId,
 			creatorId,
 		);
+		if (backfilledSeriesId) {
+			await syncSeriesStatus(backfilledSeriesId, userId);
+		}
 		return { mediaItemId: existingItem.id };
 	}
 
@@ -466,10 +469,12 @@ async function backfillMissingRelations(
 	existingCreatorId: number | null,
 	newSeriesId: number | null,
 	newCreatorId: number | null,
-): Promise<void> {
+): Promise<{ backfilledSeriesId: number | null }> {
+	const backfilledSeriesId =
+		newSeriesId && !existingSeriesId ? newSeriesId : null;
 	const updates: Record<string, unknown> = {};
-	if (newSeriesId && !existingSeriesId) {
-		updates.seriesId = newSeriesId;
+	if (backfilledSeriesId) {
+		updates.seriesId = backfilledSeriesId;
 	}
 	if (newCreatorId && !existingCreatorId) {
 		updates.creatorId = newCreatorId;
@@ -477,6 +482,7 @@ async function backfillMissingRelations(
 	if (Object.keys(updates).length > 0) {
 		await db.update(mediaItems).set(updates).where(eq(mediaItems.id, itemId));
 	}
+	return { backfilledSeriesId };
 }
 
 /** The item's descriptive half, as seeded from an external API. */

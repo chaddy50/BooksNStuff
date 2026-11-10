@@ -31,7 +31,7 @@ vi.mock("#/features/mediaItemSearch/api/igdb", () => ({
 
 import { asc, count, eq } from "drizzle-orm";
 import { creators, mediaItems, series } from "#/database/schema";
-import { MediaItemType } from "#/lib/enums";
+import { MediaItemStatus, MediaItemType } from "#/lib/enums";
 import { testDb } from "#/tests/integration/db";
 import {
 	insertMediaItem,
@@ -129,6 +129,31 @@ describe("handleAddToLibrary", () => {
 
 		expect(updated?.seriesId).not.toBeNull();
 		expect(updated?.creatorId).not.toBeNull();
+	});
+
+	it("syncs the series status after backfilling seriesId onto an existing item", async () => {
+		const existingSeriesId = await insertSeries({
+			userId: USER,
+			name: "Dune",
+			type: MediaItemType.BOOK,
+		});
+		await insertMediaItem({
+			type: MediaItemType.BOOK,
+			title: "Dune",
+			externalId: "hc-123",
+			externalSource: "hardcover",
+			userId: USER,
+			status: MediaItemStatus.IN_PROGRESS,
+			seriesId: undefined,
+		});
+
+		await handleAddToLibrary(BASE_BOOK_INPUT, USER);
+
+		const [updatedSeries] = await testDb
+			.select({ status: series.status })
+			.from(series)
+			.where(eq(series.id, existingSeriesId));
+		expect(updatedSeries?.status).toBe(MediaItemStatus.IN_PROGRESS);
 	});
 
 	it("stores a pre-0 CE release date", async () => {
