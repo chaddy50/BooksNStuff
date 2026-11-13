@@ -12,6 +12,7 @@ import {
 	tags,
 	userSettings,
 	type ViewSubject,
+	viewGroups,
 	viewItemOrder,
 	views,
 } from "#/database/schema";
@@ -20,7 +21,7 @@ import {
  * Backup export/import.
  */
 
-export const BACKUP_VERSION = 5;
+export const BACKUP_VERSION = 6;
 
 // ---------------------------------------------------------------------------
 // Export
@@ -53,6 +54,11 @@ export async function exportBackup(userId: string) {
 					.from(mediaItemTags)
 					.where(inArray(mediaItemTags.mediaItemId, itemIds))
 			: [];
+
+	const viewGroupRows = await db
+		.select()
+		.from(viewGroups)
+		.where(eq(viewGroups.userId, userId));
 
 	const viewRows = await db
 		.select()
@@ -94,6 +100,7 @@ export async function exportBackup(userId: string) {
 		mediaItems: itemRows,
 		mediaItemInstances: instanceRows,
 		views: viewRows,
+		viewGroups: viewGroupRows,
 		viewItemOrder: viewItemOrderRows,
 		tags: tagRows,
 		mediaItemTags: mediaItemTagRows,
@@ -140,6 +147,16 @@ const viewBackupSchema = z.object({
 	subject: z.string(),
 	filters: z.unknown(),
 	displayOrder: z.number().int(),
+	groupId: z.number().int().nullable().optional(),
+	createdAt: z.string(),
+	updatedAt: z.string(),
+});
+
+const viewGroupBackupSchema = z.object({
+	id: z.number().int(),
+	name: z.string(),
+	displayOrder: z.number().int(),
+	isCollapsed: z.boolean(),
 	createdAt: z.string(),
 	updatedAt: z.string(),
 });
@@ -232,6 +249,22 @@ const itemTrackingSchema = z.object({
 	updatedAt: z.string(),
 });
 
+const backupSchemaV6 = z.object({
+	version: z.literal(6),
+	exportedAt: z.string(),
+	series: z.array(seriesBackupSchema),
+	mediaItems: z.array(itemTrackingSchema.merge(itemMetadataSchema)),
+	mediaItemInstances: z.array(instanceBackupSchema),
+	views: z.array(viewBackupSchema),
+	viewGroups: z.array(viewGroupBackupSchema),
+	viewItemOrder: z.array(viewItemOrderBackupSchema),
+	tags: z.array(tagBackupSchema),
+	mediaItemTags: z.array(mediaItemTagBackupSchema),
+	creators: z.array(creatorBackupSchema),
+	genres: z.array(genreBackupSchema),
+	userSettings: userSettingsBackupSchema.nullable(),
+});
+
 const backupSchemaV5 = z.object({
 	version: z.literal(5),
 	exportedAt: z.string(),
@@ -310,6 +343,7 @@ export const backupSchema = z.discriminatedUnion("version", [
 	backupSchemaV3,
 	backupSchemaV4,
 	backupSchemaV5,
+	backupSchemaV6,
 ]);
 
 /**
@@ -319,6 +353,7 @@ export const backupSchema = z.discriminatedUnion("version", [
  */
 export type BackupData = z.infer<typeof backupSchema>;
 type BackupV5 = z.infer<typeof backupSchemaV5>;
+type BackupV6 = z.infer<typeof backupSchemaV6>;
 
 // ---------------------------------------------------------------------------
 // Import
@@ -328,7 +363,7 @@ export async function importBackup(
 	rawBackup: BackupData,
 	userId: string,
 ): Promise<void> {
-	const backup = normalizeToV5(rawBackup);
+	const backup = normalizeToV6(rawBackup);
 
 	await db.transaction(async (tx) => {
 		await deleteExistingUserData(tx, userId);
@@ -337,6 +372,11 @@ export async function importBackup(
 		const creatorIdMap = await restoreCreators(tx, userId, backup.creators);
 		const genreIdMap = await restoreGenres(tx, userId, backup.genres);
 		const tagIdMap = await restoreTags(tx, userId, backup.tags);
+		const viewGroupIdMap = await restoreViewGroups(
+			tx,
+			userId,
+			backup.viewGroups,
+		);
 		const itemIdMap = await restoreMediaItems(tx, userId, backup.mediaItems, {
 			seriesIdMap,
 			creatorIdMap,
@@ -349,7 +389,12 @@ export async function importBackup(
 			itemIdMap,
 			tagIdMap,
 		);
-		const viewIdMap = await restoreViews(tx, userId, backup.views);
+		const viewIdMap = await restoreViews(
+			tx,
+			userId,
+			backup.views,
+			viewGroupIdMap,
+		);
 		await restoreViewItemOrder(tx, backup.viewItemOrder, viewIdMap, itemIdMap);
 		await restoreUserSettings(tx, userId, backup.userSettings);
 	});
@@ -369,6 +414,7 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 async function deleteExistingUserData(tx: Tx, userId: string): Promise<void> {
 	await tx.delete(userSettings).where(eq(userSettings.userId, userId));
 	await tx.delete(views).where(eq(views.userId, userId));
+	await tx.delete(viewGroups).where(eq(viewGroups.userId, userId));
 	await tx.delete(mediaItems).where(eq(mediaItems.userId, userId));
 	await tx.delete(series).where(eq(series.userId, userId));
 	await tx.delete(creators).where(eq(creators.userId, userId));
@@ -379,7 +425,7 @@ async function deleteExistingUserData(tx: Tx, userId: string): Promise<void> {
 async function restoreSeries(
 	tx: Tx,
 	userId: string,
-	rows: BackupV5["series"],
+	rows: BackupV6["series"],
 ): Promise<Map<number, number>> {
 	const idMap = new Map<number, number>();
 	for (const seriesRow of rows) {
@@ -407,7 +453,7 @@ async function restoreSeries(
 async function restoreCreators(
 	tx: Tx,
 	userId: string,
-	rows: BackupV5["creators"],
+	rows: BackupV6["creators"],
 ): Promise<Map<number, number>> {
 	const idMap = new Map<number, number>();
 	for (const creatorRow of rows) {
@@ -429,7 +475,7 @@ async function restoreCreators(
 async function restoreGenres(
 	tx: Tx,
 	userId: string,
-	rows: BackupV5["genres"],
+	rows: BackupV6["genres"],
 ): Promise<Map<number, number>> {
 	const idMap = new Map<number, number>();
 	for (const genreRow of rows) {
@@ -449,7 +495,7 @@ async function restoreGenres(
 async function restoreTags(
 	tx: Tx,
 	userId: string,
-	rows: BackupV5["tags"],
+	rows: BackupV6["tags"],
 ): Promise<Map<number, number>> {
 	const idMap = new Map<number, number>();
 	for (const tagRow of rows) {
@@ -480,7 +526,7 @@ function mapForeignId(
 async function restoreMediaItems(
 	tx: Tx,
 	userId: string,
-	rows: BackupV5["mediaItems"],
+	rows: BackupV6["mediaItems"],
 	idMaps: {
 		seriesIdMap: Map<number, number>;
 		creatorIdMap: Map<number, number>;
@@ -518,7 +564,7 @@ async function restoreMediaItems(
 
 async function restoreMediaItemInstances(
 	tx: Tx,
-	rows: BackupV5["mediaItemInstances"],
+	rows: BackupV6["mediaItemInstances"],
 	itemIdMap: Map<number, number>,
 ): Promise<void> {
 	for (const instanceRow of rows) {
@@ -547,7 +593,7 @@ async function restoreMediaItemInstances(
 /** Skips any link whose item or tag end is missing from the restored maps. */
 async function restoreMediaItemTagLinks(
 	tx: Tx,
-	rows: BackupV5["mediaItemTags"],
+	rows: BackupV6["mediaItemTags"],
 	itemIdMap: Map<number, number>,
 	tagIdMap: Map<number, number>,
 ): Promise<void> {
@@ -563,10 +609,34 @@ async function restoreMediaItemTagLinks(
 	}
 }
 
+async function restoreViewGroups(
+	tx: Tx,
+	userId: string,
+	rows: BackupV6["viewGroups"],
+): Promise<Map<number, number>> {
+	const idMap = new Map<number, number>();
+	for (const groupRow of rows) {
+		const [inserted] = await tx
+			.insert(viewGroups)
+			.values({
+				userId,
+				name: groupRow.name,
+				displayOrder: groupRow.displayOrder,
+				isCollapsed: groupRow.isCollapsed,
+				createdAt: new Date(groupRow.createdAt),
+				updatedAt: new Date(groupRow.updatedAt),
+			})
+			.returning({ id: viewGroups.id });
+		idMap.set(groupRow.id, inserted.id);
+	}
+	return idMap;
+}
+
 async function restoreViews(
 	tx: Tx,
 	userId: string,
-	rows: BackupV5["views"],
+	rows: BackupV6["views"],
+	viewGroupIdMap: Map<number, number>,
 ): Promise<Map<number, number>> {
 	const idMap = new Map<number, number>();
 	for (const viewRow of rows) {
@@ -578,6 +648,7 @@ async function restoreViews(
 				subject: viewRow.subject as ViewSubject,
 				filters: viewRow.filters as typeof views.$inferInsert.filters,
 				displayOrder: viewRow.displayOrder,
+				groupId: mapForeignId(viewRow.groupId, viewGroupIdMap),
 				createdAt: new Date(viewRow.createdAt),
 				updatedAt: new Date(viewRow.updatedAt),
 			})
@@ -590,7 +661,7 @@ async function restoreViews(
 /** Skips any order row whose view or item end is missing from the restored maps. */
 async function restoreViewItemOrder(
 	tx: Tx,
-	rows: BackupV5["viewItemOrder"],
+	rows: BackupV6["viewItemOrder"],
 	viewIdMap: Map<number, number>,
 	itemIdMap: Map<number, number>,
 ): Promise<void> {
@@ -611,7 +682,7 @@ async function restoreViewItemOrder(
 async function restoreUserSettings(
 	tx: Tx,
 	userId: string,
-	settings: BackupV5["userSettings"],
+	settings: BackupV6["userSettings"],
 ): Promise<void> {
 	if (!settings) {
 		return;
@@ -673,7 +744,7 @@ function dropActiveCustomReportId(
  * disappear with the join.
  */
 const LIFT_TO_V5: Record<
-	BackupData["version"],
+	Exclude<BackupData["version"], 6>,
 	(backup: BackupData) => BackupV5
 > = {
 	5: (backup) => backup as BackupV5,
@@ -683,8 +754,16 @@ const LIFT_TO_V5: Record<
 	1: (backup) => liftV1ToV5(backup as z.infer<typeof backupSchemaV1>),
 };
 
-function normalizeToV5(backup: BackupData): BackupV5 {
-	return LIFT_TO_V5[backup.version](backup);
+/** Adds the empty `viewGroups` collection a pre-v6 file never carried. */
+function liftV5ToV6(backup: BackupV5): BackupV6 {
+	return { ...backup, version: 6, viewGroups: [] };
+}
+
+function normalizeToV6(backup: BackupData): BackupV6 {
+	if (backup.version === 6) {
+		return backup;
+	}
+	return liftV5ToV6(LIFT_TO_V5[backup.version](backup));
 }
 
 function liftV4ToV5(backup: z.infer<typeof backupSchemaV4>): BackupV5 {

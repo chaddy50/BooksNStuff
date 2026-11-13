@@ -19,6 +19,7 @@ import {
 	series,
 	tags,
 	userSettings,
+	viewGroups,
 	viewItemOrder,
 	views,
 } from "#/database/schema";
@@ -40,6 +41,7 @@ import {
 	insertUser,
 	insertUserSettings,
 	insertView,
+	insertViewGroup,
 	insertViewItemOrder,
 	linkTag,
 	truncateAll,
@@ -334,7 +336,7 @@ describe("exportBackup", () => {
 
 		const backup = await exportBackup(USER_A);
 
-		expect(backup.version).toBe(5);
+		expect(backup.version).toBe(6);
 		expect(backup).not.toHaveProperty("mediaItemMetadata");
 		expect(backup).not.toHaveProperty("customReports");
 		expect(backup).toHaveProperty("tags");
@@ -902,8 +904,8 @@ describe("importBackup dangling references", () => {
 	it("skips join rows whose tag or media item is missing", async () => {
 		await seedFullLibrary(USER_A);
 		const backup = await exportThroughJson(USER_A);
-		if (backup.version !== 5) {
-			throw new Error("expected a version 5 export");
+		if (backup.version !== 6) {
+			throw new Error("expected a version 6 export");
 		}
 		backup.mediaItemTags = [
 			...backup.mediaItemTags,
@@ -920,8 +922,8 @@ describe("importBackup dangling references", () => {
 	it("nulls creatorId and genreId that no row in the file matches", async () => {
 		await seedFullLibrary(USER_A);
 		const backup = await exportThroughJson(USER_A);
-		if (backup.version !== 5) {
-			throw new Error("expected a version 5 export");
+		if (backup.version !== 6) {
+			throw new Error("expected a version 6 export");
 		}
 		backup.creators = [];
 		backup.genres = [];
@@ -1055,8 +1057,8 @@ describe("view item order backup", () => {
 
 		const backup = await exportThroughJson(USER_A);
 
-		expect(backup.version).toBe(5);
-		expect(backup.version === 5 && backup.viewItemOrder).toHaveLength(2);
+		expect(backup.version).toBe(6);
+		expect(backup.version === 6 && backup.viewItemOrder).toHaveLength(2);
 	});
 
 	it("exports only the caller's order rows", async () => {
@@ -1065,7 +1067,7 @@ describe("view item order backup", () => {
 
 		const backup = await exportThroughJson(USER_A);
 
-		expect(backup.version === 5 && backup.viewItemOrder).toHaveLength(2);
+		expect(backup.version === 6 && backup.viewItemOrder).toHaveLength(2);
 	});
 
 	it("restores the order against the renumbered view and item ids", async () => {
@@ -1101,8 +1103,8 @@ describe("view item order backup", () => {
 	it("skips an order row whose view is missing from the file", async () => {
 		await seedOrderedView(USER_A);
 		const backup = await exportThroughJson(USER_A);
-		if (backup.version !== 5) {
-			throw new Error("expected a version 5 export");
+		if (backup.version !== 6) {
+			throw new Error("expected a version 6 export");
 		}
 		backup.views = [];
 
@@ -1114,8 +1116,8 @@ describe("view item order backup", () => {
 	it("skips an order row whose media item is missing from the file", async () => {
 		await seedOrderedView(USER_A);
 		const backup = await exportThroughJson(USER_A);
-		if (backup.version !== 5) {
-			throw new Error("expected a version 5 export");
+		if (backup.version !== 6) {
+			throw new Error("expected a version 6 export");
 		}
 		backup.mediaItems = [];
 
@@ -1185,5 +1187,103 @@ describe("view item order backup", () => {
 		);
 
 		expect(result.items.map((item) => item.title)).toEqual(["Zebra", "Apple"]);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// View groups
+// ---------------------------------------------------------------------------
+
+describe("view groups backup", () => {
+	/** Seeds a view group holding one view. */
+	async function seedGroupedView(userId: string) {
+		await insertUser(userId);
+
+		const groupId = await insertViewGroup({
+			userId,
+			name: "Watchlists",
+			displayOrder: 0,
+			isCollapsed: true,
+		});
+		const viewId = await insertView({
+			userId,
+			name: "Sci-fi backlog",
+			groupId,
+		});
+
+		return { groupId, viewId };
+	}
+
+	it("exports version 6 with the view group", async () => {
+		await seedGroupedView(USER_A);
+
+		const backup = await exportThroughJson(USER_A);
+
+		expect(backup.version).toBe(6);
+		expect(backup.version === 6 && backup.viewGroups).toHaveLength(1);
+	});
+
+	it("restores the group and remaps the view's groupId onto it", async () => {
+		await seedGroupedView(USER_A);
+
+		await importBackup(await exportThroughJson(USER_A), USER_A);
+
+		const [restoredGroup] = await testDb
+			.select()
+			.from(viewGroups)
+			.where(eq(viewGroups.userId, USER_A));
+		const [restoredView] = await testDb
+			.select()
+			.from(views)
+			.where(eq(views.userId, USER_A));
+
+		expect(restoredGroup).toMatchObject({
+			name: "Watchlists",
+			isCollapsed: true,
+		});
+		expect(restoredView.groupId).toBe(restoredGroup.id);
+	});
+
+	it("deletes the caller's existing view groups on import", async () => {
+		await seedGroupedView(USER_A);
+
+		await importBackup(buildEmptyV3Backup(), USER_A);
+
+		const remaining = await testDb
+			.select()
+			.from(viewGroups)
+			.where(eq(viewGroups.userId, USER_A));
+		expect(remaining).toHaveLength(0);
+	});
+
+	it("does not delete another user's view groups", async () => {
+		await seedGroupedView(USER_B);
+
+		await importBackup(buildEmptyV3Backup(), USER_A);
+
+		const remaining = await testDb
+			.select()
+			.from(viewGroups)
+			.where(eq(viewGroups.userId, USER_B));
+		expect(remaining).toHaveLength(1);
+	});
+
+	it("restores a v5 file with no view groups, leaving views ungrouped", async () => {
+		await seedGroupedView(USER_A);
+
+		await importBackup(buildEmptyV3Backup(), USER_A);
+		await insertView({ userId: USER_A, name: "Legacy view" });
+		const legacyBackup = await exportThroughJson(USER_A);
+		if (legacyBackup.version !== 6) {
+			throw new Error("expected a version 6 export");
+		}
+
+		await importBackup({ ...legacyBackup, version: 5 }, USER_A);
+
+		const [restoredView] = await testDb
+			.select()
+			.from(views)
+			.where(eq(views.userId, USER_A));
+		expect(restoredView.groupId).toBeNull();
 	});
 });
