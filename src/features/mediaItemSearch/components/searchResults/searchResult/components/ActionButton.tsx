@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useToast } from "#/components/hooks/useToast";
 import { StatusBadge } from "#/components/StatusBadge";
 import { Button } from "#/components/ui/button";
 import { PodcastArcPickerDialog } from "#/features/mediaItemSearch/components/PodcastArcPickerDialog";
@@ -17,6 +18,7 @@ export function ActionButton(props: ActionButtionProps) {
 	const { result, onClose } = props;
 	const { t } = useTranslation();
 	const navigate = useNavigate();
+	const { toast } = useToast();
 	const [isAdding, setIsAdding] = useState(false);
 	const [isPodcastPickerOpen, setIsPodcastPickerOpen] = useState(false);
 
@@ -44,6 +46,8 @@ export function ActionButton(props: ActionButtionProps) {
 						(result.metadata.genres as string[] | undefined) ?? [],
 				},
 			});
+		} catch {
+			toast(t("search.addToLibraryError"), { variant: "destructive" });
 		} finally {
 			setIsAdding(false);
 		}
