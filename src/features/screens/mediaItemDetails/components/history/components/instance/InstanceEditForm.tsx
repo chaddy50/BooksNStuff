@@ -35,6 +35,7 @@ import {
 	updateMediaItemStatus,
 } from "#/features/screens/mediaItemDetails/mediaItemDetails";
 import {
+	BookConsumptionMethod,
 	GameControlMethod,
 	type MediaItemStatus,
 	MediaItemType,
@@ -134,13 +135,24 @@ function parseProgressInputValue(
 	return percent.toFixed(4);
 }
 
-/** A book's page count only drives progress entry when it's a known, positive number. */
+function isPhysicalBookFormat(consumptionMethod: string | undefined): boolean {
+	return (
+		consumptionMethod === BookConsumptionMethod.HARDCOVER ||
+		consumptionMethod === BookConsumptionMethod.PAPERBACK
+	);
+}
+
+/** Page-number entry only applies to a known, positive page count on a physical copy; e-book and audiobook always use percent. */
 function resolveEffectivePageCount(
 	mediaItemType: MediaItemType,
 	pageCount: number | undefined,
+	consumptionMethod: string | undefined,
 ): number | undefined {
 	const isPageBasedProgress =
-		mediaItemType === MediaItemType.BOOK && pageCount != null && pageCount > 0;
+		mediaItemType === MediaItemType.BOOK &&
+		pageCount != null &&
+		pageCount > 0 &&
+		isPhysicalBookFormat(consumptionMethod);
 	return isPageBasedProgress ? pageCount : undefined;
 }
 
@@ -207,17 +219,40 @@ export function InstanceEditForm({
 			(instance === undefined ? getLocalDateString(new Date()) : ""),
 	);
 	const [completedAt, setCompletedAt] = useState(instance?.completedAt ?? "");
-	const effectivePageCount = resolveEffectivePageCount(
-		mediaItemType,
-		pageCount,
-	);
-	const [progressInputValue, setProgressInputValue] = useState(
-		formatProgressInputValue(instance?.progressPercent, effectivePageCount),
-	);
 	const [consumptionInfo, setConsumptionInfo] =
 		useState<ConsumptionInfo | null>(
 			getInitialConsumptionInfo(mediaItemType, instance, null),
 		);
+	const effectivePageCount = resolveEffectivePageCount(
+		mediaItemType,
+		pageCount,
+		consumptionInfo?.method,
+	);
+	const [progressInputValue, setProgressInputValue] = useState(
+		formatProgressInputValue(instance?.progressPercent, effectivePageCount),
+	);
+	const previousEffectivePageCountRef = useRef(effectivePageCount);
+
+	// The progress input's unit (page number vs. percent) follows the format
+	// selector. Reformat the typed value to preserve the underlying percent
+	// complete rather than reinterpreting the raw number under the new unit.
+	useEffect(() => {
+		const previousEffectivePageCount = previousEffectivePageCountRef.current;
+		if (previousEffectivePageCount === effectivePageCount) {
+			return;
+		}
+		setProgressInputValue((currentValue) => {
+			const parsedPercent = parseProgressInputValue(
+				currentValue,
+				previousEffectivePageCount,
+			);
+			return formatProgressInputValue(
+				parsedPercent == null ? null : Number(parsedPercent),
+				effectivePageCount,
+			);
+		});
+		previousEffectivePageCountRef.current = effectivePageCount;
+	}, [effectivePageCount]);
 
 	const [seasonReviews, setSeasonReviews] = useState<SeasonReview[]>(
 		instance?.seasonReviews ?? [],
