@@ -40,6 +40,8 @@ export function BackupSection() {
 			anchor.download = "media-tracker-backup.json";
 			anchor.click();
 			URL.revokeObjectURL(url);
+		} catch {
+			toast(t("settings.backup.exportError"), { variant: "destructive" });
 		} finally {
 			setIsExporting(false);
 		}
@@ -78,6 +80,8 @@ export function BackupSection() {
 			setIsConfirmOpen(false);
 			setPendingBackup(null);
 			toast(t("settings.backup.success"), { variant: "success" });
+		} catch {
+			toast(t("settings.backup.importError"), { variant: "destructive" });
 		} finally {
 			setIsImporting(false);
 		}
