@@ -7,7 +7,11 @@ import {
 	InstanceEditForm,
 	type InstanceEditFormHandle,
 } from "#/features/screens/mediaItemDetails/components/history/components/instance/InstanceEditForm";
-import { MediaItemStatus, MediaItemType } from "#/lib/enums";
+import {
+	BookConsumptionMethod,
+	MediaItemStatus,
+	MediaItemType,
+} from "#/lib/enums";
 
 type MockedUserSettings = ReturnType<typeof useUserSettings>;
 
@@ -282,7 +286,44 @@ describe("InstanceEditForm", () => {
 		).toBeInTheDocument();
 	});
 
-	describe("page-based progress entry for books", () => {
+	describe("default progress entry for a new book instance", () => {
+		it("shows the raw percent input by default, matching the default e-book consumption method, even with a known pageCount", () => {
+			render(<InstanceEditForm {...baseProps} pageCount={320} />);
+
+			expect(
+				screen.queryByLabelText("mediaItemDetails.page"),
+			).not.toBeInTheDocument();
+			expect(
+				screen.getByLabelText("mediaItemDetails.progress"),
+			).toBeInTheDocument();
+		});
+
+		it("switches to the page input once the user picks a physical format", () => {
+			render(<InstanceEditForm {...baseProps} pageCount={320} />);
+
+			fireEvent.click(screen.getByTestId("consumption-method-select"));
+			fireEvent.click(screen.getByText("consumption.method.hardcover"));
+
+			expect(
+				screen.queryByLabelText("mediaItemDetails.progress"),
+			).not.toBeInTheDocument();
+			expect(
+				screen.getByLabelText("mediaItemDetails.page"),
+			).toBeInTheDocument();
+			expect(screen.getByText("/ 320")).toBeInTheDocument();
+		});
+	});
+
+	describe("page-based progress entry for a physical book format", () => {
+		beforeEach(async () => {
+			const { useUserSettings } = await import(
+				"#/components/hooks/useUserSettings"
+			);
+			vi.mocked(useUserSettings).mockReturnValue({
+				data: { defaultBookConsumptionMethod: BookConsumptionMethod.PAPERBACK },
+			} as unknown as MockedUserSettings);
+		});
+
 		it("shows a page-number input with a total-pages suffix when pageCount is known", () => {
 			render(
 				<InstanceEditForm
@@ -460,6 +501,161 @@ describe("InstanceEditForm", () => {
 			expect(
 				vi.mocked(saveInstance).mock.calls[0][0].data.progressPercent,
 			).toBeUndefined();
+		});
+	});
+
+	describe("percent-based progress entry for e-books and audiobooks", () => {
+		it("shows the raw percent input instead of a page input for an e-book with a known pageCount", () => {
+			render(
+				<InstanceEditForm
+					{...baseProps}
+					pageCount={320}
+					instance={{
+						id: 42,
+						rating: 0,
+						fictionRating: null,
+						seasonReviews: null,
+						consumptionInfo: { method: BookConsumptionMethod.EBOOK },
+						reviewText: null,
+						progressPercent: 50,
+						startedAt: "2024-01-01",
+						completedAt: null,
+					}}
+				/>,
+			);
+
+			expect(
+				screen.queryByLabelText("mediaItemDetails.page"),
+			).not.toBeInTheDocument();
+			expect(screen.getByLabelText("mediaItemDetails.progress")).toHaveValue(
+				50,
+			);
+		});
+
+		it("shows the raw percent input instead of a page input for an audiobook with a known pageCount", () => {
+			render(
+				<InstanceEditForm
+					{...baseProps}
+					pageCount={320}
+					instance={{
+						id: 42,
+						rating: 0,
+						fictionRating: null,
+						seasonReviews: null,
+						consumptionInfo: { method: BookConsumptionMethod.AUDIOBOOK },
+						reviewText: null,
+						progressPercent: 50,
+						startedAt: "2024-01-01",
+						completedAt: null,
+					}}
+				/>,
+			);
+
+			expect(
+				screen.queryByLabelText("mediaItemDetails.page"),
+			).not.toBeInTheDocument();
+			expect(screen.getByLabelText("mediaItemDetails.progress")).toHaveValue(
+				50,
+			);
+		});
+
+		it("saves the typed percent directly, without page conversion, for an e-book", async () => {
+			const { saveInstance } = await import(
+				"#/features/screens/mediaItemDetails/mediaItemDetails"
+			);
+			vi.mocked(saveInstance).mockClear();
+			render(
+				<InstanceEditForm
+					{...baseProps}
+					pageCount={320}
+					instance={{
+						id: 42,
+						rating: 0,
+						fictionRating: null,
+						seasonReviews: null,
+						consumptionInfo: { method: BookConsumptionMethod.EBOOK },
+						reviewText: null,
+						progressPercent: 50,
+						startedAt: "2024-01-01",
+						completedAt: null,
+					}}
+				/>,
+			);
+
+			fireEvent.change(screen.getByLabelText("mediaItemDetails.progress"), {
+				target: { value: "72" },
+			});
+			fireEvent.click(screen.getByText("mediaItemDetails.save"));
+
+			await vi.waitFor(() => expect(saveInstance).toHaveBeenCalled());
+			expect(
+				vi.mocked(saveInstance).mock.calls[0][0].data.progressPercent,
+			).toBe("72.0000");
+		});
+	});
+
+	describe("switching consumption format mid-edit", () => {
+		it("reformats a page number to the equivalent percent when switching from paperback to e-book", () => {
+			render(
+				<InstanceEditForm
+					{...baseProps}
+					pageCount={320}
+					instance={{
+						id: 42,
+						rating: 0,
+						fictionRating: null,
+						seasonReviews: null,
+						consumptionInfo: { method: BookConsumptionMethod.PAPERBACK },
+						reviewText: null,
+						progressPercent: 50,
+						startedAt: "2024-01-01",
+						completedAt: null,
+					}}
+				/>,
+			);
+			expect(screen.getByLabelText("mediaItemDetails.page")).toHaveValue(160);
+
+			fireEvent.click(screen.getByTestId("consumption-method-select"));
+			fireEvent.click(screen.getByText("consumption.method.ebook"));
+
+			expect(
+				screen.queryByLabelText("mediaItemDetails.page"),
+			).not.toBeInTheDocument();
+			expect(screen.getByLabelText("mediaItemDetails.progress")).toHaveValue(
+				50,
+			);
+		});
+
+		it("reformats a percent to the equivalent page number when switching from e-book to paperback", () => {
+			render(
+				<InstanceEditForm
+					{...baseProps}
+					pageCount={320}
+					instance={{
+						id: 42,
+						rating: 0,
+						fictionRating: null,
+						seasonReviews: null,
+						consumptionInfo: { method: BookConsumptionMethod.EBOOK },
+						reviewText: null,
+						progressPercent: 50,
+						startedAt: "2024-01-01",
+						completedAt: null,
+					}}
+				/>,
+			);
+			expect(screen.getByLabelText("mediaItemDetails.progress")).toHaveValue(
+				50,
+			);
+
+			fireEvent.click(screen.getByTestId("consumption-method-select"));
+			fireEvent.click(screen.getByText("consumption.method.paperback"));
+
+			expect(
+				screen.queryByLabelText("mediaItemDetails.progress"),
+			).not.toBeInTheDocument();
+			expect(screen.getByLabelText("mediaItemDetails.page")).toHaveValue(160);
+			expect(screen.getByText("/ 320")).toBeInTheDocument();
 		});
 	});
 
