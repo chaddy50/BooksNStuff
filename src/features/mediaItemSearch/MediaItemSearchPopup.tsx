@@ -58,21 +58,23 @@ export function SearchPopup(props: SearchPopupProps) {
 			return;
 		}
 
+		let isStaleRequest = false;
 		setIsSearching(true);
 		debounceRef.current = setTimeout(async () => {
 			try {
 				const data = await searchMedia({
 					data: { query: query.trim(), type: filterType },
 				});
-				setResults(data);
+				if (!isStaleRequest) setResults(data);
 			} catch {
-				setResults([]);
+				if (!isStaleRequest) setResults([]);
 			} finally {
-				setIsSearching(false);
+				if (!isStaleRequest) setIsSearching(false);
 			}
 		}, 400);
 
 		return () => {
+			isStaleRequest = true;
 			if (debounceRef.current) clearTimeout(debounceRef.current);
 		};
 	}, [query, filterType]);
