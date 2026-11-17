@@ -133,47 +133,6 @@ export async function fetchTimesToBeat(
 	return timesToBeatByGameId;
 }
 
-export async function fetchGameDeveloper(
-	gameId: string,
-): Promise<{ developer: string; developerBio: string | null } | null> {
-	const clientId = process.env.IGDB_CLIENT_ID;
-	if (!clientId) {
-		return null;
-	}
-
-	try {
-		const accessToken = await getAccessToken();
-		const body = `fields involved_companies.developer,involved_companies.company.name,involved_companies.company.description; where id = ${gameId};`;
-		const result = await fetch("https://api.igdb.com/v4/games", {
-			method: "POST",
-			headers: {
-				"Client-ID": clientId,
-				Authorization: `Bearer ${accessToken}`,
-				"Content-Type": "text/plain",
-			},
-			body,
-		});
-		if (!result.ok) {
-			return null;
-		}
-		const games: IgdbGame[] = await result.json();
-		const game = games[0];
-		if (!game) {
-			return null;
-		}
-		const developerCompany = game.involved_companies?.find((c) => c.developer);
-		if (!developerCompany) {
-			return null;
-		}
-		return {
-			developer: developerCompany.company.name,
-			developerBio: developerCompany.company.description ?? null,
-		};
-	} catch {
-		return null;
-	}
-}
-
 const GAME_FIELDS =
 	"fields name,cover.url,first_release_date,summary,genres.name,collections.name,involved_companies.developer,involved_companies.company.name,involved_companies.company.description;";
 
