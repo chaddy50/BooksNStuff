@@ -43,6 +43,10 @@ vi.mock(
 	}),
 );
 
+vi.mock("#/components/hooks/useToast", () => ({
+	useToast: () => ({ toast: vi.fn() }),
+}));
+
 function makeMediaItemDetails(
 	overrides: Record<string, unknown> = {},
 ): Parameters<typeof MediaItemDetailsHeader>[0]["mediaItemDetails"] {

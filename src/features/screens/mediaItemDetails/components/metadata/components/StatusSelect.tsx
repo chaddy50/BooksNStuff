@@ -1,5 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { useToast } from "#/components/hooks/useToast";
 import {
 	Select,
 	SelectContent,
@@ -26,18 +27,25 @@ export function StatusSelect(props: StatusSelectProps) {
 	const { mediaItemDetails, onSeriesCompletionNeeded } = props;
 	const router = useRouter();
 	const { t } = useTranslation();
+	const { toast } = useToast();
 
 	async function handleStatusChange(status: string) {
-		const confirmation = await updateMediaItemStatus({
-			data: {
-				mediaItemId: mediaItemDetails.id,
-				status: status as MediaItemStatus,
-				today: getLocalDateString(new Date()),
-			},
-		});
-		router.invalidate();
-		if (confirmation) {
-			onSeriesCompletionNeeded(confirmation);
+		try {
+			const confirmation = await updateMediaItemStatus({
+				data: {
+					mediaItemId: mediaItemDetails.id,
+					status: status as MediaItemStatus,
+					today: getLocalDateString(new Date()),
+				},
+			});
+			router.invalidate();
+			if (confirmation) {
+				onSeriesCompletionNeeded(confirmation);
+			}
+		} catch {
+			toast(t("mediaItemDetails.statusUpdateFailed"), {
+				variant: "destructive",
+			});
 		}
 	}
 
