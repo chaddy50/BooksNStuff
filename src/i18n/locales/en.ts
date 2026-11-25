@@ -322,6 +322,8 @@ export const en = {
 			importing: "Restoring...",
 			success: "Backup restored successfully.",
 			parseError: "Invalid backup file. Please select a valid backup.",
+			exportError: "Failed to export backup. Please try again.",
+			importError: "Failed to restore backup. Please try again.",
 		},
 		defaults: {
 			title: "Defaults",
