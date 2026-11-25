@@ -696,6 +696,40 @@ describe("saveInstanceForUser / getMediaItemDetailsForUser progress", () => {
 		expect(details.instances[0].progressPercent).toBeNull();
 	});
 
+	it("rejects an instanceId that belongs to a different media item", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+		});
+		const otherItemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+		});
+		const instanceOnOtherItem = await insertInstance({
+			mediaItemId: otherItemId,
+			startedAt: "2024-01-01",
+		});
+
+		await expect(
+			saveInstanceForUser(
+				{
+					mediaItemId: itemId,
+					instanceId: instanceOnOtherItem,
+					progressPercent: "90",
+				},
+				USER_A,
+			),
+		).rejects.toThrow("Instance not found");
+
+		const rows = await testDb
+			.select()
+			.from(mediaItemProgressUpdates)
+			.where(
+				eq(mediaItemProgressUpdates.mediaItemInstanceId, instanceOnOtherItem),
+			);
+		expect(rows).toHaveLength(0);
+	});
+
 	it("reverts the item to BACKLOG when the only instance's dates are cleared", async () => {
 		const itemId = await insertMediaItem({
 			userId: USER_A,

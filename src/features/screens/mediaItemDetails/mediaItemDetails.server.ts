@@ -186,6 +186,7 @@ async function upsertInstance(
 					eq(mediaItemInstances.mediaItemId, mediaItemId),
 				),
 			);
+		if (!existingInstance) throw new Error("Instance not found");
 
 		await db
 			.update(mediaItemInstances)
@@ -199,7 +200,7 @@ async function upsertInstance(
 
 		await recordProgressUpdate(
 			instanceId,
-			existingInstance?.progressPercent ?? null,
+			existingInstance.progressPercent,
 			values.progressPercent,
 			today,
 		);
