@@ -1,5 +1,4 @@
 import type { ReportDataPoint } from "./types";
-import { getDefaultInsightsDateRange } from "./utils";
 
 /**
  * This file uses the .server.ts convention — it must never be statically
@@ -7,7 +6,7 @@ import { getDefaultInsightsDateRange } from "./utils";
  * bodies or other server-only modules.
  */
 
-export const getYearToDateRange = getDefaultInsightsDateRange;
+export { getYearToDateRange } from "./utils";
 
 /**
  * Builds an ascending array of calendar months from startDate's month through
