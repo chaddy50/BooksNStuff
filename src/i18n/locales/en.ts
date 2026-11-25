@@ -157,6 +157,7 @@ export const en = {
 		searching: "Searching...",
 		noResults: "No results found.",
 		addToLibrary: "Add",
+		addToLibraryError: "Failed to add item to library.",
 		adding: "Adding...",
 		createCustom: "Create manually",
 		createCustomTitle: "Create Custom Item",
