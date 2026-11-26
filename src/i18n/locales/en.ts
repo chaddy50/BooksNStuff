@@ -221,6 +221,7 @@ export const en = {
 		missingItemsLoading: "Loading…",
 		missingItemsEmpty: "Nothing else found for this series.",
 		missingItemsError: "Couldn't load items for this series.",
+		missingItemAddFailed: "Couldn't add this item to your library.",
 	},
 	dashboard: {
 		title: "Dashboard",
