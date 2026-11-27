@@ -502,6 +502,74 @@ export type UpdateMediaItemSeriesInput = {
 	newSeriesName?: string;
 };
 
+async function resolveSeriesIdAndName(
+	data: UpdateMediaItemSeriesInput,
+	userId: string,
+): Promise<{
+	resolvedSeriesId: number | null;
+	resolvedSeriesName: string | null;
+}> {
+	if (data.newSeriesName) {
+		const [newSeries] = await db
+			.insert(series)
+			.values({ name: data.newSeriesName, type: data.type, userId })
+			.returning({ id: series.id });
+		if (!newSeries) throw new Error("Failed to create series");
+		return {
+			resolvedSeriesId: newSeries.id,
+			resolvedSeriesName: data.newSeriesName,
+		};
+	}
+	if (data.seriesId === null) {
+		return { resolvedSeriesId: null, resolvedSeriesName: null };
+	}
+	const [existing] = await db
+		.select({ name: series.name })
+		.from(series)
+		.where(and(eq(series.id, data.seriesId), eq(series.userId, userId)));
+	return {
+		resolvedSeriesId: data.seriesId,
+		resolvedSeriesName: existing?.name ?? null,
+	};
+}
+
+async function setSeriesMetadata(
+	itemPredicate: ReturnType<typeof and>,
+	resolvedSeriesName: string | null,
+): Promise<void> {
+	if (resolvedSeriesName) {
+		await db
+			.update(mediaItems)
+			.set({
+				metadata: sql`jsonb_set(coalesce(${mediaItems.metadata}, '{}'), '{series}', ${JSON.stringify(resolvedSeriesName)}::jsonb)`,
+			})
+			.where(itemPredicate);
+		return;
+	}
+	await db
+		.update(mediaItems)
+		.set({ metadata: sql`${mediaItems.metadata} - 'series'` })
+		.where(itemPredicate);
+}
+
+// Sync the old series (item left) and new series (item joined). Leaving a
+// series is not itself a completion event, so the old series is never
+// silently auto-completed by this.
+async function syncOldAndNewSeriesStatus(
+	previousSeriesId: number | null | undefined,
+	resolvedSeriesId: number | null,
+	userId: string,
+): Promise<void> {
+	if (previousSeriesId) {
+		await syncSeriesStatus(previousSeriesId, userId, {
+			allowCompleting: false,
+		});
+	}
+	if (resolvedSeriesId && resolvedSeriesId !== previousSeriesId) {
+		await syncSeriesStatus(resolvedSeriesId, userId);
+	}
+}
+
 export async function updateMediaItemSeries(
 	data: UpdateMediaItemSeriesInput,
 	userId: string,
@@ -513,24 +581,10 @@ export async function updateMediaItemSeries(
 			and(eq(mediaItems.id, data.mediaItemId), eq(mediaItems.userId, userId)),
 		);
 
-	let resolvedSeriesId = data.seriesId;
-	let resolvedSeriesName: string | null = null;
-
-	if (data.newSeriesName) {
-		const [newSeries] = await db
-			.insert(series)
-			.values({ name: data.newSeriesName, type: data.type, userId })
-			.returning({ id: series.id });
-		if (!newSeries) throw new Error("Failed to create series");
-		resolvedSeriesId = newSeries.id;
-		resolvedSeriesName = data.newSeriesName;
-	} else if (data.seriesId !== null) {
-		const [existing] = await db
-			.select({ name: series.name })
-			.from(series)
-			.where(and(eq(series.id, data.seriesId), eq(series.userId, userId)));
-		resolvedSeriesName = existing?.name ?? null;
-	}
+	const { resolvedSeriesId, resolvedSeriesName } = await resolveSeriesIdAndName(
+		data,
+		userId,
+	);
 
 	const itemPredicate = and(
 		eq(mediaItems.id, data.mediaItemId),
@@ -542,31 +596,13 @@ export async function updateMediaItemSeries(
 		.set({ seriesId: resolvedSeriesId })
 		.where(itemPredicate);
 
-	if (resolvedSeriesName) {
-		await db
-			.update(mediaItems)
-			.set({
-				metadata: sql`jsonb_set(coalesce(${mediaItems.metadata}, '{}'), '{series}', ${JSON.stringify(resolvedSeriesName)}::jsonb)`,
-			})
-			.where(itemPredicate);
-	} else {
-		await db
-			.update(mediaItems)
-			.set({ metadata: sql`${mediaItems.metadata} - 'series'` })
-			.where(itemPredicate);
-	}
+	await setSeriesMetadata(itemPredicate, resolvedSeriesName);
 
-	// Sync the old series (item left) and new series (item joined). Leaving a
-	// series is not itself a completion event, so the old series is never
-	// silently auto-completed by this.
-	if (currentItem?.seriesId) {
-		await syncSeriesStatus(currentItem.seriesId, userId, {
-			allowCompleting: false,
-		});
-	}
-	if (resolvedSeriesId && resolvedSeriesId !== currentItem?.seriesId) {
-		await syncSeriesStatus(resolvedSeriesId, userId);
-	}
+	await syncOldAndNewSeriesStatus(
+		currentItem?.seriesId,
+		resolvedSeriesId,
+		userId,
+	);
 }
 
 export type UpdateMediaItemCreatorInput = {

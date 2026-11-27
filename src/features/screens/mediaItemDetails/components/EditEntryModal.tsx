@@ -79,10 +79,14 @@ function undefinedIfEmpty(value: string): string | undefined {
 	return value || undefined;
 }
 
+function emptyIfNullish(value: string | null | undefined): string {
+	return value ?? "";
+}
+
 function getInitialConsumptionInfo(
 	instance: EditEntryModalProps["instance"],
 	mediaItemType: MediaItemType,
-	settings: UserSettings | null,
+	settings: UserSettings | null | undefined,
 ): ConsumptionInfo | null {
 	if (instance.consumptionInfo) return instance.consumptionInfo;
 	return getDefaultConsumptionInfo(mediaItemType, settings);
@@ -106,11 +110,15 @@ export function EditEntryModal({
 	const completedAtId = useId();
 	const { data: settings } = useUserSettings();
 
-	const [startedAt, setStartedAt] = useState(instance.startedAt ?? "");
-	const [completedAt, setCompletedAt] = useState(instance.completedAt ?? "");
+	const [startedAt, setStartedAt] = useState(
+		emptyIfNullish(instance.startedAt),
+	);
+	const [completedAt, setCompletedAt] = useState(
+		emptyIfNullish(instance.completedAt),
+	);
 	const [consumptionInfo, setConsumptionInfo] =
 		useState<ConsumptionInfo | null>(
-			getInitialConsumptionInfo(instance, mediaItemType, settings ?? null),
+			getInitialConsumptionInfo(instance, mediaItemType, settings),
 		);
 	const effectivePageCount = resolveEffectivePageCount(
 		mediaItemType,
@@ -124,7 +132,9 @@ export function EditEntryModal({
 	const [fictionRating, setFictionRating] = useState<FictionRating | null>(
 		instance.fictionRating,
 	);
-	const [reviewText, setReviewText] = useState(instance.reviewText ?? "");
+	const [reviewText, setReviewText] = useState(
+		emptyIfNullish(instance.reviewText),
+	);
 	const seasonReviewsEditor = useSeasonReviewsEditor(
 		instance.seasonReviews ?? [],
 		totalSeasons,
@@ -220,35 +230,31 @@ export function EditEntryModal({
 			</ResponsiveDialogHeader>
 
 			<ResponsiveDialogBody className="flex flex-col gap-5">
-				<div className="grid grid-cols-2 gap-4 max-w-sm">
-					<div className="flex flex-col gap-1.5">
-						<label
-							className="text-sm text-muted-foreground"
-							htmlFor={startedAtId}
-						>
-							{t("mediaItemDetails.started")}
-						</label>
-						<Input
-							id={startedAtId}
-							type="date"
-							value={startedAt}
-							onChange={(e) => setStartedAt(e.target.value)}
-						/>
-					</div>
-					<div className="flex flex-col gap-1.5">
-						<label
-							className="text-sm text-muted-foreground"
-							htmlFor={completedAtId}
-						>
-							{t("mediaItemDetails.completed")}
-						</label>
-						<Input
-							id={completedAtId}
-							type="date"
-							value={completedAt}
-							onChange={(e) => setCompletedAt(e.target.value)}
-						/>
-					</div>
+				<div className="grid grid-cols-2 gap-x-4 gap-y-1.5 max-w-sm">
+					<label
+						className="text-sm text-muted-foreground"
+						htmlFor={startedAtId}
+					>
+						{t("mediaItemDetails.started")}
+					</label>
+					<label
+						className="text-sm text-muted-foreground"
+						htmlFor={completedAtId}
+					>
+						{t("mediaItemDetails.completed")}
+					</label>
+					<Input
+						id={startedAtId}
+						type="date"
+						value={startedAt}
+						onChange={(e) => setStartedAt(e.target.value)}
+					/>
+					<Input
+						id={completedAtId}
+						type="date"
+						value={completedAt}
+						onChange={(e) => setCompletedAt(e.target.value)}
+					/>
 				</div>
 
 				<ProgressField

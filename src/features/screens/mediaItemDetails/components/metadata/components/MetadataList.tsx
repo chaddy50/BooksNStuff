@@ -129,6 +129,50 @@ const FIELD_BUILDER_BY_TYPE: Record<MediaItemType, FieldBuilder> = {
 	[MediaItemType.PODCAST]: podcastFields,
 };
 
+function buildGenreRow(
+	genreId: MediaItemDetails["genreId"],
+	genreName: MediaItemDetails["genreName"],
+	t: TFunction,
+): Row | null {
+	if (!genreId || !genreName) return null;
+	return {
+		label: t("metadata.genre"),
+		node: (
+			<Link
+				to="/genre/$genreId"
+				params={{ genreId: String(genreId) }}
+				className="hover:underline"
+			>
+				{genreName}
+			</Link>
+		),
+	};
+}
+
+function buildMetadataRows(
+	type: MediaItemDetails["type"],
+	metadata: MediaItemDetails["metadata"],
+	releaseDate: MediaItemDetails["releaseDate"],
+	genreId: MediaItemDetails["genreId"],
+	genreName: MediaItemDetails["genreName"],
+	t: TFunction,
+): Row[] {
+	const typeFields: Field[] = metadata
+		? FIELD_BUILDER_BY_TYPE[type](metadata as Record<string, unknown>, t)
+		: [];
+	const releaseYear = formatReleaseYear(releaseDate, t);
+	const yearRow: Row | null = releaseYear
+		? { label: t("metadata.year"), node: releaseYear }
+		: null;
+	const genreRow = buildGenreRow(genreId, genreName, t);
+
+	return [
+		yearRow,
+		genreRow,
+		...typeFields.map((field) => ({ label: field.label, node: field.value })),
+	].filter((row): row is Row => row !== null);
+}
+
 // Creator, series, and tags live in the media item header instead; this list
 // covers release year, genre, and the remaining, less headline details.
 export function MetadataList({
@@ -145,32 +189,14 @@ export function MetadataList({
 	genreName: MediaItemDetails["genreName"];
 }) {
 	const { t } = useTranslation();
-	const typeFields: Field[] = metadata
-		? FIELD_BUILDER_BY_TYPE[type](metadata as Record<string, unknown>, t)
-		: [];
-
-	const rows: Row[] = [];
-	const releaseYear = formatReleaseYear(releaseDate, t);
-	if (releaseYear) {
-		rows.push({ label: t("metadata.year"), node: releaseYear });
-	}
-	if (genreName && genreId) {
-		rows.push({
-			label: t("metadata.genre"),
-			node: (
-				<Link
-					to="/genre/$genreId"
-					params={{ genreId: String(genreId) }}
-					className="hover:underline"
-				>
-					{genreName}
-				</Link>
-			),
-		});
-	}
-	for (const field of typeFields) {
-		rows.push({ label: field.label, node: field.value });
-	}
+	const rows = buildMetadataRows(
+		type,
+		metadata,
+		releaseDate,
+		genreId,
+		genreName,
+		t,
+	);
 
 	if (rows.length === 0) return null;
 

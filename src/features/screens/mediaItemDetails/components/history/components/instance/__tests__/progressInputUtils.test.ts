@@ -17,7 +17,7 @@ describe("isPhysicalBookFormat", () => {
 
 	it("is false for e-book, audiobook, or an unset method", () => {
 		expect(isPhysicalBookFormat(BookConsumptionMethod.EBOOK)).toBe(false);
-		expect(isPhysicalBookFormat(undefined)).toBe(false);
+		expect(isPhysicalBookFormat()).toBe(false);
 	});
 });
 
@@ -86,15 +86,15 @@ describe("percent <-> page conversion", () => {
 
 describe("formatProgressInputValue / parseProgressInputValue", () => {
 	it("formats an empty string when progressPercent is null or undefined", () => {
-		expect(formatProgressInputValue(null, undefined)).toBe("");
-		expect(formatProgressInputValue(undefined, undefined)).toBe("");
+		expect(formatProgressInputValue(null)).toBe("");
+		expect(formatProgressInputValue(undefined)).toBe("");
 	});
 
 	it("parses an empty input as undefined (no change)", () => {
-		expect(parseProgressInputValue("", undefined)).toBeUndefined();
+		expect(parseProgressInputValue("")).toBeUndefined();
 	});
 
 	it("parses a raw percent string to a four-decimal string when there is no page count", () => {
-		expect(parseProgressInputValue("42", undefined)).toBe("42.0000");
+		expect(parseProgressInputValue("42")).toBe("42.0000");
 	});
 });

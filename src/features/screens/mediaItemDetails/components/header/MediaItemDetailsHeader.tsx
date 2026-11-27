@@ -21,11 +21,11 @@ import {
 } from "#/features/screens/mediaItemDetails/mediaItemDetailsHeader";
 import { MediaItemStatus } from "#/lib/enums";
 import { getLocalDateString } from "#/lib/utils";
-import { ReviewAndCompleteModal } from "./components/ReviewAndCompleteModal";
 import { MediaItemDetailsHeaderBackdrop } from "./MediaItemDetailsHeaderBackdrop";
 import { MediaItemDetailsHeaderCurrentInstance } from "./MediaItemDetailsHeaderCurrentInstance";
 import { MediaItemDetailsHeaderMetaList } from "./MediaItemDetailsHeaderMetaList";
 import { MediaItemDetailsHeaderQueueActions } from "./MediaItemDetailsHeaderQueueActions";
+import { MediaItemDetailsHeaderReviewModal } from "./MediaItemDetailsHeaderReviewModal";
 import { MediaItemDetailsHeaderTags } from "./MediaItemDetailsHeaderTags";
 
 interface MediaItemDetailsHeaderProps {
@@ -152,20 +152,14 @@ export function MediaItemDetailsHeader(props: MediaItemDetailsHeaderProps) {
 				</div>
 			)}
 
-			{unfinishedInstance &&
-				editorState.modalState?.kind === "review-complete" && (
-					<ReviewAndCompleteModal
-						ref={editorState.editorRef}
-						open
-						onClose={editorState.closeModal}
-						mediaItemId={mediaItemDetails.id}
-						mediaItemType={mediaItemDetails.type}
-						totalSeasons={totalSeasons}
-						instance={unfinishedInstance}
-						onSaved={handleSaved}
-						onSeriesCompletionNeeded={onSeriesCompletionNeeded}
-					/>
-				)}
+			<MediaItemDetailsHeaderReviewModal
+				unfinishedInstance={unfinishedInstance}
+				editorState={editorState}
+				mediaItemDetails={mediaItemDetails}
+				totalSeasons={totalSeasons}
+				onSaved={handleSaved}
+				onSeriesCompletionNeeded={onSeriesCompletionNeeded}
+			/>
 		</MediaItemDetailsHeaderBackdrop>
 	);
 }

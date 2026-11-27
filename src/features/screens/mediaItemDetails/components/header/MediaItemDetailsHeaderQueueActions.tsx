@@ -1,7 +1,5 @@
 import { useTranslation } from "react-i18next";
 import { Button } from "#/components/ui/button";
-import { RatingStars } from "#/features/screens/mediaItemDetails/components/history/components/instance/rating/ratingStars/RatingStars";
-import { InstanceMetaLine } from "#/features/screens/mediaItemDetails/components/InstanceMetaLine";
 import { PurchasedToggle } from "#/features/screens/mediaItemDetails/components/metadata/components/PurchasedToggle";
 import { StatusSelect } from "#/features/screens/mediaItemDetails/components/metadata/components/StatusSelect";
 import type {
@@ -15,6 +13,7 @@ import {
 	getRereadLabelKey,
 } from "#/features/screens/mediaItemDetails/mediaItemDetailsHeader";
 import { MediaItemStatus } from "#/lib/enums";
+import { MediaItemDetailsHeaderQueueCaption } from "./components/MediaItemDetailsHeaderQueueCaption";
 
 // Secondary action offered next to the primary Start/Reread button, for each
 // status with no unfinished instance.
@@ -83,14 +82,11 @@ export function MediaItemDetailsHeaderQueueActions({
 					{t(`status.${mediaItemDetails.status}` as never)}
 				</h3>
 			)}
-			{queueCaptionLabels.length > 0 && (
-				<div className="flex items-center gap-4">
-					<InstanceMetaLine labels={queueCaptionLabels} />
-					{mediaItemDetails.status === MediaItemStatus.COMPLETED && (
-						<RatingStars rating={rating} />
-					)}
-				</div>
-			)}
+			<MediaItemDetailsHeaderQueueCaption
+				status={mediaItemDetails.status}
+				rating={rating}
+				queueCaptionLabels={queueCaptionLabels}
+			/>
 			{!shouldHideStatusControls && (
 				<div className="flex items-center gap-3">
 					<StatusSelect

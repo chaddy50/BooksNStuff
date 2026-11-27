@@ -1,8 +1,6 @@
 import { BookConsumptionMethod, MediaItemType } from "#/lib/enums";
 
-export function isPhysicalBookFormat(
-	consumptionMethod: string | undefined,
-): boolean {
+export function isPhysicalBookFormat(consumptionMethod?: string): boolean {
 	return (
 		consumptionMethod === BookConsumptionMethod.HARDCOVER ||
 		consumptionMethod === BookConsumptionMethod.PAPERBACK
@@ -39,7 +37,7 @@ export function pageNumberToPercent(
 
 export function formatProgressInputValue(
 	progressPercent: number | null | undefined,
-	pageCount: number | undefined,
+	pageCount?: number,
 ): string {
 	if (progressPercent == null) return "";
 	return pageCount
@@ -49,7 +47,7 @@ export function formatProgressInputValue(
 
 export function parseProgressInputValue(
 	value: string,
-	pageCount: number | undefined,
+	pageCount?: number,
 ): string | undefined {
 	if (!value) return undefined;
 	const parsedValue = Number(value);

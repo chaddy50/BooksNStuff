@@ -3,12 +3,13 @@ import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MarkdownTextBlock } from "#/components/MarkdownTextBlock";
 import { Button } from "#/components/ui/button";
+import { InstanceSeasonReviews } from "#/features/screens/mediaItemDetails/components/history/components/instance/components/InstanceSeasonReviews";
 import { FictionRatingComments } from "#/features/screens/mediaItemDetails/components/history/components/instance/rating/fictionRating/FictionRatingComments";
 import { RatingStars } from "#/features/screens/mediaItemDetails/components/history/components/instance/rating/ratingStars/RatingStars";
 import { getInstanceMetaLabels } from "#/features/screens/mediaItemDetails/instanceMetaLabels";
 import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/mediaItemDetails";
 import type { MediaItemStatus } from "#/lib/enums";
-import { cn, formatDateRange } from "#/lib/utils";
+import { cn } from "#/lib/utils";
 
 export function InstanceRow({
 	index,
@@ -102,50 +103,7 @@ export function InstanceRow({
 			{isExpanded &&
 				instance.seasonReviews &&
 				instance.seasonReviews.length > 0 && (
-					<div className="flex flex-col gap-2 mt-1 pt-2 border-t border-border">
-						{[...instance.seasonReviews]
-							.sort((a, b) => a.season - b.season)
-							.map((seasonReview) => {
-								const seasonDateRange = formatDateRange(
-									seasonReview.startedAt || null,
-									seasonReview.completedAt || null,
-								);
-								return (
-									<div
-										key={seasonReview.season}
-										className="flex flex-col gap-1"
-									>
-										<div className="flex items-center gap-3 flex-wrap">
-											<span className="text-sm font-medium text-muted-foreground">
-												{t("mediaItemDetails.seasonN", {
-													season: seasonReview.season,
-												})}
-											</span>
-											{seasonDateRange && (
-												<span className="text-muted-foreground text-sm">
-													{seasonDateRange}
-												</span>
-											)}
-											<RatingStars
-												rating={seasonReview.rating}
-												shouldShowValue
-											/>
-										</div>
-										{seasonReview.fictionRating && (
-											<FictionRatingComments
-												fictionRating={seasonReview.fictionRating}
-											/>
-										)}
-										{seasonReview.reviewText && (
-											<MarkdownTextBlock
-												text={seasonReview.reviewText}
-												maxLines={3}
-											/>
-										)}
-									</div>
-								);
-							})}
-					</div>
+					<InstanceSeasonReviews seasonReviews={instance.seasonReviews} />
 				)}
 		</div>
 	);
