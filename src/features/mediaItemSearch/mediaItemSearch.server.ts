@@ -118,7 +118,7 @@ export type AddToLibraryInput = {
 	metadata: Record<string, unknown>;
 };
 
-async function resolveSeriesIdForNewItem(
+function resolveSeriesIdForNewItem(
 	metadata: Record<string, unknown>,
 	type: MediaItemType,
 	externalSource: string,
@@ -126,7 +126,7 @@ async function resolveSeriesIdForNewItem(
 ): Promise<number | null> {
 	const seriesName =
 		typeof metadata.series === "string" ? metadata.series : null;
-	if (!seriesName) return null;
+	if (!seriesName) return Promise.resolve(null);
 	return findOrCreateSeriesForItem(seriesName, type, externalSource, userId);
 }
 
@@ -214,16 +214,7 @@ export async function handleAddToLibrary(
 
 	const mediaItemId = await insertLibraryEntry(
 		userId,
-		{
-			type: data.type,
-			title: data.title,
-			description: data.description ?? null,
-			coverImageUrl: data.coverImageUrl ?? null,
-			releaseDate: data.releaseDate ?? null,
-			externalId: data.externalId,
-			externalSource: data.externalSource,
-			metadata,
-		},
+		buildItemMetadataValues(data, metadata),
 		seriesId,
 		creatorId,
 	);
@@ -231,6 +222,22 @@ export async function handleAddToLibrary(
 		await syncSeriesStatus(seriesId, userId);
 	}
 	return { mediaItemId };
+}
+
+function buildItemMetadataValues(
+	data: AddToLibraryInput,
+	metadata: Record<string, unknown>,
+): ItemMetadataValues {
+	return {
+		type: data.type,
+		title: data.title,
+		description: data.description ?? null,
+		coverImageUrl: data.coverImageUrl ?? null,
+		releaseDate: data.releaseDate ?? null,
+		externalId: data.externalId,
+		externalSource: data.externalSource,
+		metadata,
+	};
 }
 
 export type PodcastArcMetadata = {
