@@ -118,6 +118,56 @@ export type AddToLibraryInput = {
 	metadata: Record<string, unknown>;
 };
 
+function resolveSeriesIdForNewItem(
+	metadata: Record<string, unknown>,
+	type: MediaItemType,
+	externalSource: string,
+	userId: string,
+): Promise<number | null> {
+	const seriesName =
+		typeof metadata.series === "string" ? metadata.series : null;
+	if (!seriesName) return Promise.resolve(null);
+	return findOrCreateSeriesForItem(seriesName, type, externalSource, userId);
+}
+
+async function resolveCreatorIdForNewItem(
+	type: MediaItemType,
+	metadata: Record<string, unknown>,
+	externalSource: string,
+	userId: string,
+): Promise<number | null> {
+	const creatorName = resolveCreatorName(type, metadata);
+	if (!creatorName) return null;
+	const biography = await resolveCreatorBiography(
+		creatorName,
+		externalSource,
+		metadata,
+	);
+	return findOrCreateCreator(creatorName, userId, biography);
+}
+
+async function backfillExistingItem(
+	existingItem: {
+		id: number;
+		seriesId: number | null;
+		creatorId: number | null;
+	},
+	seriesId: number | null,
+	creatorId: number | null,
+	userId: string,
+): Promise<void> {
+	const { backfilledSeriesId } = await backfillMissingRelations(
+		existingItem.id,
+		existingItem.seriesId,
+		existingItem.creatorId,
+		seriesId,
+		creatorId,
+	);
+	if (backfilledSeriesId) {
+		await syncSeriesStatus(backfilledSeriesId, userId);
+	}
+}
+
 export async function handleAddToLibrary(
 	data: AddToLibraryInput,
 	userId: string,
@@ -129,27 +179,18 @@ export async function handleAddToLibrary(
 		data.metadata,
 	);
 
-	const seriesName =
-		typeof metadata.series === "string" ? metadata.series : null;
-	const seriesId = seriesName
-		? await findOrCreateSeriesForItem(
-				seriesName,
-				data.type,
-				data.externalSource,
-				userId,
-			)
-		: null;
-
-	const creatorName = resolveCreatorName(data.type, metadata);
-	let creatorId: number | null = null;
-	if (creatorName) {
-		const biography = await resolveCreatorBiography(
-			creatorName,
-			data.externalSource,
-			metadata,
-		);
-		creatorId = await findOrCreateCreator(creatorName, userId, biography);
-	}
+	const seriesId = await resolveSeriesIdForNewItem(
+		metadata,
+		data.type,
+		data.externalSource,
+		userId,
+	);
+	const creatorId = await resolveCreatorIdForNewItem(
+		data.type,
+		metadata,
+		data.externalSource,
+		userId,
+	);
 
 	const [existingItem] = await db
 		.select({
@@ -167,28 +208,13 @@ export async function handleAddToLibrary(
 		);
 
 	if (existingItem) {
-		await backfillMissingRelations(
-			existingItem.id,
-			existingItem.seriesId,
-			existingItem.creatorId,
-			seriesId,
-			creatorId,
-		);
+		await backfillExistingItem(existingItem, seriesId, creatorId, userId);
 		return { mediaItemId: existingItem.id };
 	}
 
 	const mediaItemId = await insertLibraryEntry(
 		userId,
-		{
-			type: data.type,
-			title: data.title,
-			description: data.description ?? null,
-			coverImageUrl: data.coverImageUrl ?? null,
-			releaseDate: data.releaseDate ?? null,
-			externalId: data.externalId,
-			externalSource: data.externalSource,
-			metadata,
-		},
+		buildItemMetadataValues(data, metadata),
 		seriesId,
 		creatorId,
 	);
@@ -196,6 +222,22 @@ export async function handleAddToLibrary(
 		await syncSeriesStatus(seriesId, userId);
 	}
 	return { mediaItemId };
+}
+
+function buildItemMetadataValues(
+	data: AddToLibraryInput,
+	metadata: Record<string, unknown>,
+): ItemMetadataValues {
+	return {
+		type: data.type,
+		title: data.title,
+		description: data.description ?? null,
+		coverImageUrl: data.coverImageUrl ?? null,
+		releaseDate: data.releaseDate ?? null,
+		externalId: data.externalId,
+		externalSource: data.externalSource,
+		metadata,
+	};
 }
 
 export type PodcastArcMetadata = {
@@ -460,23 +502,36 @@ export async function resolveCreatorBiography(
 	return null;
 }
 
+/** A newly-resolved id only backfills a relation the item doesn't already have. */
+function resolveBackfilledId(
+	existingId: number | null,
+	newId: number | null,
+): number | null {
+	if (existingId) return null;
+	return newId;
+}
+
 async function backfillMissingRelations(
 	itemId: number,
 	existingSeriesId: number | null,
 	existingCreatorId: number | null,
 	newSeriesId: number | null,
 	newCreatorId: number | null,
-): Promise<void> {
+): Promise<{ backfilledSeriesId: number | null }> {
+	const backfilledSeriesId = resolveBackfilledId(existingSeriesId, newSeriesId);
+	const backfilledCreatorId = resolveBackfilledId(
+		existingCreatorId,
+		newCreatorId,
+	);
+
 	const updates: Record<string, unknown> = {};
-	if (newSeriesId && !existingSeriesId) {
-		updates.seriesId = newSeriesId;
-	}
-	if (newCreatorId && !existingCreatorId) {
-		updates.creatorId = newCreatorId;
-	}
+	if (backfilledSeriesId) updates.seriesId = backfilledSeriesId;
+	if (backfilledCreatorId) updates.creatorId = backfilledCreatorId;
+
 	if (Object.keys(updates).length > 0) {
 		await db.update(mediaItems).set(updates).where(eq(mediaItems.id, itemId));
 	}
+	return { backfilledSeriesId };
 }
 
 /** The item's descriptive half, as seeded from an external API. */
