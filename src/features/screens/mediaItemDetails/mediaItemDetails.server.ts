@@ -524,13 +524,15 @@ async function resolveSeriesIdAndName(
 	if (data.seriesId === null) {
 		return { resolvedSeriesId: null, resolvedSeriesName: null };
 	}
+
 	const [existing] = await db
 		.select({ name: series.name })
 		.from(series)
 		.where(and(eq(series.id, data.seriesId), eq(series.userId, userId)));
+	if (!existing) throw new Error("Series not found");
 	return {
 		resolvedSeriesId: data.seriesId,
-		resolvedSeriesName: existing?.name ?? null,
+		resolvedSeriesName: existing.name,
 	};
 }
 
@@ -581,6 +583,9 @@ export async function updateMediaItemSeries(
 		.where(
 			and(eq(mediaItems.id, data.mediaItemId), eq(mediaItems.userId, userId)),
 		);
+	if (!currentItem) {
+		throw new Error("Unauthorized");
+	}
 
 	const { resolvedSeriesId, resolvedSeriesName } = await resolveSeriesIdAndName(
 		data,
@@ -600,7 +605,7 @@ export async function updateMediaItemSeries(
 	await setSeriesMetadata(itemPredicate, resolvedSeriesName);
 
 	await syncOldAndNewSeriesStatus(
-		currentItem?.seriesId,
+		currentItem.seriesId,
 		resolvedSeriesId,
 		userId,
 	);
@@ -612,6 +617,30 @@ export type UpdateMediaItemCreatorInput = {
 	creatorId: number | null;
 	newCreatorName?: string;
 };
+
+async function resolveCreatorIdAndName(
+	data: UpdateMediaItemCreatorInput,
+	userId: string,
+): Promise<{ id: number | null; name: string | null }> {
+	if (data.newCreatorName) {
+		const [newCreator] = await db
+			.insert(creators)
+			.values({ name: data.newCreatorName, userId, biography: null })
+			.returning({ id: creators.id });
+		if (!newCreator) throw new Error("Failed to create creator");
+		return { id: newCreator.id, name: data.newCreatorName };
+	}
+	if (data.creatorId === null) {
+		return { id: null, name: null };
+	}
+
+	const [existing] = await db
+		.select({ name: creators.name })
+		.from(creators)
+		.where(and(eq(creators.id, data.creatorId), eq(creators.userId, userId)));
+	if (!existing) throw new Error("Creator not found");
+	return { id: data.creatorId, name: existing.name };
+}
 
 export async function updateMediaItemCreator(
 	data: UpdateMediaItemCreatorInput,
@@ -627,26 +656,8 @@ export async function updateMediaItemCreator(
 		throw new Error("Unauthorized");
 	}
 
-	let resolvedCreatorId = data.creatorId;
-	let resolvedCreatorName: string | null = null;
-
-	if (data.newCreatorName) {
-		const [newCreator] = await db
-			.insert(creators)
-			.values({ name: data.newCreatorName, userId, biography: null })
-			.returning({ id: creators.id });
-		if (!newCreator) {
-			throw new Error("Failed to create creator");
-		}
-		resolvedCreatorId = newCreator.id;
-		resolvedCreatorName = data.newCreatorName;
-	} else if (data.creatorId !== null) {
-		const [existing] = await db
-			.select({ name: creators.name })
-			.from(creators)
-			.where(and(eq(creators.id, data.creatorId), eq(creators.userId, userId)));
-		resolvedCreatorName = existing?.name ?? null;
-	}
+	const { id: resolvedCreatorId, name: resolvedCreatorName } =
+		await resolveCreatorIdAndName(data, userId);
 
 	const itemPredicate = and(
 		eq(mediaItems.id, data.mediaItemId),
