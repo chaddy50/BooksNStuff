@@ -52,26 +52,26 @@ export function SearchPopup(props: SearchPopupProps) {
 	useEffect(() => {
 		if (debounceRef.current) clearTimeout(debounceRef.current);
 
+		let isStaleRequest = false;
+
 		if (!query.trim()) {
 			setResults([]);
 			setIsSearching(false);
-			return;
+		} else {
+			setIsSearching(true);
+			debounceRef.current = setTimeout(async () => {
+				try {
+					const data = await searchMedia({
+						data: { query: query.trim(), type: filterType },
+					});
+					if (!isStaleRequest) setResults(data);
+				} catch {
+					if (!isStaleRequest) setResults([]);
+				} finally {
+					if (!isStaleRequest) setIsSearching(false);
+				}
+			}, 400);
 		}
-
-		let isStaleRequest = false;
-		setIsSearching(true);
-		debounceRef.current = setTimeout(async () => {
-			try {
-				const data = await searchMedia({
-					data: { query: query.trim(), type: filterType },
-				});
-				if (!isStaleRequest) setResults(data);
-			} catch {
-				if (!isStaleRequest) setResults([]);
-			} finally {
-				if (!isStaleRequest) setIsSearching(false);
-			}
-		}, 400);
 
 		return () => {
 			isStaleRequest = true;

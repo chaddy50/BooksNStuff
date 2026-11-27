@@ -85,8 +85,7 @@ describe("SearchPopup", () => {
 	it("ignores a stale search response that resolves after a newer one", async () => {
 		vi.useFakeTimers();
 		const mockedSearchMedia = vi.mocked(searchMedia);
-		let resolveFirstSearch: (value: SearchResultWithStatus[]) => void =
-			() => {};
+		let resolveFirstSearch!: (value: SearchResultWithStatus[]) => void;
 		mockedSearchMedia.mockImplementationOnce(
 			() =>
 				new Promise((resolve) => {
