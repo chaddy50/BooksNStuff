@@ -141,9 +141,17 @@ type Props = {
 	reportType: DashboardReportType;
 	data: ReportDataPoint[] | GenreDataPoint[] | AverageScoreDataPoint[];
 	itemTypes?: MediaItemType[];
+	startDate?: string;
+	endDate?: string;
 };
 
-export function ReportChart({ reportType, data, itemTypes = [] }: Props) {
+export function ReportChart({
+	reportType,
+	data,
+	itemTypes = [],
+	startDate,
+	endDate,
+}: Props) {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 
@@ -151,7 +159,11 @@ export function ReportChart({ reportType, data, itemTypes = [] }: Props) {
 		navigate({
 			to: "/reports/$reportType/drilldown",
 			params: { reportType },
-			search: itemTypes.length > 0 ? { key, itemTypes } : { key },
+			search: {
+				key,
+				...(itemTypes.length > 0 ? { itemTypes } : {}),
+				...(startDate && endDate ? { startDate, endDate } : {}),
+			},
 		});
 	}
 
@@ -159,10 +171,12 @@ export function ReportChart({ reportType, data, itemTypes = [] }: Props) {
 		navigate({
 			to: "/reports/$reportType/drilldown",
 			params: { reportType },
-			search:
-				itemTypes.length > 0
-					? { key: label, genres: genreNames, itemTypes }
-					: { key: label, genres: genreNames },
+			search: {
+				key: label,
+				genres: genreNames,
+				...(itemTypes.length > 0 ? { itemTypes } : {}),
+				...(startDate && endDate ? { startDate, endDate } : {}),
+			},
 		});
 	}
 
