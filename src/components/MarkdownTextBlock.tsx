@@ -19,12 +19,13 @@ export function MarkdownTextBlock({
 	const [isOverflowing, setIsOverflowing] = useState(false);
 	const [isExpanded, setIsExpanded] = useState(false);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: text and maxLines are triggers here, not read in the body — re-measuring overflow whenever the rendered content changes is the whole point
 	useEffect(() => {
 		const element = contentRef.current;
 		if (element) {
 			setIsOverflowing(element.scrollHeight > element.clientHeight);
 		}
-	}, []);
+	}, [text, maxLines]);
 
 	return (
 		<div>

@@ -12,7 +12,7 @@ export function isBookIncludedInItemTypes(itemTypes: MediaItemType[]): boolean {
 	return itemTypes.length === 0 || itemTypes.includes(MediaItemType.BOOK);
 }
 
-export function getDefaultInsightsDateRange(): InsightsDateRange {
+export function getYearToDateRange(): InsightsDateRange {
 	const today = new Date();
 	const startOfYear = new Date(today.getFullYear(), 0, 1);
 	return {
@@ -25,7 +25,7 @@ export function applyInsightsDateRangeDefaults(search: {
 	startDate?: string;
 	endDate?: string;
 }): InsightsDateRange {
-	const defaults = getDefaultInsightsDateRange();
+	const defaults = getYearToDateRange();
 	return {
 		startDate: search.startDate ?? defaults.startDate,
 		endDate: search.endDate ?? defaults.endDate,
@@ -86,7 +86,7 @@ export const INSIGHTS_DATE_RANGE_PRESETS: readonly InsightsDateRangePreset[] = [
 	{ key: "last3Months", getRange: () => getRollingMonthsRange(3) },
 	{ key: "last6Months", getRange: () => getRollingMonthsRange(6) },
 	{ key: "last12Months", getRange: () => getRollingMonthsRange(12) },
-	{ key: "yearToDate", getRange: getDefaultInsightsDateRange },
+	{ key: "yearToDate", getRange: getYearToDateRange },
 ];
 
 export function matchPreset(

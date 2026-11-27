@@ -19,4 +19,9 @@ describe("InitialsAvatar", () => {
 		render(<InitialsAvatar name="Horror" />);
 		expect(screen.getByText("HO")).toBeInTheDocument();
 	});
+
+	it("renders without crashing for a blank name", () => {
+		const { container } = render(<InitialsAvatar name="   " />);
+		expect(container.textContent).toBe("");
+	});
 });

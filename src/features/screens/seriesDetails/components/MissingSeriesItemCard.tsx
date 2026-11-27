@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { useToast } from "#/components/hooks/useToast";
 import { MediaItemCard } from "#/components/MediaItemCard";
 import { Button } from "#/components/ui/button";
 import { addToLibrary } from "#/features/mediaItemSearch/mediaItemSearch";
@@ -28,6 +29,7 @@ export function MissingSeriesItemCard({
 	onAdded,
 }: MissingSeriesItemCardProps) {
 	const { t } = useTranslation();
+	const { toast } = useToast();
 	const [isAdding, setIsAdding] = useState(false);
 
 	const creatorName = resolveCreatorName(item.type, item.metadata);
@@ -48,6 +50,10 @@ export function MissingSeriesItemCard({
 				},
 			});
 			onAdded(item);
+		} catch {
+			toast(t("seriesDetails.missingItemAddFailed"), {
+				variant: "destructive",
+			});
 		} finally {
 			setIsAdding(false);
 		}

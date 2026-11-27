@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "#/components/ui/tooltip";
@@ -51,6 +51,10 @@ function renderInstanceRow(
 
 const t = (key: string) => key;
 
+function expandRow() {
+	fireEvent.click(screen.getByTestId("instance-row-summary-toggle"));
+}
+
 afterEach(cleanup);
 
 describe("getConsumptionLabel", () => {
@@ -92,16 +96,103 @@ describe("getProgressLabel", () => {
 	});
 });
 
-describe("InstanceRow", () => {
-	it("does not show season reviews when seasonReviews is null", () => {
-		renderInstanceRow({ seasonReviews: null });
+describe("InstanceRow collapse/expand", () => {
+	it("renders collapsed by default: summary and Edit are visible, review content is not", () => {
+		renderInstanceRow({
+			reviewText: "A great read.",
+			fictionRating: buildFictionRating(),
+			seasonReviews: [
+				{
+					season: 1,
+					startedAt: "",
+					completedAt: "",
+					rating: 3,
+					reviewText: "Season one review",
+				},
+			],
+		});
+
+		expect(
+			screen.getByRole("button", { name: "mediaItemDetails.edit" }),
+		).toBeInTheDocument();
+		expect(screen.queryByText("A great read.")).not.toBeInTheDocument();
+		expect(screen.queryByText(/^fictionRating\./)).not.toBeInTheDocument();
 		expect(
 			screen.queryByText("mediaItemDetails.seasonN"),
 		).not.toBeInTheDocument();
 	});
 
-	it("does not show season reviews when seasonReviews is empty", () => {
+	it("clicking the summary row reveals the review content", () => {
+		renderInstanceRow({ reviewText: "A great read." });
+
+		expandRow();
+
+		expect(screen.getByText("A great read.")).toBeInTheDocument();
+	});
+
+	it("clicking Edit calls onEdit and does not expand the row", () => {
+		const onEdit = vi.fn();
+		render(
+			<TooltipProvider>
+				<InstanceRow
+					index={1}
+					instance={{ ...baseInstance, reviewText: "A great read." }}
+					status={MediaItemStatus.IN_PROGRESS}
+					statusChangedAt={null}
+					onEdit={onEdit}
+				/>
+			</TooltipProvider>,
+		);
+
+		fireEvent.click(
+			screen.getByRole("button", { name: "mediaItemDetails.edit" }),
+		);
+
+		expect(onEdit).toHaveBeenCalledTimes(1);
+		expect(screen.queryByText("A great read.")).not.toBeInTheDocument();
+	});
+
+	it("is not expandable when there's no review, fiction rating, or season reviews", () => {
+		renderInstanceRow({
+			reviewText: null,
+			fictionRating: null,
+			seasonReviews: null,
+		});
+
+		expect(
+			screen.queryByTestId("instance-row-summary-toggle"),
+		).not.toBeInTheDocument();
+	});
+
+	it("is expandable when there's a review, even with no fiction rating or season reviews", () => {
+		renderInstanceRow({
+			reviewText: "A great read.",
+			fictionRating: null,
+			seasonReviews: null,
+		});
+
+		expect(
+			screen.getByTestId("instance-row-summary-toggle"),
+		).toBeInTheDocument();
+	});
+});
+
+describe("InstanceRow", () => {
+	it("does not show season reviews, and isn't expandable, when seasonReviews is null", () => {
+		renderInstanceRow({ seasonReviews: null });
+		expect(
+			screen.queryByTestId("instance-row-summary-toggle"),
+		).not.toBeInTheDocument();
+		expect(
+			screen.queryByText("mediaItemDetails.seasonN"),
+		).not.toBeInTheDocument();
+	});
+
+	it("does not show season reviews, and isn't expandable, when seasonReviews is empty", () => {
 		renderInstanceRow({ seasonReviews: [] });
+		expect(
+			screen.queryByTestId("instance-row-summary-toggle"),
+		).not.toBeInTheDocument();
 		expect(
 			screen.queryByText("mediaItemDetails.seasonN"),
 		).not.toBeInTheDocument();
@@ -119,11 +210,13 @@ describe("InstanceRow", () => {
 				},
 			],
 		});
+		expandRow();
 		expect(screen.getByText("mediaItemDetails.seasonN")).toBeInTheDocument();
 	});
 
 	it("shows the instance's fiction rating categories", () => {
 		renderInstanceRow({ fictionRating: buildFictionRating() });
+		expandRow();
 
 		expect(screen.getAllByText(/^fictionRating\./)).toHaveLength(5);
 	});
@@ -146,6 +239,7 @@ describe("InstanceRow", () => {
 				},
 			],
 		});
+		expandRow();
 
 		expect(screen.getByText("4.4")).toBeInTheDocument();
 	});
@@ -244,6 +338,7 @@ describe("InstanceRow", () => {
 				},
 			],
 		});
+		expandRow();
 
 		expect(screen.getAllByText(/^fictionRating\./)).toHaveLength(5);
 	});

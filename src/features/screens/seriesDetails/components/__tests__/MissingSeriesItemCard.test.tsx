@@ -25,6 +25,11 @@ vi.mock("#/features/mediaItemSearch/mediaItemSearch", () => ({
 	addToLibrary: vi.fn(),
 }));
 
+const toast = vi.fn();
+vi.mock("#/components/hooks/useToast", () => ({
+	useToast: () => ({ toast }),
+}));
+
 const addToLibraryMock = vi.mocked(addToLibrary);
 
 function buildMissingItem(
@@ -149,13 +154,20 @@ describe("MissingSeriesItemCard", () => {
 		expect(onAdded).toHaveBeenCalledTimes(1);
 	});
 
-	/**
-	 * The failed-add case the plan called for is not implemented: handleAdd
-	 * re-throws after its finally and nothing awaits the click handler, so
-	 * exercising it leaks an unhandled rejection that fails the run. Covering it
-	 * needs a catch in MissingSeriesItemCard.handleAdd — a production change,
-	 * which is out of scope for the test pass. See the reported blocker.
-	 */
+	it("shows a destructive toast and stops showing the adding state when the add fails", async () => {
+		addToLibraryMock.mockRejectedValue(new Error("Network error"));
+		const { onAdded } = renderCard();
+
+		fireEvent.click(getAddButton());
+
+		await waitFor(() =>
+			expect(toast).toHaveBeenCalledWith("seriesDetails.missingItemAddFailed", {
+				variant: "destructive",
+			}),
+		);
+		expect(onAdded).not.toHaveBeenCalled();
+		expect(getAddButton()).not.toBeDisabled();
+	});
 
 	it("renders the placeholder when the item has no artwork", () => {
 		renderCard(buildMissingItem({ coverImageUrl: undefined }));

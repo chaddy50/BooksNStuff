@@ -72,6 +72,20 @@ const baseMediaItemDetails = {
 
 const mediaItemDetails = baseMediaItemDetails;
 
+function renderEditMetadataDialog(
+	propOverrides: Partial<Parameters<typeof EditMetadataDialog>[0]> = {},
+) {
+	return render(
+		<EditMetadataDialog
+			mediaItemDetails={mediaItemDetails}
+			onSeriesCompletionNeeded={vi.fn()}
+			onRequestDelete={vi.fn()}
+			isDeleting={false}
+			{...propOverrides}
+		/>,
+	);
+}
+
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
@@ -79,12 +93,7 @@ afterEach(() => {
 
 describe("EditMetadataDialog", () => {
 	it("shows an Edit trigger with an accessible name", () => {
-		render(
-			<EditMetadataDialog
-				mediaItemDetails={mediaItemDetails}
-				onSeriesCompletionNeeded={vi.fn()}
-			/>,
-		);
+		renderEditMetadataDialog();
 
 		expect(
 			screen.getByRole("button", { name: "mediaItemDetails.edit" }),
@@ -92,12 +101,7 @@ describe("EditMetadataDialog", () => {
 	});
 
 	it("opens the edit dialog when the trigger is clicked", () => {
-		render(
-			<EditMetadataDialog
-				mediaItemDetails={mediaItemDetails}
-				onSeriesCompletionNeeded={vi.fn()}
-			/>,
-		);
+		renderEditMetadataDialog();
 
 		fireEvent.click(
 			screen.getByRole("button", { name: "mediaItemDetails.edit" }),
@@ -107,12 +111,7 @@ describe("EditMetadataDialog", () => {
 	});
 
 	it("always includes status and purchase status fields", () => {
-		render(
-			<EditMetadataDialog
-				mediaItemDetails={mediaItemDetails}
-				onSeriesCompletionNeeded={vi.fn()}
-			/>,
-		);
+		renderEditMetadataDialog();
 
 		fireEvent.click(
 			screen.getByRole("button", { name: "mediaItemDetails.edit" }),
@@ -122,12 +121,7 @@ describe("EditMetadataDialog", () => {
 	});
 
 	it("uses a theme-aware icon color so the trigger stays visible in light mode", () => {
-		render(
-			<EditMetadataDialog
-				mediaItemDetails={mediaItemDetails}
-				onSeriesCompletionNeeded={vi.fn()}
-			/>,
-		);
+		renderEditMetadataDialog();
 
 		const trigger = screen.getByRole("button", {
 			name: "mediaItemDetails.edit",
@@ -138,12 +132,7 @@ describe("EditMetadataDialog", () => {
 	});
 
 	it("gives the dialog an accessible description", () => {
-		render(
-			<EditMetadataDialog
-				mediaItemDetails={mediaItemDetails}
-				onSeriesCompletionNeeded={vi.fn()}
-			/>,
-		);
+		renderEditMetadataDialog();
 
 		fireEvent.click(
 			screen.getByRole("button", { name: "mediaItemDetails.edit" }),
@@ -162,17 +151,12 @@ describe("EditMetadataDialog", () => {
 			new Error("Title is required."),
 		);
 
-		render(
-			<EditMetadataDialog
-				mediaItemDetails={mediaItemDetails}
-				onSeriesCompletionNeeded={vi.fn()}
-			/>,
-		);
+		renderEditMetadataDialog();
 
 		fireEvent.click(
 			screen.getByRole("button", { name: "mediaItemDetails.edit" }),
 		);
-		fireEvent.click(screen.getByText("common.save"));
+		fireEvent.click(screen.getByText("mediaItemDetails.save"));
 
 		await waitFor(() =>
 			expect(toast).toHaveBeenCalledWith("Title is required.", {
@@ -180,5 +164,29 @@ describe("EditMetadataDialog", () => {
 			}),
 		);
 		expect(screen.getByRole("dialog")).toBeInTheDocument();
+	});
+
+	it("requests deletion of the whole item when Remove from Library is clicked", () => {
+		const onRequestDelete = vi.fn();
+		renderEditMetadataDialog({ onRequestDelete });
+
+		fireEvent.click(
+			screen.getByRole("button", { name: "mediaItemDetails.edit" }),
+		);
+		fireEvent.click(screen.getByText("mediaItemDetails.removeFromLibrary"));
+
+		expect(onRequestDelete).toHaveBeenCalledTimes(1);
+	});
+
+	it("disables the Remove from Library action while a delete is in progress", () => {
+		renderEditMetadataDialog({ isDeleting: true });
+
+		fireEvent.click(
+			screen.getByRole("button", { name: "mediaItemDetails.edit" }),
+		);
+
+		expect(
+			screen.getByText("mediaItemDetails.removeFromLibrary").closest("button"),
+		).toBeDisabled();
 	});
 });

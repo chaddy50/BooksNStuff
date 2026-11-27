@@ -34,7 +34,7 @@ describe("MediaItemDetailsHeaderBackdrop", () => {
 		);
 
 		const root = container.firstChild as HTMLElement;
-		expect(root).toHaveClass("bg-card");
+		expect(root).toHaveClass("bg-muted/60");
 		expect(
 			container.querySelector(".bg-gradient-to-b"),
 		).not.toBeInTheDocument();

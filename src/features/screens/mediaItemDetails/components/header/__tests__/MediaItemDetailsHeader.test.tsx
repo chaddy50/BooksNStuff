@@ -31,6 +31,7 @@ vi.mock(
 	async (importOriginal) => ({
 		...(await importOriginal()),
 		updateMediaItemStatus: vi.fn(),
+		updateInstanceProgress: vi.fn(),
 	}),
 );
 
@@ -42,6 +43,16 @@ vi.mock(
 		),
 	}),
 );
+
+vi.mock("#/components/hooks/useUserSettings", () => ({
+	useUserSettings: () => ({ data: undefined }),
+}));
+
+let isMobile = false;
+
+vi.mock("#/components/hooks/useIsMobile", () => ({
+	useIsMobile: () => isMobile,
+}));
 
 function makeMediaItemDetails(
 	overrides: Record<string, unknown> = {},
@@ -75,7 +86,31 @@ function makeMediaItemDetails(
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+	isMobile = false;
 });
+
+function makeEditorState(
+	overrides: Partial<
+		Parameters<typeof MediaItemDetailsHeader>[0]["editorState"]
+	> = {},
+): Parameters<typeof MediaItemDetailsHeader>[0]["editorState"] {
+	return {
+		modalState: null,
+		editorRef: { current: null },
+		guard: {
+			isPrompting: false,
+			isSaving: false,
+			startEditing: vi.fn(),
+			keepEditing: vi.fn(),
+			discard: vi.fn(),
+			saveAndContinue: vi.fn(),
+		},
+		openReviewAndComplete: vi.fn(),
+		openEditInstance: vi.fn(),
+		closeModal: vi.fn(),
+		...overrides,
+	} as unknown as Parameters<typeof MediaItemDetailsHeader>[0]["editorState"];
+}
 
 function renderMediaItemDetailsHeader(
 	props: Partial<Parameters<typeof MediaItemDetailsHeader>[0]> = {},
@@ -84,8 +119,10 @@ function renderMediaItemDetailsHeader(
 		<TooltipProvider>
 			<MediaItemDetailsHeader
 				mediaItemDetails={makeMediaItemDetails()}
-				onUpdateProgress={vi.fn()}
+				editorState={makeEditorState()}
 				onSeriesCompletionNeeded={vi.fn()}
+				onRequestDelete={vi.fn()}
+				isDeleting={false}
 				{...props}
 			/>
 		</TooltipProvider>,
@@ -93,6 +130,33 @@ function renderMediaItemDetailsHeader(
 }
 
 describe("MediaItemDetailsHeader", () => {
+	it("places the current instance info inside the identity column on desktop", () => {
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({ type: MediaItemType.BOOK }),
+		});
+
+		const identityColumn = screen.getByTestId(
+			"media-item-details-identity-column",
+		);
+		expect(identityColumn).toContainElement(
+			screen.getByRole("button", { name: "mediaItemDetails.startReading" }),
+		);
+	});
+
+	it("places the current instance info outside the identity column on mobile", () => {
+		isMobile = true;
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({ type: MediaItemType.BOOK }),
+		});
+
+		const identityColumn = screen.getByTestId(
+			"media-item-details-identity-column",
+		);
+		expect(identityColumn).not.toContainElement(
+			screen.getByRole("button", { name: "mediaItemDetails.startReading" }),
+		);
+	});
+
 	it("renders both the status and purchase status controls", () => {
 		renderMediaItemDetailsHeader();
 
@@ -157,7 +221,7 @@ describe("MediaItemDetailsHeader", () => {
 		).toBeInTheDocument();
 	});
 
-	it("labels the log progress button Update Progress when an instance is in progress", () => {
+	it("shows the Review & Complete action when an instance is in progress", () => {
 		renderMediaItemDetailsHeader({
 			mediaItemDetails: makeMediaItemDetails({
 				type: MediaItemType.BOOK,
@@ -168,7 +232,7 @@ describe("MediaItemDetailsHeader", () => {
 		});
 
 		expect(
-			screen.getByRole("button", { name: "mediaItemDetails.updateProgress" }),
+			screen.getByText("mediaItemDetails.reviewAndComplete"),
 		).toBeInTheDocument();
 	});
 
@@ -187,17 +251,17 @@ describe("MediaItemDetailsHeader", () => {
 		).not.toBeInTheDocument();
 	});
 
-	it("starts progress immediately when the start button is clicked, without opening the editor", async () => {
+	it("starts progress immediately when the start button is clicked, without opening a modal", async () => {
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date("2024-05-15T12:00:00"));
 		try {
 			const { updateMediaItemStatus } = await import(
 				"#/features/screens/mediaItemDetails/mediaItemDetails"
 			);
-			const onUpdateProgress = vi.fn();
+			const openReviewAndComplete = vi.fn();
 			renderMediaItemDetailsHeader({
 				mediaItemDetails: makeMediaItemDetails({ id: 7 }),
-				onUpdateProgress,
+				editorState: makeEditorState({ openReviewAndComplete }),
 			});
 
 			fireEvent.click(
@@ -210,28 +274,50 @@ describe("MediaItemDetailsHeader", () => {
 				}),
 			);
 			expect(invalidate).toHaveBeenCalledTimes(1);
-			expect(onUpdateProgress).not.toHaveBeenCalled();
+			expect(openReviewAndComplete).not.toHaveBeenCalled();
 		} finally {
 			vi.useRealTimers();
 		}
 	});
 
-	it("calls onUpdateProgress with the unfinished instance's id when its summary is clicked", () => {
-		const onUpdateProgress = vi.fn();
+	it("opens Review & Complete via the editor state when that action is clicked", () => {
+		const openReviewAndComplete = vi.fn();
 		renderMediaItemDetailsHeader({
 			mediaItemDetails: makeMediaItemDetails({
 				instances: [
 					{ id: 99, rating: 0, startedAt: "2026-01-01", completedAt: null },
 				],
 			}),
-			onUpdateProgress,
+			editorState: makeEditorState({ openReviewAndComplete }),
 		});
 
-		fireEvent.click(
-			screen.getByRole("button", { name: "mediaItemDetails.updateProgress" }),
-		);
+		fireEvent.click(screen.getByText("mediaItemDetails.reviewAndComplete"));
 
-		expect(onUpdateProgress).toHaveBeenCalledWith(99);
+		expect(openReviewAndComplete).toHaveBeenCalledTimes(1);
+	});
+
+	it("shows the frozen progress bar at the bottom of the card when there's an unfinished instance", () => {
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				instances: [
+					{
+						id: 99,
+						rating: 0,
+						startedAt: "2026-01-01",
+						completedAt: null,
+						progressPercent: 42,
+					},
+				],
+			}),
+		});
+
+		expect(screen.getByRole("progressbar")).toBeInTheDocument();
+	});
+
+	it("omits the progress bar when there's no unfinished instance", () => {
+		renderMediaItemDetailsHeader();
+
+		expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
 	});
 
 	it("shows a rating when the most recently rated instance has one", () => {
@@ -281,29 +367,7 @@ describe("MediaItemDetailsHeader", () => {
 		).toBeTruthy();
 	});
 
-	it("shows the genre and release year on the same line as the type badge, below the title", () => {
-		renderMediaItemDetailsHeader({
-			mediaItemDetails: makeMediaItemDetails({
-				releaseDate: "2019-01-01",
-				genreId: 3,
-				genreName: "Sci-Fi",
-			}),
-		});
-
-		expect(screen.getByText("Sci-Fi")).toBeInTheDocument();
-		expect(screen.getByText("2019")).toBeInTheDocument();
-
-		const subline = screen.getByTestId("media-item-details-header-subline");
-		const typeBadge = screen.getByTestId("type-badge");
-		const heading = screen.getByRole("heading", {
-			name: "A Memory Called Empire",
-		});
-
-		expect(subline.parentElement).toBe(typeBadge.parentElement);
-		expect(typeBadge.parentElement).not.toBe(heading.parentElement);
-	});
-
-	it("shows the creator and series on their own line below the title", () => {
+	it("attaches the type badge to the end of the title text, with creator/series on their own line below", () => {
 		renderMediaItemDetailsHeader({
 			mediaItemDetails: makeMediaItemDetails({
 				metadata: { author: "Arkady Martine", seriesBookNumber: "1" },
@@ -317,11 +381,214 @@ describe("MediaItemDetailsHeader", () => {
 		expect(screen.getByText("Arkady Martine")).toBeInTheDocument();
 		expect(screen.getByText("Teixcalaan #1")).toBeInTheDocument();
 
-		const creatorLine = screen.getByTestId(
-			"media-item-details-header-creator-line",
-		);
+		const metaList = screen.getByTestId("media-item-details-header-meta-list");
 		const typeBadge = screen.getByTestId("type-badge");
-		expect(creatorLine.parentElement).not.toBe(typeBadge.parentElement);
+		const heading = screen.getByRole("heading", {
+			name: "A Memory Called Empire",
+		});
+
+		expect(typeBadge.parentElement).toBe(heading);
+		expect(metaList.parentElement).not.toBe(heading);
+	});
+
+	it("shows only the start button and status/purchase controls when there are no instances at all", () => {
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				status: "waiting_for_next_release",
+				instances: [],
+			}),
+		});
+
+		expect(
+			screen.getByRole("button", { name: "mediaItemDetails.startReading" }),
+		).toBeInTheDocument();
+		expect(screen.queryByTestId("rating-stars")).not.toBeInTheDocument();
+		expect(screen.getAllByRole("combobox")).toHaveLength(2);
+	});
+
+	it("hides the status and purchase status controls, and shows a Next Up secondary action, for a backlog item", () => {
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				status: "backlog",
+				instances: [],
+			}),
+		});
+
+		expect(screen.queryAllByRole("combobox")).toHaveLength(0);
+		expect(
+			screen.getByRole("button", { name: "mediaItemDetails.startReading" }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "status.next_up" }),
+		).toBeInTheDocument();
+		expect(screen.queryByText("status.backlog")).not.toBeInTheDocument();
+	});
+
+	it("shows the status as a heading for every status except backlog", () => {
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				status: "next_up",
+				instances: [],
+			}),
+		});
+		expect(
+			screen.getByRole("heading", { name: "status.next_up" }),
+		).toBeInTheDocument();
+		cleanup();
+
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				status: "waiting_for_next_release",
+				instances: [],
+			}),
+		});
+		expect(
+			screen.getByRole("heading", { name: "status.waiting_for_next_release" }),
+		).toBeInTheDocument();
+		cleanup();
+
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				status: "done",
+				instances: [],
+			}),
+		});
+		expect(
+			screen.getByRole("heading", { name: "status.done" }),
+		).toBeInTheDocument();
+		cleanup();
+
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				status: "backlog",
+				instances: [],
+			}),
+		});
+		expect(
+			screen.queryByRole("heading", { name: "status.backlog" }),
+		).not.toBeInTheDocument();
+	});
+
+	it("moves a backlog item to Next Up when the secondary action is clicked", async () => {
+		const { updateMediaItemStatus } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		vi.mocked(updateMediaItemStatus).mockClear();
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				id: 7,
+				status: "backlog",
+				instances: [],
+			}),
+		});
+
+		fireEvent.click(screen.getByRole("button", { name: "status.next_up" }));
+
+		await vi.waitFor(() =>
+			expect(updateMediaItemStatus).toHaveBeenCalledWith({
+				data: expect.objectContaining({
+					mediaItemId: 7,
+					status: "next_up",
+				}),
+			}),
+		);
+	});
+
+	it("hides the status and purchase status controls, and shows a Backlog secondary action, for a next-up item", () => {
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				status: "next_up",
+				instances: [],
+			}),
+		});
+
+		expect(screen.queryAllByRole("combobox")).toHaveLength(0);
+		expect(
+			screen.getByRole("button", { name: "mediaItemDetails.startReading" }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "status.backlog" }),
+		).toBeInTheDocument();
+	});
+
+	it("moves a next-up item to Backlog when the secondary action is clicked", async () => {
+		const { updateMediaItemStatus } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		vi.mocked(updateMediaItemStatus).mockClear();
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				id: 7,
+				status: "next_up",
+				instances: [],
+			}),
+		});
+
+		fireEvent.click(screen.getByRole("button", { name: "status.backlog" }));
+
+		await vi.waitFor(() =>
+			expect(updateMediaItemStatus).toHaveBeenCalledWith({
+				data: expect.objectContaining({
+					mediaItemId: 7,
+					status: "backlog",
+				}),
+			}),
+		);
+	});
+
+	it("does not show the Next Up secondary action for a non-backlog item with no instances", () => {
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				status: "done",
+				instances: [],
+			}),
+		});
+
+		expect(
+			screen.queryByRole("button", { name: "status.next_up" }),
+		).not.toBeInTheDocument();
+	});
+
+	it("shows the most recent rating, a last-read caption, and a type-specific reread button when the item is done, with no status/purchase controls", () => {
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				status: "done",
+				type: MediaItemType.BOOK,
+				instances: [
+					{
+						id: 1,
+						rating: 5,
+						startedAt: "2026-01-01",
+						completedAt: "2026-01-10",
+					},
+				],
+			}),
+		});
+
+		const ratingStars = screen.getByTestId("rating-stars");
+		const lastReadCaption = screen.getByText("mediaItemDetails.lastRead");
+		expect(ratingStars.parentElement).toContainElement(lastReadCaption);
+		expect(
+			screen.getByRole("button", { name: "mediaItemDetails.reread" }),
+		).toBeInTheDocument();
+		expect(screen.queryAllByRole("combobox")).toHaveLength(0);
+	});
+
+	it("shows a Next Up secondary action for a waiting-for-next-release item, without hiding status/purchase controls", () => {
+		renderMediaItemDetailsHeader({
+			mediaItemDetails: makeMediaItemDetails({
+				status: "waiting_for_next_release",
+				instances: [],
+			}),
+		});
+
+		expect(
+			screen.getByRole("button", { name: "mediaItemDetails.startReading" }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "status.next_up" }),
+		).toBeInTheDocument();
+		expect(screen.getAllByRole("combobox")).toHaveLength(2);
 	});
 
 	it("shows the item's tags on their own line", () => {

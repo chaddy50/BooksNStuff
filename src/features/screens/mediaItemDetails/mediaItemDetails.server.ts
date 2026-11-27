@@ -186,6 +186,7 @@ async function upsertInstance(
 					eq(mediaItemInstances.mediaItemId, mediaItemId),
 				),
 			);
+		if (!existingInstance) throw new Error("Instance not found");
 
 		await db
 			.update(mediaItemInstances)
@@ -199,7 +200,7 @@ async function upsertInstance(
 
 		await recordProgressUpdate(
 			instanceId,
-			existingInstance?.progressPercent ?? null,
+			existingInstance.progressPercent,
 			values.progressPercent,
 			today,
 		);
@@ -293,6 +294,35 @@ export async function saveInstanceForUser(
 		userId,
 		item.status,
 		newStatus,
+	);
+}
+
+/** Updates only an instance's progressPercent, leaving every other column untouched. */
+export async function updateInstanceProgressForUser(
+	instanceId: number,
+	progressPercent: string,
+	userId: string,
+	callerToday?: string,
+): Promise<void> {
+	const [instance] = await db
+		.select({ progressPercent: mediaItemInstances.progressPercent })
+		.from(mediaItemInstances)
+		.innerJoin(mediaItems, eq(mediaItems.id, mediaItemInstances.mediaItemId))
+		.where(
+			and(eq(mediaItemInstances.id, instanceId), eq(mediaItems.userId, userId)),
+		);
+	if (!instance) throw new Error("Media item not found");
+
+	await db
+		.update(mediaItemInstances)
+		.set({ progressPercent })
+		.where(eq(mediaItemInstances.id, instanceId));
+
+	await recordProgressUpdate(
+		instanceId,
+		instance.progressPercent,
+		progressPercent,
+		resolveToday(callerToday),
 	);
 }
 
@@ -476,17 +506,23 @@ export type UpdateMediaItemSeriesInput = {
 async function resolveSeriesIdAndName(
 	data: UpdateMediaItemSeriesInput,
 	userId: string,
-): Promise<{ id: number | null; name: string | null }> {
+): Promise<{
+	resolvedSeriesId: number | null;
+	resolvedSeriesName: string | null;
+}> {
 	if (data.newSeriesName) {
 		const [newSeries] = await db
 			.insert(series)
 			.values({ name: data.newSeriesName, type: data.type, userId })
 			.returning({ id: series.id });
 		if (!newSeries) throw new Error("Failed to create series");
-		return { id: newSeries.id, name: data.newSeriesName };
+		return {
+			resolvedSeriesId: newSeries.id,
+			resolvedSeriesName: data.newSeriesName,
+		};
 	}
 	if (data.seriesId === null) {
-		return { id: null, name: null };
+		return { resolvedSeriesId: null, resolvedSeriesName: null };
 	}
 
 	const [existing] = await db
@@ -494,7 +530,47 @@ async function resolveSeriesIdAndName(
 		.from(series)
 		.where(and(eq(series.id, data.seriesId), eq(series.userId, userId)));
 	if (!existing) throw new Error("Series not found");
-	return { id: data.seriesId, name: existing.name };
+	return {
+		resolvedSeriesId: data.seriesId,
+		resolvedSeriesName: existing.name,
+	};
+}
+
+async function setSeriesMetadata(
+	itemPredicate: ReturnType<typeof and>,
+	resolvedSeriesName: string | null,
+): Promise<void> {
+	if (resolvedSeriesName) {
+		await db
+			.update(mediaItems)
+			.set({
+				metadata: sql`jsonb_set(coalesce(${mediaItems.metadata}, '{}'), '{series}', ${JSON.stringify(resolvedSeriesName)}::jsonb)`,
+			})
+			.where(itemPredicate);
+		return;
+	}
+	await db
+		.update(mediaItems)
+		.set({ metadata: sql`${mediaItems.metadata} - 'series'` })
+		.where(itemPredicate);
+}
+
+// Sync the old series (item left) and new series (item joined). Leaving a
+// series is not itself a completion event, so the old series is never
+// silently auto-completed by this.
+async function syncOldAndNewSeriesStatus(
+	previousSeriesId: number | null | undefined,
+	resolvedSeriesId: number | null,
+	userId: string,
+): Promise<void> {
+	if (previousSeriesId) {
+		await syncSeriesStatus(previousSeriesId, userId, {
+			allowCompleting: false,
+		});
+	}
+	if (resolvedSeriesId && resolvedSeriesId !== previousSeriesId) {
+		await syncSeriesStatus(resolvedSeriesId, userId);
+	}
 }
 
 export async function updateMediaItemSeries(
@@ -511,8 +587,10 @@ export async function updateMediaItemSeries(
 		throw new Error("Unauthorized");
 	}
 
-	const { id: resolvedSeriesId, name: resolvedSeriesName } =
-		await resolveSeriesIdAndName(data, userId);
+	const { resolvedSeriesId, resolvedSeriesName } = await resolveSeriesIdAndName(
+		data,
+		userId,
+	);
 
 	const itemPredicate = and(
 		eq(mediaItems.id, data.mediaItemId),
@@ -524,31 +602,13 @@ export async function updateMediaItemSeries(
 		.set({ seriesId: resolvedSeriesId })
 		.where(itemPredicate);
 
-	if (resolvedSeriesName) {
-		await db
-			.update(mediaItems)
-			.set({
-				metadata: sql`jsonb_set(coalesce(${mediaItems.metadata}, '{}'), '{series}', ${JSON.stringify(resolvedSeriesName)}::jsonb)`,
-			})
-			.where(itemPredicate);
-	} else {
-		await db
-			.update(mediaItems)
-			.set({ metadata: sql`${mediaItems.metadata} - 'series'` })
-			.where(itemPredicate);
-	}
+	await setSeriesMetadata(itemPredicate, resolvedSeriesName);
 
-	// Sync the old series (item left) and new series (item joined). Leaving a
-	// series is not itself a completion event, so the old series is never
-	// silently auto-completed by this.
-	if (currentItem.seriesId) {
-		await syncSeriesStatus(currentItem.seriesId, userId, {
-			allowCompleting: false,
-		});
-	}
-	if (resolvedSeriesId && resolvedSeriesId !== currentItem.seriesId) {
-		await syncSeriesStatus(resolvedSeriesId, userId);
-	}
+	await syncOldAndNewSeriesStatus(
+		currentItem.seriesId,
+		resolvedSeriesId,
+		userId,
+	);
 }
 
 export type UpdateMediaItemCreatorInput = {

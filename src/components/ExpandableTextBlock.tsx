@@ -23,12 +23,13 @@ export function ExpandableTextBlock({
 	const [isOverflowing, setIsOverflowing] = useState(false);
 	const [isExpanded, setIsExpanded] = useState(false);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: text and maxLines are triggers here, not read in the body — re-measuring overflow whenever the rendered content changes is the whole point
 	useEffect(() => {
 		const el = paragraphRef.current;
 		if (el) {
 			setIsOverflowing(el.scrollHeight > el.clientHeight);
 		}
-	}, []);
+	}, [text, maxLines]);
 
 	const clampClass = LINE_CLAMP_CLASSES[maxLines] ?? "line-clamp-5";
 

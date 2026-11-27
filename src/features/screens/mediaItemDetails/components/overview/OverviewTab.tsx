@@ -17,6 +17,9 @@ export function OverviewTab(props: OverviewTabProps) {
 			<MetadataList
 				type={mediaItemDetails.type}
 				metadata={mediaItemDetails.metadata}
+				releaseDate={mediaItemDetails.releaseDate}
+				genreId={mediaItemDetails.genreId}
+				genreName={mediaItemDetails.genreName}
 			/>
 		</div>
 	);

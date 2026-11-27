@@ -191,9 +191,27 @@ function buildV5Backup() {
 	return { ...rest, version: 5 as const, userSettings };
 }
 
+/** A v6 file — the v5 shape plus sidebar view groups. */
+function buildV6Backup() {
+	return {
+		...buildV5Backup(),
+		version: 6 as const,
+		viewGroups: [
+			{
+				id: 1,
+				name: "Watchlists",
+				displayOrder: 0,
+				isCollapsed: false,
+				createdAt: TIMESTAMP,
+				updatedAt: TIMESTAMP,
+			},
+		],
+	};
+}
+
 describe("BACKUP_VERSION", () => {
-	it("is 5", () => {
-		expect(BACKUP_VERSION).toBe(5);
+	it("is 6", () => {
+		expect(BACKUP_VERSION).toBe(6);
 	});
 });
 
@@ -216,7 +234,7 @@ describe("backupSchema version acceptance", () => {
 
 	it("rejects an unrecognized version", () => {
 		expect(
-			backupSchema.safeParse({ ...buildV5Backup(), version: 6 }).success,
+			backupSchema.safeParse({ ...buildV6Backup(), version: 7 }).success,
 		).toBe(false);
 	});
 
@@ -234,6 +252,37 @@ describe("backupSchema version acceptance", () => {
 		const { viewItemOrder: _omitted, ...withoutOrder } = buildV5Backup();
 
 		expect(backupSchema.safeParse(withoutOrder).success).toBe(false);
+	});
+
+	it("accepts a v6 document with view groups", () => {
+		expect(backupSchema.safeParse(buildV6Backup()).success).toBe(true);
+	});
+
+	it("rejects a v6 document missing viewGroups", () => {
+		const { viewGroups: _omitted, ...withoutGroups } = buildV6Backup();
+
+		expect(backupSchema.safeParse(withoutGroups).success).toBe(false);
+	});
+
+	it("accepts a v6 view that references its group", () => {
+		const backup = buildV6Backup();
+		const withGroupedView = {
+			...backup,
+			views: [
+				{
+					id: 1,
+					name: "Sci-fi backlog",
+					subject: "items",
+					filters: {},
+					displayOrder: 0,
+					groupId: backup.viewGroups[0].id,
+					createdAt: TIMESTAMP,
+					updatedAt: TIMESTAMP,
+				},
+			],
+		};
+
+		expect(backupSchema.safeParse(withGroupedView).success).toBe(true);
 	});
 });
 
