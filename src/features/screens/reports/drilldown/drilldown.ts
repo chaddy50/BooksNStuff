@@ -32,6 +32,17 @@ export function resolveDrillDownTypeFilter(
 	return itemTypes && itemTypes.length > 0 ? itemTypes : null;
 }
 
+/**
+ * Falls back to year-to-date only when the caller didn't supply an explicit
+ * range, e.g. a drilldown link created before date-range support existed.
+ */
+export function resolveDrillDownDateRange(
+	startDate?: string,
+	endDate?: string,
+): { startDate: string; endDate: string } {
+	return startDate && endDate ? { startDate, endDate } : getYearToDateRange();
+}
+
 export const getDrillDownItems = createServerFn({ method: "GET" })
 	.inputValidator(
 		z.object({
@@ -56,10 +67,10 @@ export const getDrillDownItems = createServerFn({ method: "GET" })
 		);
 
 		if (GENRE_REPORT_TYPES.includes(data.reportType)) {
-			const { startDate, endDate } =
-				data.startDate && data.endDate
-					? { startDate: data.startDate, endDate: data.endDate }
-					: getYearToDateRange();
+			const { startDate, endDate } = resolveDrillDownDateRange(
+				data.startDate,
+				data.endDate,
+			);
 			const genreNames =
 				data.genres && data.genres.length > 0 ? data.genres : [data.key];
 			return fetchDrillDownItemsForGenre(
