@@ -1,6 +1,7 @@
-import type { UserSettings } from "#/database/schema";
+import type { ConsumptionInfo, UserSettings } from "#/database/schema";
 import {
 	BookConsumptionMethod,
+	GameControlMethod,
 	GamePlatform,
 	MediaItemType,
 	MovieConsumptionMethod,
@@ -31,6 +32,22 @@ export function getDefaultMethod(
 		settings?.defaultTvShowConsumptionMethod ??
 		TvShowConsumptionMethod.LOCAL_COPY
 	);
+}
+
+/** The consumption info an instance should start with before the user picks one explicitly — e.g. so a freshly-started game already shows its platform and control method. */
+export function getDefaultConsumptionInfo(
+	mediaItemType: MediaItemType,
+	settings?: UserSettings | null,
+): ConsumptionInfo {
+	const method = getDefaultMethod(mediaItemType, settings);
+	if (mediaItemType !== MediaItemType.VIDEO_GAME) {
+		return { method };
+	}
+	return {
+		method,
+		controlMethod:
+			settings?.defaultGameControlMethod ?? GameControlMethod.CONTROLLER,
+	};
 }
 
 export function getMethodOptions(

@@ -1,22 +1,20 @@
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
-import { DeleteButton } from "#/components/DeleteButton";
 import { DeleteConfirmationDialog } from "#/components/DeleteConfirmationDialog";
 import { useDeleteConfirmation } from "#/components/hooks/useDeleteConfirmation";
 import { TopBar } from "#/features/navigation/topBar/TopBar";
 import { MediaItemDetailsHeader } from "./components/header/MediaItemDetailsHeader";
 import { History } from "./components/history/History";
-import { useInstanceEditingState } from "./components/history/useInstanceEditingState";
-import { MediaItemDetailsTabStrip } from "./components/MediaItemDetailsTabStrip";
 import { OverviewTab } from "./components/overview/OverviewTab";
 import { RelatedItems } from "./components/relatedItems/RelatedItems";
 import { SeriesCompletionPromptDialog } from "./components/SeriesCompletionPromptDialog";
 import { SetGenreDialog } from "./components/setGenre/SetGenreDialog";
 import { useGenrePrompt } from "./components/setGenre/useGenrePrompt";
+import { useInstanceEditorState } from "./components/useInstanceEditorState";
 import { useSeriesCompletionPrompt } from "./components/useSeriesCompletionPrompt";
 import { removeFromLibrary } from "./mediaItemDetails";
-import type { MediaItemDetailsTabId } from "./types";
+import { getPageCount, getTotalSeasons } from "./mediaItemDetailsHeader";
 
 // getRouteApi rather than importing Route directly: the route file imports this
 // screen, so importing it back would be a cycle.
@@ -26,7 +24,6 @@ const route = getRouteApi(
 
 export function MediaItemDetailsScreen() {
 	const mediaItemDetails = route.useLoaderData();
-	const { tab } = route.useSearch();
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const genrePrompt = useGenrePrompt({ genreId: mediaItemDetails.genreId });
@@ -38,42 +35,22 @@ export function MediaItemDetailsScreen() {
 		failureMessage: t("mediaItemDetails.deleteFailed"),
 	});
 	const completionPrompt = useSeriesCompletionPrompt();
-	const activeTabId: MediaItemDetailsTabId = tab ?? "overview";
 
-	const editingState = useInstanceEditingState({
+	const editorState = useInstanceEditorState({
 		isUnsavedChangesGuardEnabled: () => !deleteConfirmation.isDeleting,
 	});
-
-	function handleSelectTab(tabId: MediaItemDetailsTabId) {
-		navigate({
-			to: "/mediaItemDetails/$mediaItemId",
-			params: { mediaItemId: String(mediaItemDetails.id) },
-			search: { tab: tabId },
-			resetScroll: false,
-			replace: true,
-		});
-	}
-
-	function handleUpdateProgress(instanceId: number) {
-		if (activeTabId !== "history") {
-			handleSelectTab("history");
-		}
-		editingState.startEditing(instanceId);
-	}
+	const totalSeasons = getTotalSeasons(
+		mediaItemDetails.type,
+		mediaItemDetails.metadata,
+	);
+	const pageCount = getPageCount(
+		mediaItemDetails.type,
+		mediaItemDetails.metadata,
+	);
 
 	return (
 		<div className="min-h-screen bg-background text-foreground">
-			<TopBar
-				shouldShowBackButton
-				right={
-					<DeleteButton
-						onClick={deleteConfirmation.requestDelete}
-						disabled={deleteConfirmation.isDeleting}
-					>
-						{t("mediaItemDetails.removeFromLibrary")}
-					</DeleteButton>
-				}
-			/>
+			<TopBar shouldShowBackButton />
 
 			<DeleteConfirmationDialog
 				isOpen={deleteConfirmation.isDialogOpen}
@@ -106,34 +83,23 @@ export function MediaItemDetailsScreen() {
 			>
 				<MediaItemDetailsHeader
 					mediaItemDetails={mediaItemDetails}
-					onUpdateProgress={handleUpdateProgress}
+					editorState={editorState}
+					onSeriesCompletionNeeded={completionPrompt.promptSeriesCompletion}
+					onRequestDelete={deleteConfirmation.requestDelete}
+					isDeleting={deleteConfirmation.isDeleting}
+				/>
+
+				<OverviewTab mediaItemDetails={mediaItemDetails} />
+
+				<History
+					mediaItemDetails={mediaItemDetails}
+					editorState={editorState}
+					totalSeasons={totalSeasons}
+					pageCount={pageCount}
 					onSeriesCompletionNeeded={completionPrompt.promptSeriesCompletion}
 				/>
 
-				<MediaItemDetailsTabStrip
-					activeTabId={activeTabId}
-					onSelect={handleSelectTab}
-				/>
-
-				<div
-					role="tabpanel"
-					id={`media-item-details-panel-${activeTabId}`}
-					aria-labelledby={`media-item-details-tab-${activeTabId}`}
-				>
-					{activeTabId === "overview" && (
-						<OverviewTab mediaItemDetails={mediaItemDetails} />
-					)}
-					{activeTabId === "history" && (
-						<History
-							mediaItemDetails={mediaItemDetails}
-							editingState={editingState}
-							onSeriesCompletionNeeded={completionPrompt.promptSeriesCompletion}
-						/>
-					)}
-					{activeTabId === "related" && (
-						<RelatedItems mediaItemDetails={mediaItemDetails} />
-					)}
-				</div>
+				<RelatedItems mediaItemDetails={mediaItemDetails} />
 			</div>
 		</div>
 	);

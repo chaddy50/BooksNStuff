@@ -2,17 +2,18 @@ import { useRouter } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { DeleteButton } from "#/components/DeleteButton";
 import { useToast } from "#/components/hooks/useToast";
-import { SaveAndCancelButtons } from "#/components/SaveAndCancelButtons";
 import { Button } from "#/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-} from "#/components/ui/dialog";
 import { Input } from "#/components/ui/input";
+import {
+	ResponsiveDialog,
+	ResponsiveDialogBody,
+	ResponsiveDialogDescription,
+	ResponsiveDialogFooter,
+	ResponsiveDialogHeader,
+	ResponsiveDialogTitle,
+} from "#/components/ui/responsive-dialog";
 import { Textarea } from "#/components/ui/textarea";
 import { PodcastArcPickerDialog } from "#/features/mediaItemSearch/components/PodcastArcPickerDialog";
 import {
@@ -45,6 +46,8 @@ interface EditMetadataDialogProps {
 	onSeriesCompletionNeeded: (
 		confirmation: SeriesCompletionConfirmation,
 	) => void;
+	onRequestDelete: () => void;
+	isDeleting: boolean;
 }
 
 function resolveSeriesSelection(seriesFieldValue: SeriesFieldValue) {
@@ -76,7 +79,12 @@ function resolveGenreName(genreFieldValue: GenreFieldValue) {
 }
 
 export function EditMetadataDialog(props: EditMetadataDialogProps) {
-	const { mediaItemDetails, onSeriesCompletionNeeded } = props;
+	const {
+		mediaItemDetails,
+		onSeriesCompletionNeeded,
+		onRequestDelete,
+		isDeleting,
+	} = props;
 	const { t } = useTranslation();
 	const router = useRouter();
 	const { toast } = useToast();
@@ -200,138 +208,140 @@ export function EditMetadataDialog(props: EditMetadataDialogProps) {
 				<Pencil />
 			</Button>
 
-			<Dialog open={isOpen} onOpenChange={(open) => !open && setIsOpen(false)}>
-				<DialogContent className="sm:max-w-lg">
-					<DialogHeader>
-						<DialogTitle>{t("mediaItemDetails.edit")}</DialogTitle>
-						<DialogDescription className="sr-only">
-							{t("mediaItemDetails.editMetadataDescription")}
-						</DialogDescription>
-					</DialogHeader>
+			<ResponsiveDialog
+				open={isOpen}
+				onOpenChange={(open) => !open && setIsOpen(false)}
+			>
+				<ResponsiveDialogHeader>
+					<ResponsiveDialogTitle>
+						{t("mediaItemDetails.edit")}
+					</ResponsiveDialogTitle>
+					<ResponsiveDialogDescription className="sr-only">
+						{t("mediaItemDetails.editMetadataDescription")}
+					</ResponsiveDialogDescription>
+				</ResponsiveDialogHeader>
 
-					<div className="flex flex-col gap-4 overflow-y-auto max-h-[65vh] pr-1">
-						<FormField label={t("metadata.title")}>
-							<Input value={title} onChange={(e) => setTitle(e.target.value)} />
-						</FormField>
+				<ResponsiveDialogBody className="flex flex-col gap-4 md:max-h-[65vh] md:overflow-y-auto md:pr-1">
+					<FormField label={t("metadata.title")}>
+						<Input value={title} onChange={(e) => setTitle(e.target.value)} />
+					</FormField>
 
-						<StatusFields
-							mediaItemDetails={mediaItemDetails}
-							onSeriesCompletionNeeded={onSeriesCompletionNeeded}
-						/>
-
-						<FormField label={t("metadata.description")}>
-							<Textarea
-								value={description}
-								onChange={(e) => setDescription(e.target.value)}
-								rows={3}
-							/>
-						</FormField>
-
-						<FormField label={t("metadata.coverImage")}>
-							<Input
-								value={coverImageUrl}
-								onChange={(e) => setCoverImageUrl(e.target.value)}
-								placeholder="https://..."
-							/>
-						</FormField>
-
-						<FormField label={t("mediaItemDetails.releaseDate")}>
-							<Input
-								type="number"
-								min={-4712}
-								max={new Date().getFullYear() + 5}
-								placeholder={new Date().getFullYear().toString()}
-								value={releaseYear}
-								onChange={(e) => setReleaseYear(e.target.value)}
-							/>
-						</FormField>
-
-						<SeriesField
-							type={mediaItemDetails.type}
-							initialSeriesId={mediaItemDetails.seriesId ?? null}
-							onChange={setSeriesFieldValue}
-						/>
-
-						<CreatorField
-							label={
-								mediaItemDetails.type === MediaItemType.BOOK
-									? t("metadata.author")
-									: mediaItemDetails.type === MediaItemType.MOVIE
-										? t("metadata.director")
-										: mediaItemDetails.type === MediaItemType.VIDEO_GAME
-											? t("metadata.developer")
-											: t("metadata.creator")
-							}
-							initialCreatorId={mediaItemDetails.creatorId ?? null}
-							onChange={setCreatorFieldValue}
-						/>
-
-						<GenreField
-							initialGenreName={mediaItemDetails.genreName ?? null}
-							onChange={setGenreFieldValue}
-						/>
-
-						{mediaItemDetails.type === MediaItemType.BOOK && (
-							<BookFields
-								rawMetadata={rawMetadata}
-								onChange={setTypeMetadata}
-							/>
-						)}
-
-						{mediaItemDetails.type === MediaItemType.MOVIE && (
-							<MovieFields
-								rawMetadata={rawMetadata}
-								onChange={setTypeMetadata}
-							/>
-						)}
-
-						{mediaItemDetails.type === MediaItemType.TV_SHOW && (
-							<TvShowFields
-								rawMetadata={rawMetadata}
-								onChange={setTypeMetadata}
-							/>
-						)}
-
-						{mediaItemDetails.type === MediaItemType.VIDEO_GAME && (
-							<GameFields
-								rawMetadata={rawMetadata}
-								onChange={setTypeMetadata}
-							/>
-						)}
-
-						{mediaItemDetails.type === MediaItemType.PODCAST && feedUrl && (
-							<FormField label={t("podcast.episodes")}>
-								<div className="flex items-center gap-3">
-									<span className="text-sm text-muted-foreground">
-										{currentEpisodeGuids.length} {t("podcast.episodesCount")}
-									</span>
-									<Button
-										variant="outline"
-										size="sm"
-										type="button"
-										onClick={() => setIsArcDialogOpen(true)}
-									>
-										{t("podcast.editEpisodes")}
-									</Button>
-								</div>
-							</FormField>
-						)}
-
-						<TagsEditor
-							pendingTags={pendingTags}
-							onPendingTagsChange={setPendingTags}
-						/>
-					</div>
-
-					<SaveAndCancelButtons
-						onSave={handleSave}
-						onCancel={() => setIsOpen(false)}
-						isPending={isSaving}
-						isSaveDisabled={isSaveDisabled}
-						className="pt-2"
+					<StatusFields
+						mediaItemDetails={mediaItemDetails}
+						onSeriesCompletionNeeded={onSeriesCompletionNeeded}
 					/>
-				</DialogContent>
-			</Dialog>
+
+					<FormField label={t("metadata.description")}>
+						<Textarea
+							value={description}
+							onChange={(e) => setDescription(e.target.value)}
+							rows={3}
+						/>
+					</FormField>
+
+					<FormField label={t("metadata.coverImage")}>
+						<Input
+							value={coverImageUrl}
+							onChange={(e) => setCoverImageUrl(e.target.value)}
+							placeholder="https://..."
+						/>
+					</FormField>
+
+					<FormField label={t("mediaItemDetails.releaseDate")}>
+						<Input
+							type="number"
+							min={-4712}
+							max={new Date().getFullYear() + 5}
+							placeholder={new Date().getFullYear().toString()}
+							value={releaseYear}
+							onChange={(e) => setReleaseYear(e.target.value)}
+						/>
+					</FormField>
+
+					<SeriesField
+						type={mediaItemDetails.type}
+						initialSeriesId={mediaItemDetails.seriesId ?? null}
+						onChange={setSeriesFieldValue}
+					/>
+
+					<CreatorField
+						label={
+							mediaItemDetails.type === MediaItemType.BOOK
+								? t("metadata.author")
+								: mediaItemDetails.type === MediaItemType.MOVIE
+									? t("metadata.director")
+									: mediaItemDetails.type === MediaItemType.VIDEO_GAME
+										? t("metadata.developer")
+										: t("metadata.creator")
+						}
+						initialCreatorId={mediaItemDetails.creatorId ?? null}
+						onChange={setCreatorFieldValue}
+					/>
+
+					<GenreField
+						initialGenreName={mediaItemDetails.genreName ?? null}
+						onChange={setGenreFieldValue}
+					/>
+
+					{mediaItemDetails.type === MediaItemType.BOOK && (
+						<BookFields rawMetadata={rawMetadata} onChange={setTypeMetadata} />
+					)}
+
+					{mediaItemDetails.type === MediaItemType.MOVIE && (
+						<MovieFields rawMetadata={rawMetadata} onChange={setTypeMetadata} />
+					)}
+
+					{mediaItemDetails.type === MediaItemType.TV_SHOW && (
+						<TvShowFields
+							rawMetadata={rawMetadata}
+							onChange={setTypeMetadata}
+						/>
+					)}
+
+					{mediaItemDetails.type === MediaItemType.VIDEO_GAME && (
+						<GameFields rawMetadata={rawMetadata} onChange={setTypeMetadata} />
+					)}
+
+					{mediaItemDetails.type === MediaItemType.PODCAST && feedUrl && (
+						<FormField label={t("podcast.episodes")}>
+							<div className="flex items-center gap-3">
+								<span className="text-sm text-muted-foreground">
+									{currentEpisodeGuids.length} {t("podcast.episodesCount")}
+								</span>
+								<Button
+									variant="outline"
+									size="sm"
+									type="button"
+									onClick={() => setIsArcDialogOpen(true)}
+								>
+									{t("podcast.editEpisodes")}
+								</Button>
+							</div>
+						</FormField>
+					)}
+
+					<TagsEditor
+						pendingTags={pendingTags}
+						onPendingTagsChange={setPendingTags}
+					/>
+				</ResponsiveDialogBody>
+
+				<ResponsiveDialogFooter>
+					<DeleteButton onClick={onRequestDelete} disabled={isDeleting}>
+						{t("mediaItemDetails.removeFromLibrary")}
+					</DeleteButton>
+					<Button
+						variant="outline"
+						onClick={() => setIsOpen(false)}
+						disabled={isSaving}
+					>
+						{t("mediaItemDetails.cancel")}
+					</Button>
+					<Button onClick={handleSave} disabled={isSaveDisabled}>
+						{t("mediaItemDetails.save")}
+					</Button>
+				</ResponsiveDialogFooter>
+			</ResponsiveDialog>
 
 			{feedUrl && (
 				<PodcastArcPickerDialog

@@ -296,6 +296,35 @@ export async function saveInstanceForUser(
 	);
 }
 
+/** Updates only an instance's progressPercent, leaving every other column untouched. */
+export async function updateInstanceProgressForUser(
+	instanceId: number,
+	progressPercent: string,
+	userId: string,
+	callerToday?: string,
+): Promise<void> {
+	const [instance] = await db
+		.select({ progressPercent: mediaItemInstances.progressPercent })
+		.from(mediaItemInstances)
+		.innerJoin(mediaItems, eq(mediaItems.id, mediaItemInstances.mediaItemId))
+		.where(
+			and(eq(mediaItemInstances.id, instanceId), eq(mediaItems.userId, userId)),
+		);
+	if (!instance) throw new Error("Media item not found");
+
+	await db
+		.update(mediaItemInstances)
+		.set({ progressPercent })
+		.where(eq(mediaItemInstances.id, instanceId));
+
+	await recordProgressUpdate(
+		instanceId,
+		instance.progressPercent,
+		progressPercent,
+		resolveToday(callerToday),
+	);
+}
+
 export async function deleteInstanceForUser(
 	instanceId: number,
 	userId: string,

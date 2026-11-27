@@ -31,6 +31,7 @@ import {
 	getMediaItemDetailsForUser,
 	removeFromLibrary,
 	saveInstanceForUser,
+	updateInstanceProgressForUser,
 	updateMediaItemCreator,
 	updateMediaItemMetadata,
 	updateMediaItemSeries,
@@ -946,6 +947,74 @@ describe("progress update history", () => {
 		const rows = await progressUpdatesFor(instanceId);
 		expect(rows).toHaveLength(1);
 		expect(Number(rows[0]?.progressPercentDelta)).toBe(40);
+	});
+});
+
+describe("updateInstanceProgressForUser", () => {
+	async function progressUpdatesFor(instanceId: number) {
+		return testDb
+			.select()
+			.from(mediaItemProgressUpdates)
+			.where(eq(mediaItemProgressUpdates.mediaItemInstanceId, instanceId));
+	}
+
+	it("updates only progressPercent, leaving the instance's other fields untouched", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+			progressPercent: "10",
+			reviewText: "So far so good",
+			rating: "4.0",
+			consumptionInfo: { method: "ebook" },
+		});
+
+		await updateInstanceProgressForUser(instanceId, "55", USER_A, "2024-01-10");
+
+		const details = await getMediaItemDetailsForUser(itemId, USER_A);
+		const instance = details.instances[0];
+		expect(instance?.progressPercent).toBe(55);
+		expect(instance?.reviewText).toBe("So far so good");
+		expect(instance?.rating).toBe(4);
+		expect(instance?.consumptionInfo).toEqual({ method: "ebook" });
+		expect(instance?.startedAt).toBe("2024-01-01");
+	});
+
+	it("logs a progress-update row reflecting the delta", async () => {
+		const itemId = await insertMediaItem({
+			userId: USER_A,
+			type: MediaItemType.BOOK,
+		});
+		const instanceId = await insertInstance({
+			mediaItemId: itemId,
+			startedAt: "2024-01-01",
+			progressPercent: "10",
+		});
+
+		await updateInstanceProgressForUser(instanceId, "40", USER_A, "2024-01-10");
+
+		const rows = await progressUpdatesFor(instanceId);
+		expect(rows).toHaveLength(1);
+		expect(Number(rows[0]?.progressPercentDelta)).toBe(30);
+	});
+
+	it("rejects updating an instance belonging to another user's item", async () => {
+		const { itemB } = await seedBothUsersOwnSameItem();
+		const instanceId = await insertInstance({
+			mediaItemId: itemB,
+			startedAt: "2024-01-01",
+			progressPercent: "10",
+		});
+
+		await expect(
+			updateInstanceProgressForUser(instanceId, "90", USER_A, "2024-01-10"),
+		).rejects.toThrow("Media item not found");
+
+		const details = await getMediaItemDetailsForUser(itemB, USER_B);
+		expect(details.instances[0]?.progressPercent).toBe(10);
 	});
 });
 

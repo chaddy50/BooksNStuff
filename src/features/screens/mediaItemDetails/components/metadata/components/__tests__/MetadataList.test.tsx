@@ -9,17 +9,37 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
-	Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+	Link: ({
+		to,
+		params,
+		children,
+	}: {
+		to: string;
+		params: Record<string, string>;
+		children: React.ReactNode;
+	}) => (
+		<a href={to.replace(/\$(\w+)/g, (_, name) => params[name])}>{children}</a>
+	),
 }));
+
+const baseProps = {
+	releaseDate: null,
+	genreId: null,
+	genreName: null,
+};
 
 afterEach(cleanup);
 
-// Creator, series, release year, and tags live in the media item header instead —
-// this list only takes type-specific fields and genre.
+// Creator, series, and tags live in the media item header instead — this list
+// covers release year, genre, and type-specific fields.
 describe("MetadataList", () => {
 	it("shows type-specific details like page count", () => {
 		render(
-			<MetadataList type={MediaItemType.BOOK} metadata={{ pageCount: 400 }} />,
+			<MetadataList
+				{...baseProps}
+				type={MediaItemType.BOOK}
+				metadata={{ pageCount: 400 }}
+			/>,
 		);
 
 		expect(screen.getByText("400")).toBeInTheDocument();
@@ -27,7 +47,11 @@ describe("MetadataList", () => {
 
 	it("shows a movie's runtime", () => {
 		render(
-			<MetadataList type={MediaItemType.MOVIE} metadata={{ runtime: 120 }} />,
+			<MetadataList
+				{...baseProps}
+				type={MediaItemType.MOVIE}
+				metadata={{ runtime: 120 }}
+			/>,
 		);
 
 		expect(screen.getByText("2 time.hours")).toBeInTheDocument();
@@ -35,7 +59,11 @@ describe("MetadataList", () => {
 
 	it("shows a tv show's season count", () => {
 		render(
-			<MetadataList type={MediaItemType.TV_SHOW} metadata={{ seasons: 3 }} />,
+			<MetadataList
+				{...baseProps}
+				type={MediaItemType.TV_SHOW}
+				metadata={{ seasons: 3 }}
+			/>,
 		);
 
 		expect(screen.getByText("3")).toBeInTheDocument();
@@ -44,6 +72,7 @@ describe("MetadataList", () => {
 	it("shows a video game's platforms", () => {
 		render(
 			<MetadataList
+				{...baseProps}
 				type={MediaItemType.VIDEO_GAME}
 				metadata={{ platforms: ["PC", "PS5"] }}
 			/>,
@@ -55,6 +84,7 @@ describe("MetadataList", () => {
 	it("shows a podcast's episode count", () => {
 		render(
 			<MetadataList
+				{...baseProps}
 				type={MediaItemType.PODCAST}
 				metadata={{ episodeTitles: ["Ep 1", "Ep 2"] }}
 			/>,
@@ -63,24 +93,39 @@ describe("MetadataList", () => {
 		expect(screen.getByText("2 podcast.episodesCount")).toBeInTheDocument();
 	});
 
-	it("no longer renders genre; it moved into the header", () => {
-		const { container } = render(
+	it("shows the release year", () => {
+		render(
 			<MetadataList
+				{...baseProps}
 				type={MediaItemType.BOOK}
 				metadata={null}
-				// @ts-expect-error genreId/genreName no longer exist on MetadataList's props
+				releaseDate="2019-01-01"
+			/>,
+		);
+
+		expect(screen.getByText("2019")).toBeInTheDocument();
+	});
+
+	it("shows the genre as a link to the genre page", () => {
+		render(
+			<MetadataList
+				{...baseProps}
+				type={MediaItemType.BOOK}
+				metadata={null}
 				genreId={3}
 				genreName="Sci-Fi"
 			/>,
 		);
 
-		expect(screen.queryByText("Sci-Fi")).not.toBeInTheDocument();
-		expect(container).toBeEmptyDOMElement();
+		expect(screen.getByRole("link", { name: "Sci-Fi" })).toHaveAttribute(
+			"href",
+			"/genre/3",
+		);
 	});
 
 	it("returns nothing when there is no content left to show", () => {
 		const { container } = render(
-			<MetadataList type={MediaItemType.BOOK} metadata={null} />,
+			<MetadataList {...baseProps} type={MediaItemType.BOOK} metadata={null} />,
 		);
 
 		expect(container).toBeEmptyDOMElement();

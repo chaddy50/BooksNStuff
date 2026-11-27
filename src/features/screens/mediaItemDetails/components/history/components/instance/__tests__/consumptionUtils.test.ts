@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { UserSettings } from "#/database/schema";
 import {
+	getDefaultConsumptionInfo,
 	getDefaultMethod,
 	getMethodOptions,
 } from "#/features/screens/mediaItemDetails/components/history/components/instance/consumptionUtils";
 import {
 	BookConsumptionMethod,
+	GameControlMethod,
 	GamePlatform,
 	MediaItemType,
 	MovieConsumptionMethod,
@@ -159,5 +161,34 @@ describe("getMethodOptions", () => {
 		expect(gameLabels).toEqual(
 			[...gameLabels].sort((a, b) => a.localeCompare(b)),
 		);
+	});
+});
+
+describe("getDefaultConsumptionInfo", () => {
+	it("returns just a method for non-game types", () => {
+		expect(getDefaultConsumptionInfo(MediaItemType.BOOK)).toEqual({
+			method: BookConsumptionMethod.EBOOK,
+		});
+	});
+
+	it("includes a default control method for video games", () => {
+		expect(getDefaultConsumptionInfo(MediaItemType.VIDEO_GAME)).toEqual({
+			method: GamePlatform.PC,
+			controlMethod: GameControlMethod.CONTROLLER,
+		});
+	});
+
+	it("uses the user's saved default game platform and control method", () => {
+		const settings = {
+			defaultGamePlatform: GamePlatform.PS5,
+			defaultGameControlMethod: GameControlMethod.MOUSE_AND_KEYBOARD,
+		} as UserSettings;
+
+		expect(
+			getDefaultConsumptionInfo(MediaItemType.VIDEO_GAME, settings),
+		).toEqual({
+			method: GamePlatform.PS5,
+			controlMethod: GameControlMethod.MOUSE_AND_KEYBOARD,
+		});
 	});
 });

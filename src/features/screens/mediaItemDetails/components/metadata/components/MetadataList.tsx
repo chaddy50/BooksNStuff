@@ -1,11 +1,14 @@
+import { Link } from "@tanstack/react-router";
 import type { TFunction } from "i18next";
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/mediaItemDetails";
 import { MediaItemType } from "#/lib/enums";
+import { formatReleaseYear } from "#/lib/releaseDate";
 import { formatHours, formatMinutes } from "#/lib/utils";
 
 type Field = { label: string; value: string };
+type Row = { label: string; node: ReactNode };
 type FieldBuilder = (
 	metadata: Record<string, unknown>,
 	t: TFunction,
@@ -126,29 +129,58 @@ const FIELD_BUILDER_BY_TYPE: Record<MediaItemType, FieldBuilder> = {
 	[MediaItemType.PODCAST]: podcastFields,
 };
 
-// Creator, series, release year, genre, and tags live in the media item header
-// instead; this list only covers the remaining, less headline details.
+// Creator, series, and tags live in the media item header instead; this list
+// covers release year, genre, and the remaining, less headline details.
 export function MetadataList({
 	type,
 	metadata,
+	releaseDate,
+	genreId,
+	genreName,
 }: {
 	type: MediaItemDetails["type"];
 	metadata: MediaItemDetails["metadata"];
+	releaseDate: MediaItemDetails["releaseDate"];
+	genreId: MediaItemDetails["genreId"];
+	genreName: MediaItemDetails["genreName"];
 }) {
 	const { t } = useTranslation();
-	const fields = metadata
+	const typeFields: Field[] = metadata
 		? FIELD_BUILDER_BY_TYPE[type](metadata as Record<string, unknown>, t)
 		: [];
 
-	if (fields.length === 0) return null;
+	const rows: Row[] = [];
+	const releaseYear = formatReleaseYear(releaseDate, t);
+	if (releaseYear) {
+		rows.push({ label: t("metadata.year"), node: releaseYear });
+	}
+	if (genreName && genreId) {
+		rows.push({
+			label: t("metadata.genre"),
+			node: (
+				<Link
+					to="/genre/$genreId"
+					params={{ genreId: String(genreId) }}
+					className="hover:underline"
+				>
+					{genreName}
+				</Link>
+			),
+		});
+	}
+	for (const field of typeFields) {
+		rows.push({ label: field.label, node: field.value });
+	}
+
+	if (rows.length === 0) return null;
 
 	return (
 		<div className="flex flex-col gap-1.5 text-sm">
-			{fields.map(({ label, value }) => (
+			{rows.map(({ label, node }) => (
 				<Fragment key={label}>
 					<div className="flex gap-3">
 						<span className="text-muted-foreground w-28 shrink-0">{label}</span>
-						<span className="text-foreground">{value}</span>
+						<span className="text-foreground">{node}</span>
 					</div>
 				</Fragment>
 			))}

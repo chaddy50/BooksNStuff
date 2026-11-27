@@ -8,7 +8,7 @@ import {
 	getSeriesLabel,
 } from "./mediaItemDetailsHeaderSubline";
 
-interface MediaItemDetailsHeaderCreatorLineProps {
+interface MediaItemDetailsHeaderMetaListProps {
 	mediaItemDetails: MediaItemDetails;
 }
 
@@ -36,8 +36,9 @@ function SeriesOrPlainText(props: {
 	);
 }
 
-export function MediaItemDetailsHeaderCreatorLine(
-	props: MediaItemDetailsHeaderCreatorLineProps,
+/** Creator and series only — release year and genre now live in the Overview details list instead. */
+export function MediaItemDetailsHeaderMetaList(
+	props: MediaItemDetailsHeaderMetaListProps,
 ) {
 	const { mediaItemDetails } = props;
 
@@ -79,15 +80,18 @@ export function MediaItemDetailsHeaderCreatorLine(
 
 	return (
 		<p
-			className="text-foreground text-sm"
-			data-testid="media-item-details-header-creator-line"
+			className="text-foreground text-sm flex flex-wrap items-baseline gap-x-0"
+			data-testid="media-item-details-header-meta-list"
 		>
-			{segments.map(({ key, node }, index) => (
-				<Fragment key={key}>
-					{index > 0 && <span className="mx-1.5">·</span>}
-					{node}
-				</Fragment>
-			))}
+			{segments.map(({ key, node }, index) => {
+				const isOwnLine = key === "creator" || key === "series";
+				return (
+					<Fragment key={key}>
+						{index > 0 && !isOwnLine && <span className="mx-1.5">·</span>}
+						<span className={isOwnLine ? "basis-full" : undefined}>{node}</span>
+					</Fragment>
+				);
+			})}
 		</p>
 	);
 }

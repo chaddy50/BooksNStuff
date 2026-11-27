@@ -32,7 +32,7 @@ export function RelatedItems({ mediaItemDetails }: RelatedItemsProps) {
 	}
 
 	return (
-		<div className="mb-10">
+		<div>
 			<div className="flex items-center justify-between mb-4">
 				<h2 className="text-lg font-semibold">{t("relatedItems.title")}</h2>
 				<Button

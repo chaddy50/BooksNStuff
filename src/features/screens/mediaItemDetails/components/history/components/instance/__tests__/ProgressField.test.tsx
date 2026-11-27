@@ -66,7 +66,7 @@ describe("ProgressField", () => {
 		expect(screen.getByText("/ 320")).toBeInTheDocument();
 	});
 
-	it("uses the raw percent label and no suffix when pageCount is omitted", () => {
+	it("uses the raw percent label and a % suffix when pageCount is omitted", () => {
 		render(
 			<ProgressField
 				completedAt=""
@@ -76,6 +76,22 @@ describe("ProgressField", () => {
 		);
 
 		expect(screen.getByLabelText("mediaItemDetails.progress")).toHaveValue(55);
-		expect(screen.queryByText(/^\//)).not.toBeInTheDocument();
+		expect(screen.getByText("%")).toBeInTheDocument();
+	});
+
+	it("calls onBlur when the field loses focus, for callers that autosave", () => {
+		const onBlur = vi.fn();
+		render(
+			<ProgressField
+				completedAt=""
+				progressPercent="55"
+				onProgressPercentChange={vi.fn()}
+				onBlur={onBlur}
+			/>,
+		);
+
+		fireEvent.blur(screen.getByLabelText("mediaItemDetails.progress"));
+
+		expect(onBlur).toHaveBeenCalledTimes(1);
 	});
 });
