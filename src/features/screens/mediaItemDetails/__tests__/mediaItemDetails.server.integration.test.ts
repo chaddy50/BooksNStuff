@@ -243,7 +243,7 @@ describe("updateMediaItemSeries", () => {
 		expect((await readItem(itemA))?.seriesSortName).toBe("Expanse");
 	});
 
-	it("changes nothing for a mediaItemId owned by another user", async () => {
+	it("rejects a mediaItemId owned by another user", async () => {
 		const { itemB } = await seedBothUsersOwnSameItem();
 		const before = await readItem(itemB);
 		const seriesId = await insertSeries({
@@ -252,10 +252,12 @@ describe("updateMediaItemSeries", () => {
 			type: MediaItemType.MOVIE,
 		});
 
-		await updateMediaItemSeries(
-			{ mediaItemId: itemB, type: MediaItemType.MOVIE, seriesId },
-			USER_A,
-		);
+		await expect(
+			updateMediaItemSeries(
+				{ mediaItemId: itemB, type: MediaItemType.MOVIE, seriesId },
+				USER_A,
+			),
+		).rejects.toThrow("Unauthorized");
 
 		expect(await readItem(itemB)).toEqual(before);
 	});
