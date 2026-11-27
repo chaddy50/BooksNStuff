@@ -1,16 +1,11 @@
 import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
 
 import { useIsMobile } from "#/components/hooks/useIsMobile";
 import { ProgressBar } from "#/components/ProgressBar";
-import { Button } from "#/components/ui/button";
 import { RatingStars } from "#/features/screens/mediaItemDetails/components/history/components/instance/rating/ratingStars/RatingStars";
-import { InstanceMetaLine } from "#/features/screens/mediaItemDetails/components/InstanceMetaLine";
 import { Artwork } from "#/features/screens/mediaItemDetails/components/metadata/components/Artwork";
 import { EditMetadataDialog } from "#/features/screens/mediaItemDetails/components/metadata/components/EditMetadataDialog";
-import { PurchasedToggle } from "#/features/screens/mediaItemDetails/components/metadata/components/PurchasedToggle";
-import { StatusSelect } from "#/features/screens/mediaItemDetails/components/metadata/components/StatusSelect";
 import { Title } from "#/features/screens/mediaItemDetails/components/metadata/components/Title";
 import type { InstanceEditorState } from "#/features/screens/mediaItemDetails/components/useInstanceEditorState";
 import {
@@ -19,11 +14,8 @@ import {
 	updateMediaItemStatus,
 } from "#/features/screens/mediaItemDetails/mediaItemDetails";
 import {
-	getLogProgressLabelKey,
 	getMostRecentRating,
 	getPageCount,
-	getQueueCaptionLabels,
-	getRereadLabelKey,
 	getTotalSeasons,
 	getUnfinishedInstance,
 } from "#/features/screens/mediaItemDetails/mediaItemDetailsHeader";
@@ -33,35 +25,8 @@ import { ReviewAndCompleteModal } from "./components/ReviewAndCompleteModal";
 import { MediaItemDetailsHeaderBackdrop } from "./MediaItemDetailsHeaderBackdrop";
 import { MediaItemDetailsHeaderCurrentInstance } from "./MediaItemDetailsHeaderCurrentInstance";
 import { MediaItemDetailsHeaderMetaList } from "./MediaItemDetailsHeaderMetaList";
+import { MediaItemDetailsHeaderQueueActions } from "./MediaItemDetailsHeaderQueueActions";
 import { MediaItemDetailsHeaderTags } from "./MediaItemDetailsHeaderTags";
-
-// Secondary action offered next to the primary Start/Reread button, for each
-// status with no unfinished instance.
-const SECONDARY_ACTION_BY_STATUS: Partial<
-	Record<MediaItemStatus, { targetStatus: MediaItemStatus; labelKey: string }>
-> = {
-	[MediaItemStatus.BACKLOG]: {
-		targetStatus: MediaItemStatus.NEXT_UP,
-		labelKey: "status.next_up",
-	},
-	[MediaItemStatus.NEXT_UP]: {
-		targetStatus: MediaItemStatus.BACKLOG,
-		labelKey: "status.backlog",
-	},
-	[MediaItemStatus.WAITING_FOR_NEXT_RELEASE]: {
-		targetStatus: MediaItemStatus.NEXT_UP,
-		labelKey: "status.next_up",
-	},
-};
-
-// Backlog and Next Up are a two-item queue (so the usual Status/Purchased
-// controls would be redundant with the secondary action above), and a
-// finished item's status/purchase state is no longer actionable.
-const STATUSES_HIDING_STATUS_CONTROLS: MediaItemStatus[] = [
-	MediaItemStatus.BACKLOG,
-	MediaItemStatus.NEXT_UP,
-	MediaItemStatus.COMPLETED,
-];
 
 interface MediaItemDetailsHeaderProps {
 	mediaItemDetails: MediaItemDetails;
@@ -81,26 +46,11 @@ export function MediaItemDetailsHeader(props: MediaItemDetailsHeaderProps) {
 		onRequestDelete,
 		isDeleting,
 	} = props;
-	const { t } = useTranslation();
 	const router = useRouter();
 	const isMobile = useIsMobile();
 	const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 	const rating = getMostRecentRating(mediaItemDetails.instances);
 	const unfinishedInstance = getUnfinishedInstance(mediaItemDetails.instances);
-	const secondaryAction = SECONDARY_ACTION_BY_STATUS[mediaItemDetails.status];
-	const shouldHideStatusControls = STATUSES_HIDING_STATUS_CONTROLS.includes(
-		mediaItemDetails.status,
-	);
-	const primaryActionLabelKey =
-		mediaItemDetails.status === MediaItemStatus.COMPLETED
-			? getRereadLabelKey(mediaItemDetails.type)
-			: getLogProgressLabelKey(mediaItemDetails.type);
-	const queueCaptionLabels = getQueueCaptionLabels(
-		mediaItemDetails.status,
-		mediaItemDetails.type,
-		mediaItemDetails.instances,
-		t as (key: string, options?: Record<string, unknown>) => string,
-	);
 	const totalSeasons = getTotalSeasons(
 		mediaItemDetails.type,
 		mediaItemDetails.metadata,
@@ -141,47 +91,12 @@ export function MediaItemDetailsHeader(props: MediaItemDetailsHeaderProps) {
 			onReviewAndComplete={editorState.openReviewAndComplete}
 		/>
 	) : (
-		<div className="flex flex-col gap-3">
-			{mediaItemDetails.status !== MediaItemStatus.BACKLOG && (
-				<h3 className="text-base font-semibold">
-					{t(`status.${mediaItemDetails.status}` as never)}
-				</h3>
-			)}
-			{queueCaptionLabels.length > 0 && (
-				<div className="flex items-center gap-4">
-					<InstanceMetaLine labels={queueCaptionLabels} />
-					{mediaItemDetails.status === MediaItemStatus.COMPLETED && (
-						<RatingStars rating={rating} />
-					)}
-				</div>
-			)}
-			{!shouldHideStatusControls && (
-				<div className="flex items-center gap-3">
-					<StatusSelect
-						mediaItemDetails={mediaItemDetails}
-						onSeriesCompletionNeeded={onSeriesCompletionNeeded}
-					/>
-					<PurchasedToggle mediaItemDetails={mediaItemDetails} />
-				</div>
-			)}
-			<div className="flex items-center gap-2">
-				<Button
-					onClick={() => handleStatusChange(MediaItemStatus.IN_PROGRESS)}
-					disabled={isUpdatingStatus}
-				>
-					{t(primaryActionLabelKey as never)}
-				</Button>
-				{secondaryAction && (
-					<Button
-						variant="outline"
-						onClick={() => handleStatusChange(secondaryAction.targetStatus)}
-						disabled={isUpdatingStatus}
-					>
-						{t(secondaryAction.labelKey as never)}
-					</Button>
-				)}
-			</div>
-		</div>
+		<MediaItemDetailsHeaderQueueActions
+			mediaItemDetails={mediaItemDetails}
+			isUpdatingStatus={isUpdatingStatus}
+			onStatusChange={handleStatusChange}
+			onSeriesCompletionNeeded={onSeriesCompletionNeeded}
+		/>
 	);
 
 	return (

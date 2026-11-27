@@ -838,7 +838,7 @@ describe("saveInstanceForUser / getMediaItemDetailsForUser progress", () => {
 });
 
 describe("progress update history", () => {
-	async function progressUpdatesFor(instanceId: number) {
+	function progressUpdatesFor(instanceId: number) {
 		return testDb
 			.select()
 			.from(mediaItemProgressUpdates)
@@ -951,7 +951,7 @@ describe("progress update history", () => {
 });
 
 describe("updateInstanceProgressForUser", () => {
-	async function progressUpdatesFor(instanceId: number) {
+	function progressUpdatesFor(instanceId: number) {
 		return testDb
 			.select()
 			.from(mediaItemProgressUpdates)

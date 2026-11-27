@@ -16,6 +16,12 @@ const SheetCloseContext = createContext<(() => void) | null>(null);
 // Dragged further than this many pixels before release counts as "flung away".
 const DISMISS_THRESHOLD_PX = 100;
 
+function wasDismissGesture(draggedBy: number, contentHeight: number) {
+	const draggedPastQuarterHeight =
+		contentHeight > 0 && draggedBy > contentHeight * 0.25;
+	return draggedBy > DISMISS_THRESHOLD_PX || draggedPastQuarterHeight;
+}
+
 function Sheet({
 	onOpenChange,
 	...props
@@ -97,9 +103,7 @@ function SheetDragHandle({
 		const contentHeight = contentRef.current?.offsetHeight ?? 0;
 		onDragStateChange(false);
 		onDragOffsetChange(0);
-		const draggedPastQuarterHeight =
-			contentHeight > 0 && draggedBy > contentHeight * 0.25;
-		if (draggedBy > DISMISS_THRESHOLD_PX || draggedPastQuarterHeight) {
+		if (wasDismissGesture(draggedBy, contentHeight)) {
 			closeSheet?.();
 		}
 	}

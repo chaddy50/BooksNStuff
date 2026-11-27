@@ -12,7 +12,7 @@ import {
 } from "#/features/screens/mediaItemDetails/mediaItemDetailsHeader";
 import { MediaItemStatus, MediaItemType } from "#/lib/enums";
 
-const t = (key: string, options?: Record<string, unknown>) =>
+const translate = (key: string, options?: Record<string, unknown>) =>
 	options ? `${key}:${JSON.stringify(options)}` : key;
 
 type Instance = {
@@ -213,20 +213,30 @@ describe("getMostRecentCompletedDate", () => {
 describe("getQueueCaptionLabels", () => {
 	it("returns no caption for backlog", () => {
 		expect(
-			getQueueCaptionLabels(MediaItemStatus.BACKLOG, MediaItemType.BOOK, [], t),
+			getQueueCaptionLabels(
+				MediaItemStatus.BACKLOG,
+				MediaItemType.BOOK,
+				[],
+				translate,
+			),
 		).toEqual([]);
 	});
 
 	it("returns no caption for next-up and waiting-for-next-release, since the status heading covers it", () => {
 		expect(
-			getQueueCaptionLabels(MediaItemStatus.NEXT_UP, MediaItemType.BOOK, [], t),
+			getQueueCaptionLabels(
+				MediaItemStatus.NEXT_UP,
+				MediaItemType.BOOK,
+				[],
+				translate,
+			),
 		).toEqual([]);
 		expect(
 			getQueueCaptionLabels(
 				MediaItemStatus.WAITING_FOR_NEXT_RELEASE,
 				MediaItemType.BOOK,
 				[],
-				t,
+				translate,
 			),
 		).toEqual([]);
 	});
@@ -242,7 +252,7 @@ describe("getQueueCaptionLabels", () => {
 				MediaItemStatus.COMPLETED,
 				MediaItemType.MOVIE,
 				instances,
-				t,
+				translate,
 			),
 		).toEqual(['mediaItemDetails.lastWatched:{"date":"Mar 01, 2026"}']);
 	});
@@ -253,7 +263,7 @@ describe("getQueueCaptionLabels", () => {
 				MediaItemStatus.COMPLETED,
 				MediaItemType.BOOK,
 				[],
-				t,
+				translate,
 			),
 		).toEqual([]);
 	});

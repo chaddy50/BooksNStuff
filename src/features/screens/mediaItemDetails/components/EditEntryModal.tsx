@@ -29,7 +29,11 @@ import {
 	resolveEffectivePageCount,
 } from "#/features/screens/mediaItemDetails/components/history/components/instance/progressInputUtils";
 import { RatingEditor } from "#/features/screens/mediaItemDetails/components/history/components/instance/rating/RatingEditor";
-import { SeasonReviewRow } from "#/features/screens/mediaItemDetails/components/history/components/instance/SeasonReviewRow";
+import { SeasonReviewsSection } from "#/features/screens/mediaItemDetails/components/SeasonReviewsSection";
+import {
+	toSaveableSeasonReviews,
+	useSeasonReviewsEditor,
+} from "#/features/screens/mediaItemDetails/components/useSeasonReviewsEditor";
 import {
 	deleteInstance,
 	type MediaItemDetails,
@@ -71,8 +75,8 @@ interface EditEntryFormValues {
 	seasonReviews: SeasonReview[];
 }
 
-function emptySeasonReview(season: number): SeasonReview {
-	return { season, startedAt: "", completedAt: "", rating: 0, reviewText: "" };
+function undefinedIfEmpty(value: string): string | undefined {
+	return value || undefined;
 }
 
 function getInitialConsumptionInfo(
@@ -121,11 +125,9 @@ export function EditEntryModal({
 		instance.fictionRating,
 	);
 	const [reviewText, setReviewText] = useState(instance.reviewText ?? "");
-	const [seasonReviews, setSeasonReviews] = useState<SeasonReview[]>(
+	const seasonReviewsEditor = useSeasonReviewsEditor(
 		instance.seasonReviews ?? [],
-	);
-	const [expandedSeasons, setExpandedSeasons] = useState<Set<number>>(
-		new Set(),
+		totalSeasons,
 	);
 	const [saving, setSaving] = useState(false);
 
@@ -137,62 +139,18 @@ export function EditEntryModal({
 		rating,
 		fictionRating,
 		reviewText,
-		seasonReviews,
+		seasonReviews: seasonReviewsEditor.seasonReviews,
 	};
 	const baselineRef = useRef(currentValues);
 
 	const isTvShow = mediaItemType === MediaItemType.TV_SHOW;
-	const usedSeasons = new Set(seasonReviews.map((r) => r.season));
-	const nextAvailableSeason = totalSeasons
-		? Array.from({ length: totalSeasons }, (_, i) => i + 1).find(
-				(s) => !usedSeasons.has(s),
-			)
-		: Math.max(0, ...seasonReviews.map((r) => r.season)) + 1 || 1;
-	const allSeasonsAdded =
-		totalSeasons !== undefined && seasonReviews.length >= totalSeasons;
-
-	function addSeasonReview() {
-		if (nextAvailableSeason === undefined) return;
-		setSeasonReviews((previous) =>
-			[...previous, emptySeasonReview(nextAvailableSeason)].sort(
-				(a, b) => a.season - b.season,
-			),
-		);
-		setExpandedSeasons(
-			(previous) => new Set([...previous, nextAvailableSeason]),
-		);
-	}
-
-	function toggleExpandedSeason(season: number) {
-		setExpandedSeasons((previous) => {
-			const next = new Set(previous);
-			if (next.has(season)) {
-				next.delete(season);
-			} else {
-				next.add(season);
-			}
-			return next;
-		});
-	}
-
-	function updateSeasonReview(index: number, patch: Partial<SeasonReview>) {
-		setSeasonReviews((previous) =>
-			previous.map((review, i) =>
-				i === index ? { ...review, ...patch } : review,
-			),
-		);
-	}
-
-	function removeSeasonReview(index: number) {
-		setSeasonReviews((previous) => previous.filter((_, i) => i !== index));
-	}
 
 	function buildSaveData() {
 		return {
 			mediaItemId,
 			instanceId: instance.id,
-			startedAt: startedAt || undefined,
-			completedAt: completedAt || undefined,
+			startedAt: undefinedIfEmpty(startedAt),
+			completedAt: undefinedIfEmpty(completedAt),
 			progressPercent: parseProgressInputValue(
 				progressInputValue,
 				effectivePageCount,
@@ -200,8 +158,8 @@ export function EditEntryModal({
 			consumptionInfo: consumptionInfo ?? undefined,
 			rating: rating.toFixed(1),
 			fictionRating: fictionRating ?? undefined,
-			reviewText: reviewText || undefined,
-			seasonReviews: seasonReviews.length > 0 ? seasonReviews : undefined,
+			reviewText: undefinedIfEmpty(reviewText),
+			seasonReviews: toSaveableSeasonReviews(seasonReviewsEditor.seasonReviews),
 			today: getLocalDateString(new Date()),
 		};
 	}
@@ -321,38 +279,11 @@ export function EditEntryModal({
 					minRows={6}
 				/>
 
-				{isTvShow && (
-					<div className="flex flex-col gap-3">
-						<div className="flex items-center justify-between">
-							<span className="text-sm font-medium">
-								{t("mediaItemDetails.seasonReviews")}
-							</span>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={addSeasonReview}
-								disabled={allSeasonsAdded}
-							>
-								{t("mediaItemDetails.addSeasonReview")}
-							</Button>
-						</div>
-
-						{seasonReviews.map((seasonReview, index) => (
-							<SeasonReviewRow
-								key={seasonReview.season}
-								seasonReview={seasonReview}
-								totalSeasons={totalSeasons}
-								usedSeasons={usedSeasons}
-								isExpanded={expandedSeasons.has(seasonReview.season)}
-								onToggleExpanded={() =>
-									toggleExpandedSeason(seasonReview.season)
-								}
-								onChange={(patch) => updateSeasonReview(index, patch)}
-								onRemove={() => removeSeasonReview(index)}
-							/>
-						))}
-					</div>
-				)}
+				<SeasonReviewsSection
+					isTvShow={isTvShow}
+					totalSeasons={totalSeasons}
+					editor={seasonReviewsEditor}
+				/>
 			</ResponsiveDialogBody>
 
 			<ResponsiveDialogFooter>
