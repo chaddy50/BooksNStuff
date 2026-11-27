@@ -13,9 +13,17 @@ type Props = {
 	reportType: DashboardReportType;
 	data: ReportDataPoint[] | GenreDataPoint[] | AverageScoreDataPoint[];
 	itemTypes?: MediaItemType[];
+	startDate?: string;
+	endDate?: string;
 };
 
-export function ReportTile({ reportType, data, itemTypes }: Props) {
+export function ReportTile({
+	reportType,
+	data,
+	itemTypes,
+	startDate,
+	endDate,
+}: Props) {
 	const { t } = useTranslation();
 
 	function title(): string {
@@ -38,7 +46,13 @@ export function ReportTile({ reportType, data, itemTypes }: Props) {
 			<h2 className="text-base font-semibold text-card-foreground mb-4">
 				{title()}
 			</h2>
-			<ReportChart reportType={reportType} data={data} itemTypes={itemTypes} />
+			<ReportChart
+				reportType={reportType}
+				data={data}
+				itemTypes={itemTypes}
+				startDate={startDate}
+				endDate={endDate}
+			/>
 		</div>
 	);
 }

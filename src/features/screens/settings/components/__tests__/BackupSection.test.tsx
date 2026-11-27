@@ -123,4 +123,39 @@ describe("BackupSection", () => {
 			});
 		});
 	});
+
+	it("shows a destructive toast when confirming a restore fails", async () => {
+		const { importBackup } = await import("#/features/screens/settings/backup");
+		vi.mocked(importBackup).mockRejectedValueOnce(new Error("network error"));
+
+		renderBackupSection();
+		triggerFileUpload(JSON.stringify({ version: 1, items: [] }));
+		await waitFor(() => {
+			expect(
+				screen.getByText("settings.backup.confirmTitle"),
+			).toBeInTheDocument();
+		});
+
+		fireEvent.click(screen.getByText("settings.backup.confirm"));
+
+		await waitFor(() => {
+			expect(toast).toHaveBeenCalledWith("settings.backup.importError", {
+				variant: "destructive",
+			});
+		});
+	});
+
+	it("shows a destructive toast when exporting fails", async () => {
+		const { exportBackup } = await import("#/features/screens/settings/backup");
+		vi.mocked(exportBackup).mockRejectedValueOnce(new Error("network error"));
+
+		renderBackupSection();
+		fireEvent.click(screen.getByText("settings.backup.export"));
+
+		await waitFor(() => {
+			expect(toast).toHaveBeenCalledWith("settings.backup.exportError", {
+				variant: "destructive",
+			});
+		});
+	});
 });

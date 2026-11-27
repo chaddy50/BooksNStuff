@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { MediaItemType } from "#/lib/enums";
-import { resolveDrillDownTypeFilter } from "../drilldown";
+import {
+	resolveDrillDownDateRange,
+	resolveDrillDownTypeFilter,
+} from "../drilldown";
 
 describe("resolveDrillDownTypeFilter", () => {
 	it("forces Book for progress_by_month regardless of the active item type filter", () => {
@@ -29,5 +32,33 @@ describe("resolveDrillDownTypeFilter", () => {
 
 	it("returns null for other report types when the filter is an empty array", () => {
 		expect(resolveDrillDownTypeFilter("avg_score_by_genre", [])).toBeNull();
+	});
+});
+
+describe("resolveDrillDownDateRange", () => {
+	const fallbackRange = { startDate: "2024-01-01", endDate: "2024-06-30" };
+
+	it("uses the supplied range when both startDate and endDate are given", () => {
+		expect(
+			resolveDrillDownDateRange("2024-02-01", "2024-02-15", fallbackRange),
+		).toEqual({ startDate: "2024-02-01", endDate: "2024-02-15" });
+	});
+
+	it("falls back to the given range when no range is supplied", () => {
+		expect(
+			resolveDrillDownDateRange(undefined, undefined, fallbackRange),
+		).toEqual(fallbackRange);
+	});
+
+	it("falls back to the given range when only startDate is supplied", () => {
+		expect(
+			resolveDrillDownDateRange("2024-02-01", undefined, fallbackRange),
+		).toEqual(fallbackRange);
+	});
+
+	it("falls back to the given range when only endDate is supplied", () => {
+		expect(
+			resolveDrillDownDateRange(undefined, "2024-02-15", fallbackRange),
+		).toEqual(fallbackRange);
 	});
 });

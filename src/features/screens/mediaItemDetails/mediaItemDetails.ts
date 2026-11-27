@@ -15,6 +15,7 @@ import {
 	getMediaItemDetailsForUser,
 	removeFromLibrary as removeFromLibraryForUser,
 	saveInstanceForUser,
+	updateInstanceProgressForUser,
 	updateMediaItemCreator as updateMediaItemCreatorForUser,
 	updateMediaItemMetadata as updateMediaItemMetadataForUser,
 	updateMediaItemSeries as updateMediaItemSeriesForUser,
@@ -150,6 +151,27 @@ export const deleteInstance = createServerFn({ method: "POST" })
 	.handler(async ({ data: { instanceId, today } }) => {
 		const user = await getLoggedInUser();
 		return deleteInstanceForUser(instanceId, user.id, today);
+	});
+
+export const updateInstanceProgress = createServerFn({ method: "POST" })
+	.inputValidator(
+		z.object({
+			instanceId: z.number(),
+			progressPercent: z.string().refine((value) => {
+				const parsed = Number(value);
+				return !Number.isNaN(parsed) && parsed >= 0 && parsed <= 100;
+			}),
+			today: z.string().optional(),
+		}),
+	)
+	.handler(async ({ data: { instanceId, progressPercent, today } }) => {
+		const user = await getLoggedInUser();
+		await updateInstanceProgressForUser(
+			instanceId,
+			progressPercent,
+			user.id,
+			today,
+		);
 	});
 
 export const updateMediaItemMetadata = createServerFn({ method: "POST" })

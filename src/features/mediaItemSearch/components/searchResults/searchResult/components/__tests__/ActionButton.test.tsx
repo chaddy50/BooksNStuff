@@ -15,6 +15,12 @@ vi.mock("@tanstack/react-router", () => ({
 	useNavigate: () => navigate,
 }));
 
+const toast = vi.fn();
+
+vi.mock("#/components/hooks/useToast", () => ({
+	useToast: () => ({ toast }),
+}));
+
 vi.mock("#/features/mediaItemSearch/mediaItemSearch", () => ({
 	addToLibrary: vi.fn(),
 }));
@@ -41,6 +47,7 @@ function renderActionButton(result: SearchResultWithStatus) {
 
 afterEach(cleanup);
 afterEach(() => navigate.mockClear());
+afterEach(() => toast.mockClear());
 
 describe("ActionButton", () => {
 	it("navigates with the result's suggested genres as router state", async () => {
@@ -84,6 +91,28 @@ describe("ActionButton", () => {
 				state: { genreSuggestions: [] },
 			}),
 		);
+	});
+
+	it("shows a destructive toast and stops showing the pending state when adding fails", async () => {
+		const { addToLibrary } = await import(
+			"#/features/mediaItemSearch/mediaItemSearch"
+		);
+		vi.mocked(addToLibrary).mockRejectedValue(new Error("Network error"));
+
+		renderActionButton(baseResult);
+		fireEvent.click(
+			screen.getByRole("button", { name: "search.addToLibrary" }),
+		);
+
+		await vi.waitFor(() =>
+			expect(toast).toHaveBeenCalledWith("search.addToLibraryError", {
+				variant: "destructive",
+			}),
+		);
+		expect(navigate).not.toHaveBeenCalled();
+		expect(
+			screen.getByRole("button", { name: "search.addToLibrary" }),
+		).toBeInTheDocument();
 	});
 
 	it("shows StatusBadge when result is already in the library", () => {

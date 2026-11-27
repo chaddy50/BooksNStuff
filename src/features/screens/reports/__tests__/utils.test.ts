@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { MediaItemType } from "#/lib/enums";
 import {
 	applyInsightsDateRangeDefaults,
-	getDefaultInsightsDateRange,
+	getYearToDateRange,
 	INSIGHTS_DATE_RANGE_PRESETS,
 	isBookIncludedInItemTypes,
 	matchPreset,
@@ -12,10 +12,10 @@ afterEach(() => {
 	vi.useRealTimers();
 });
 
-describe("getDefaultInsightsDateRange", () => {
+describe("getYearToDateRange", () => {
 	it("returns January 1 of the current year through today", () => {
 		vi.setSystemTime(new Date("2026-10-31T12:00:00Z"));
-		expect(getDefaultInsightsDateRange()).toEqual({
+		expect(getYearToDateRange()).toEqual({
 			startDate: "2026-01-01",
 			endDate: "2026-10-31",
 		});
@@ -110,14 +110,14 @@ describe("INSIGHTS_DATE_RANGE_PRESETS", () => {
 		const preset = INSIGHTS_DATE_RANGE_PRESETS.find(
 			(p) => p.key === "yearToDate",
 		);
-		expect(preset?.getRange()).toEqual(getDefaultInsightsDateRange());
+		expect(preset?.getRange()).toEqual(getYearToDateRange());
 	});
 });
 
 describe("matchPreset", () => {
 	it("returns yearToDate when the range equals the default year-to-date range", () => {
 		vi.setSystemTime(new Date("2026-10-31T12:00:00Z"));
-		expect(matchPreset(getDefaultInsightsDateRange())).toBe("yearToDate");
+		expect(matchPreset(getYearToDateRange())).toBe("yearToDate");
 	});
 
 	it("returns null for a range that matches no preset", () => {
