@@ -1,5 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { useToast } from "#/components/hooks/useToast";
 import { Input } from "#/components/ui/input";
 import {
 	type MediaItemDetails,
@@ -16,19 +17,26 @@ export function ExpectedReleaseDateInput({
 }: ExpectedReleaseDateInputProps) {
 	const router = useRouter();
 	const { t } = useTranslation();
+	const { toast } = useToast();
 
 	if (mediaItemDetails.status !== MediaItemStatus.WAITING_FOR_NEXT_RELEASE) {
 		return null;
 	}
 
 	async function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
-		await setMediaItemExpectedReleaseDate({
-			data: {
-				mediaItemId: mediaItemDetails.id,
-				expectedReleaseDate: event.target.value || null,
-			},
-		});
-		router.invalidate();
+		try {
+			await setMediaItemExpectedReleaseDate({
+				data: {
+					mediaItemId: mediaItemDetails.id,
+					expectedReleaseDate: event.target.value || null,
+				},
+			});
+			router.invalidate();
+		} catch {
+			toast(t("mediaItemDetails.expectedReleaseDateUpdateFailed"), {
+				variant: "destructive",
+			});
+		}
 	}
 
 	return (

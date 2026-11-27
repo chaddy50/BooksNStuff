@@ -1,6 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-
+import { useToast } from "#/components/hooks/useToast";
 import {
 	Select,
 	SelectContent,
@@ -21,15 +21,22 @@ interface PurchasedToggleProps {
 export function PurchasedToggle({ mediaItemDetails }: PurchasedToggleProps) {
 	const router = useRouter();
 	const { t } = useTranslation();
+	const { toast } = useToast();
 
 	async function handleChange(value: string) {
-		await setPurchaseStatus({
-			data: {
-				mediaItemId: mediaItemDetails.id,
-				purchaseStatus: value as PurchaseStatus,
-			},
-		});
-		router.invalidate();
+		try {
+			await setPurchaseStatus({
+				data: {
+					mediaItemId: mediaItemDetails.id,
+					purchaseStatus: value as PurchaseStatus,
+				},
+			});
+			router.invalidate();
+		} catch {
+			toast(t("mediaItemDetails.purchaseStatusUpdateFailed"), {
+				variant: "destructive",
+			});
+		}
 	}
 
 	return (

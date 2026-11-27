@@ -44,6 +44,10 @@ vi.mock(
 	}),
 );
 
+vi.mock("#/components/hooks/useToast", () => ({
+	useToast: () => ({ toast: vi.fn() }),
+}));
+
 vi.mock("#/components/hooks/useUserSettings", () => ({
 	useUserSettings: () => ({ data: undefined }),
 }));

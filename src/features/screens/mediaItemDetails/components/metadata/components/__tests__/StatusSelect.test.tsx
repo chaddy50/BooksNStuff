@@ -17,6 +17,11 @@ vi.mock("#/features/screens/mediaItemDetails/mediaItemDetails", () => ({
 	updateMediaItemStatus: vi.fn().mockResolvedValue(null),
 }));
 
+const toast = vi.fn();
+vi.mock("#/components/hooks/useToast", () => ({
+	useToast: () => ({ toast }),
+}));
+
 const baseMediaItemDetails = {
 	id: 1,
 	status: MediaItemStatus.IN_PROGRESS,
@@ -26,6 +31,35 @@ afterEach(cleanup);
 beforeEach(() => vi.clearAllMocks());
 
 describe("StatusSelect", () => {
+	it("shows a destructive toast when updateMediaItemStatus fails", async () => {
+		const { updateMediaItemStatus } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		vi.mocked(updateMediaItemStatus).mockRejectedValueOnce(
+			new Error("Network error"),
+		);
+		const onSeriesCompletionNeeded = vi.fn();
+
+		render(
+			<StatusSelect
+				mediaItemDetails={baseMediaItemDetails}
+				onSeriesCompletionNeeded={onSeriesCompletionNeeded}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("combobox"));
+		fireEvent.click(screen.getByText("status.done"));
+
+		await vi.waitFor(() =>
+			expect(toast).toHaveBeenCalledWith(
+				"mediaItemDetails.statusUpdateFailed",
+				{ variant: "destructive" },
+			),
+		);
+		expect(invalidate).not.toHaveBeenCalled();
+		expect(onSeriesCompletionNeeded).not.toHaveBeenCalled();
+	});
+
 	it("calls onSeriesCompletionNeeded when updateMediaItemStatus returns a confirmation", async () => {
 		const { updateMediaItemStatus } = await import(
 			"#/features/screens/mediaItemDetails/mediaItemDetails"

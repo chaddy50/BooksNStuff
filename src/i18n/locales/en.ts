@@ -125,6 +125,8 @@ export const en = {
 		lastPlayed: "Last played {{date}}",
 		tabsLabel: "Media item sections",
 		expectedReleaseDate: "Expected Release",
+		expectedReleaseDateUpdateFailed:
+			"Couldn't update the expected release date. Please try again.",
 		clearExpectedReleaseDate: "Clear",
 		overallRating: "Overall Rating",
 		detailedRating: "+ Detailed Rating",
@@ -141,6 +143,9 @@ export const en = {
 		removeSeason: "Remove Season",
 		completedDateBeforeStartDateError:
 			"Completed date cannot be before started date.",
+		statusUpdateFailed: "Couldn't update the status. Please try again.",
+		purchaseStatusUpdateFailed:
+			"Couldn't update the purchase status. Please try again.",
 		onHoldSince: "Since {{date}}",
 		droppedOn: "Dropped on {{date}}",
 		resume: "Resume",
