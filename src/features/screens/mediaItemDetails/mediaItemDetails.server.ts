@@ -473,6 +473,30 @@ export type UpdateMediaItemSeriesInput = {
 	newSeriesName?: string;
 };
 
+async function resolveSeriesIdAndName(
+	data: UpdateMediaItemSeriesInput,
+	userId: string,
+): Promise<{ id: number | null; name: string | null }> {
+	if (data.newSeriesName) {
+		const [newSeries] = await db
+			.insert(series)
+			.values({ name: data.newSeriesName, type: data.type, userId })
+			.returning({ id: series.id });
+		if (!newSeries) throw new Error("Failed to create series");
+		return { id: newSeries.id, name: data.newSeriesName };
+	}
+	if (data.seriesId === null) {
+		return { id: null, name: null };
+	}
+
+	const [existing] = await db
+		.select({ name: series.name })
+		.from(series)
+		.where(and(eq(series.id, data.seriesId), eq(series.userId, userId)));
+	if (!existing) throw new Error("Series not found");
+	return { id: data.seriesId, name: existing.name };
+}
+
 export async function updateMediaItemSeries(
 	data: UpdateMediaItemSeriesInput,
 	userId: string,
@@ -487,25 +511,8 @@ export async function updateMediaItemSeries(
 		throw new Error("Unauthorized");
 	}
 
-	let resolvedSeriesId = data.seriesId;
-	let resolvedSeriesName: string | null = null;
-
-	if (data.newSeriesName) {
-		const [newSeries] = await db
-			.insert(series)
-			.values({ name: data.newSeriesName, type: data.type, userId })
-			.returning({ id: series.id });
-		if (!newSeries) throw new Error("Failed to create series");
-		resolvedSeriesId = newSeries.id;
-		resolvedSeriesName = data.newSeriesName;
-	} else if (data.seriesId !== null) {
-		const [existing] = await db
-			.select({ name: series.name })
-			.from(series)
-			.where(and(eq(series.id, data.seriesId), eq(series.userId, userId)));
-		if (!existing) throw new Error("Series not found");
-		resolvedSeriesName = existing.name;
-	}
+	const { id: resolvedSeriesId, name: resolvedSeriesName } =
+		await resolveSeriesIdAndName(data, userId);
 
 	const itemPredicate = and(
 		eq(mediaItems.id, data.mediaItemId),
@@ -534,12 +541,12 @@ export async function updateMediaItemSeries(
 	// Sync the old series (item left) and new series (item joined). Leaving a
 	// series is not itself a completion event, so the old series is never
 	// silently auto-completed by this.
-	if (currentItem?.seriesId) {
+	if (currentItem.seriesId) {
 		await syncSeriesStatus(currentItem.seriesId, userId, {
 			allowCompleting: false,
 		});
 	}
-	if (resolvedSeriesId && resolvedSeriesId !== currentItem?.seriesId) {
+	if (resolvedSeriesId && resolvedSeriesId !== currentItem.seriesId) {
 		await syncSeriesStatus(resolvedSeriesId, userId);
 	}
 }
@@ -550,6 +557,30 @@ export type UpdateMediaItemCreatorInput = {
 	creatorId: number | null;
 	newCreatorName?: string;
 };
+
+async function resolveCreatorIdAndName(
+	data: UpdateMediaItemCreatorInput,
+	userId: string,
+): Promise<{ id: number | null; name: string | null }> {
+	if (data.newCreatorName) {
+		const [newCreator] = await db
+			.insert(creators)
+			.values({ name: data.newCreatorName, userId, biography: null })
+			.returning({ id: creators.id });
+		if (!newCreator) throw new Error("Failed to create creator");
+		return { id: newCreator.id, name: data.newCreatorName };
+	}
+	if (data.creatorId === null) {
+		return { id: null, name: null };
+	}
+
+	const [existing] = await db
+		.select({ name: creators.name })
+		.from(creators)
+		.where(and(eq(creators.id, data.creatorId), eq(creators.userId, userId)));
+	if (!existing) throw new Error("Creator not found");
+	return { id: data.creatorId, name: existing.name };
+}
 
 export async function updateMediaItemCreator(
 	data: UpdateMediaItemCreatorInput,
@@ -565,27 +596,8 @@ export async function updateMediaItemCreator(
 		throw new Error("Unauthorized");
 	}
 
-	let resolvedCreatorId = data.creatorId;
-	let resolvedCreatorName: string | null = null;
-
-	if (data.newCreatorName) {
-		const [newCreator] = await db
-			.insert(creators)
-			.values({ name: data.newCreatorName, userId, biography: null })
-			.returning({ id: creators.id });
-		if (!newCreator) {
-			throw new Error("Failed to create creator");
-		}
-		resolvedCreatorId = newCreator.id;
-		resolvedCreatorName = data.newCreatorName;
-	} else if (data.creatorId !== null) {
-		const [existing] = await db
-			.select({ name: creators.name })
-			.from(creators)
-			.where(and(eq(creators.id, data.creatorId), eq(creators.userId, userId)));
-		if (!existing) throw new Error("Creator not found");
-		resolvedCreatorName = existing.name;
-	}
+	const { id: resolvedCreatorId, name: resolvedCreatorName } =
+		await resolveCreatorIdAndName(data, userId);
 
 	const itemPredicate = and(
 		eq(mediaItems.id, data.mediaItemId),

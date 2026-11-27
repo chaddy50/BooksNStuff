@@ -892,7 +892,7 @@ describe("saveInstanceForUser / getMediaItemDetailsForUser progress", () => {
 });
 
 describe("progress update history", () => {
-	async function progressUpdatesFor(instanceId: number) {
+	function progressUpdatesFor(instanceId: number) {
 		return testDb
 			.select()
 			.from(mediaItemProgressUpdates)
