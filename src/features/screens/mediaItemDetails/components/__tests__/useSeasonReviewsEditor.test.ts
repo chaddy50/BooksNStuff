@@ -68,25 +68,22 @@ describe("useSeasonReviewsEditor", () => {
 
 	it("removes a season review by index", () => {
 		const { result, rerender } = renderHook(() =>
-			useSeasonReviewsEditor(
-				[
-					{
-						season: 1,
-						startedAt: "",
-						completedAt: "",
-						rating: 0,
-						reviewText: "",
-					},
-					{
-						season: 2,
-						startedAt: "",
-						completedAt: "",
-						rating: 0,
-						reviewText: "",
-					},
-				],
-				undefined,
-			),
+			useSeasonReviewsEditor([
+				{
+					season: 1,
+					startedAt: "",
+					completedAt: "",
+					rating: 0,
+					reviewText: "",
+				},
+				{
+					season: 2,
+					startedAt: "",
+					completedAt: "",
+					rating: 0,
+					reviewText: "",
+				},
+			]),
 		);
 
 		result.current.removeSeasonReview(0);
@@ -99,18 +96,15 @@ describe("useSeasonReviewsEditor", () => {
 
 	it("updates a season review by index", () => {
 		const { result, rerender } = renderHook(() =>
-			useSeasonReviewsEditor(
-				[
-					{
-						season: 1,
-						startedAt: "",
-						completedAt: "",
-						rating: 0,
-						reviewText: "",
-					},
-				],
-				undefined,
-			),
+			useSeasonReviewsEditor([
+				{
+					season: 1,
+					startedAt: "",
+					completedAt: "",
+					rating: 0,
+					reviewText: "",
+				},
+			]),
 		);
 
 		result.current.updateSeasonReview(0, { rating: 4.5 });
@@ -121,18 +115,15 @@ describe("useSeasonReviewsEditor", () => {
 
 	it("toggles a season's expanded state", () => {
 		const { result, rerender } = renderHook(() =>
-			useSeasonReviewsEditor(
-				[
-					{
-						season: 1,
-						startedAt: "",
-						completedAt: "",
-						rating: 0,
-						reviewText: "",
-					},
-				],
-				undefined,
-			),
+			useSeasonReviewsEditor([
+				{
+					season: 1,
+					startedAt: "",
+					completedAt: "",
+					rating: 0,
+					reviewText: "",
+				},
+			]),
 		);
 
 		result.current.toggleExpandedSeason(1);

@@ -18,7 +18,7 @@ export interface SeasonReviewsEditor {
 
 export function useSeasonReviewsEditor(
 	initialSeasonReviews: SeasonReview[],
-	totalSeasons: number | undefined,
+	totalSeasons?: number,
 ): SeasonReviewsEditor {
 	const [seasonReviews, setSeasonReviews] = useState(initialSeasonReviews);
 	const [expandedSeasons, setExpandedSeasons] = useState<Set<number>>(
