@@ -1,10 +1,9 @@
 import { ChevronDown, Pencil } from "lucide-react";
 import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MarkdownTextBlock } from "#/components/MarkdownTextBlock";
 import { Button } from "#/components/ui/button";
-import { InstanceSeasonReviews } from "#/features/screens/mediaItemDetails/components/history/components/instance/components/InstanceSeasonReviews";
-import { FictionRatingComments } from "#/features/screens/mediaItemDetails/components/history/components/instance/rating/fictionRating/FictionRatingComments";
+import { InstanceRowExpandedContent } from "#/features/screens/mediaItemDetails/components/history/components/instance/components/InstanceRowExpandedContent";
+import { hasExpandableContent } from "#/features/screens/mediaItemDetails/components/history/components/instance/hasExpandableContent";
 import { RatingStars } from "#/features/screens/mediaItemDetails/components/history/components/instance/rating/ratingStars/RatingStars";
 import { getInstanceMetaLabels } from "#/features/screens/mediaItemDetails/instanceMetaLabels";
 import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/mediaItemDetails";
@@ -32,10 +31,7 @@ export function InstanceRow({
 		statusChangedAt,
 		t as (key: string, options?: Record<string, unknown>) => string,
 	);
-	const hasExpandableContent =
-		Boolean(instance.reviewText) ||
-		Boolean(instance.fictionRating) ||
-		Boolean(instance.seasonReviews?.length);
+	const isExpandable = hasExpandableContent(instance);
 
 	const summaryContent = (
 		<Fragment>
@@ -61,7 +57,7 @@ export function InstanceRow({
 	return (
 		<div className="flex flex-col gap-1.5 py-4">
 			<div className="flex items-start justify-between gap-2">
-				{hasExpandableContent ? (
+				{isExpandable ? (
 					<button
 						type="button"
 						data-testid="instance-row-summary-toggle"
@@ -95,17 +91,7 @@ export function InstanceRow({
 					<Pencil />
 				</Button>
 			</div>
-			{isExpanded && instance.reviewText && (
-				<MarkdownTextBlock text={instance.reviewText} maxLines={5} />
-			)}
-			{isExpanded && instance.fictionRating && (
-				<FictionRatingComments fictionRating={instance.fictionRating} />
-			)}
-			{isExpanded &&
-				instance.seasonReviews &&
-				instance.seasonReviews.length > 0 && (
-					<InstanceSeasonReviews seasonReviews={instance.seasonReviews} />
-				)}
+			<InstanceRowExpandedContent isExpanded={isExpanded} instance={instance} />
 		</div>
 	);
 }
