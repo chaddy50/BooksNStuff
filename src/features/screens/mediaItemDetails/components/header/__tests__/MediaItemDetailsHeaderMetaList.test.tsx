@@ -2,7 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MediaItemType } from "#/lib/enums";
-import { MediaItemDetailsHeaderCreatorLine } from "../MediaItemDetailsHeaderCreatorLine";
+import { MediaItemDetailsHeaderMetaList } from "../MediaItemDetailsHeaderMetaList";
 
 vi.mock("react-i18next", () => ({
 	useTranslation: () => ({ t: (key: string) => key }),
@@ -24,7 +24,7 @@ vi.mock("@tanstack/react-router", () => ({
 
 function makeMediaItemDetails(
 	overrides: Record<string, unknown> = {},
-): Parameters<typeof MediaItemDetailsHeaderCreatorLine>[0]["mediaItemDetails"] {
+): Parameters<typeof MediaItemDetailsHeaderMetaList>[0]["mediaItemDetails"] {
 	return {
 		type: MediaItemType.BOOK,
 		metadata: { author: "Arkady Martine", seriesBookNumber: "1" },
@@ -34,26 +34,23 @@ function makeMediaItemDetails(
 		creatorName: "Arkady Martine",
 		...overrides,
 	} as unknown as Parameters<
-		typeof MediaItemDetailsHeaderCreatorLine
+		typeof MediaItemDetailsHeaderMetaList
 	>[0]["mediaItemDetails"];
 }
 
 afterEach(cleanup);
 
-describe("MediaItemDetailsHeaderCreatorLine", () => {
-	it("renders the creator and series with book number, dot-separated, in that order", () => {
+describe("MediaItemDetailsHeaderMetaList", () => {
+	it("renders creator before series when both are present", () => {
 		render(
-			<MediaItemDetailsHeaderCreatorLine
+			<MediaItemDetailsHeaderMetaList
 				mediaItemDetails={makeMediaItemDetails()}
 			/>,
 		);
 
-		expect(screen.getByText("Arkady Martine")).toBeInTheDocument();
-		expect(screen.getByText("Teixcalaan #1")).toBeInTheDocument();
-
 		const text =
-			screen.getByTestId("media-item-details-header-creator-line")
-				.textContent ?? "";
+			screen.getByTestId("media-item-details-header-meta-list").textContent ??
+			"";
 		expect(text.indexOf("Arkady Martine")).toBeLessThan(
 			text.indexOf("Teixcalaan #1"),
 		);
@@ -61,7 +58,7 @@ describe("MediaItemDetailsHeaderCreatorLine", () => {
 
 	it("links the creator when a creatorId is known", () => {
 		render(
-			<MediaItemDetailsHeaderCreatorLine
+			<MediaItemDetailsHeaderMetaList
 				mediaItemDetails={makeMediaItemDetails()}
 			/>,
 		);
@@ -73,7 +70,7 @@ describe("MediaItemDetailsHeaderCreatorLine", () => {
 
 	it("links the series when a seriesId is known", () => {
 		render(
-			<MediaItemDetailsHeaderCreatorLine
+			<MediaItemDetailsHeaderMetaList
 				mediaItemDetails={makeMediaItemDetails()}
 			/>,
 		);
@@ -84,40 +81,29 @@ describe("MediaItemDetailsHeaderCreatorLine", () => {
 		);
 	});
 
-	it("omits missing segments instead of leaving empty dots", () => {
+	it("puts creator and series on their own line, with no separator dot before either", () => {
 		render(
-			<MediaItemDetailsHeaderCreatorLine
-				mediaItemDetails={makeMediaItemDetails({
-					seriesId: null,
-					seriesName: null,
-				})}
-			/>,
-		);
-
-		expect(screen.queryByText("Teixcalaan #1")).not.toBeInTheDocument();
-		expect(screen.getByText("Arkady Martine")).toBeInTheDocument();
-	});
-
-	it("uses theme-aware full-strength text instead of a hardcoded white color", () => {
-		render(
-			<MediaItemDetailsHeaderCreatorLine
+			<MediaItemDetailsHeaderMetaList
 				mediaItemDetails={makeMediaItemDetails()}
 			/>,
 		);
 
+		const creator = screen.getByRole("link", { name: "Arkady Martine" });
+		const series = screen.getByRole("link", { name: "Teixcalaan #1" });
+		expect(creator.closest("span")).toHaveClass("basis-full");
+		expect(series.closest("span")).toHaveClass("basis-full");
 		expect(
-			screen.getByTestId("media-item-details-header-creator-line"),
-		).toHaveClass("text-foreground");
-		expect(
-			screen.getByTestId("media-item-details-header-creator-line"),
-		).not.toHaveClass("text-white/80", "text-muted-foreground");
+			screen.getByTestId("media-item-details-header-meta-list").textContent,
+		).not.toMatch(/·\s*Arkady Martine|·\s*Teixcalaan/);
 	});
 
-	it("renders nothing when there is no creator or series", () => {
+	it("renders nothing when neither creator nor series are present", () => {
 		const { container } = render(
-			<MediaItemDetailsHeaderCreatorLine
+			<MediaItemDetailsHeaderMetaList
 				mediaItemDetails={makeMediaItemDetails({
 					metadata: {},
+					creatorId: null,
+					creatorName: null,
 					seriesId: null,
 					seriesName: null,
 				})}

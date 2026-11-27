@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { InstanceList } from "#/features/screens/mediaItemDetails/components/history/components/instance/InstanceList";
 import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/mediaItemDetails";
@@ -7,29 +7,6 @@ import { MediaItemStatus, MediaItemType } from "#/lib/enums";
 vi.mock("react-i18next", () => ({
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
-
-vi.mock("@tanstack/react-router", () => ({
-	useRouter: () => ({ invalidate: vi.fn() }),
-}));
-
-// Stands in for the real editor so the props InstanceList computes and passes
-// down are directly observable; InstanceEditForm's own behavior is covered by
-// its own suite.
-vi.mock(
-	"#/features/screens/mediaItemDetails/components/history/components/instance/InstanceEditForm",
-	() => ({
-		InstanceEditForm: (props: {
-			pageCount?: number;
-			status?: MediaItemStatus;
-			statusChangedAt?: string | null;
-		}) => (
-			<div data-testid="editor">
-				pageCount:{String(props.pageCount)} status:{String(props.status)}{" "}
-				statusChangedAt:{String(props.statusChangedAt)}
-			</div>
-		),
-	}),
-);
 
 function buildMediaItemDetails(
 	overrides: Partial<MediaItemDetails>,
@@ -45,94 +22,69 @@ function buildMediaItemDetails(
 	} as unknown as MediaItemDetails;
 }
 
+function buildInstance(
+	overrides: Partial<MediaItemDetails["instances"][number]>,
+) {
+	return {
+		id: 1,
+		rating: 0,
+		fictionRating: null,
+		seasonReviews: null,
+		consumptionInfo: null,
+		reviewText: null,
+		progressPercent: null,
+		startedAt: null,
+		completedAt: null,
+		...overrides,
+	} as MediaItemDetails["instances"][number];
+}
+
 afterEach(cleanup);
 
 describe("InstanceList", () => {
-	it("passes the book's pageCount to the editor for a new entry", () => {
+	it("shows an empty-state message when there are no instances", () => {
 		render(
 			<InstanceList
-				mediaItemDetails={buildMediaItemDetails({
-					metadata: { pageCount: 320 },
-				})}
-				idBeingEdited="new"
-				setIdBeingEdited={vi.fn()}
-				startEditing={vi.fn()}
-				editorRef={{ current: null }}
-				onSeriesCompletionNeeded={vi.fn()}
+				mediaItemDetails={buildMediaItemDetails({ instances: [] })}
+				onEdit={vi.fn()}
 			/>,
 		);
 
-		expect(screen.getByTestId("editor")).toHaveTextContent("pageCount:320");
+		expect(
+			screen.getByText("mediaItemDetails.noInstances"),
+		).toBeInTheDocument();
 	});
 
-	it("omits pageCount for a non-book media type even when metadata has one", () => {
+	it("renders every instance as a row, never as an inline editor", () => {
 		render(
 			<InstanceList
 				mediaItemDetails={buildMediaItemDetails({
-					type: MediaItemType.MOVIE,
-					metadata: { pageCount: 320 },
+					instances: [buildInstance({ id: 1 }), buildInstance({ id: 2 })],
 				})}
-				idBeingEdited="new"
-				setIdBeingEdited={vi.fn()}
-				startEditing={vi.fn()}
-				editorRef={{ current: null }}
-				onSeriesCompletionNeeded={vi.fn()}
+				onEdit={vi.fn()}
 			/>,
 		);
 
-		expect(screen.getByTestId("editor")).toHaveTextContent(
-			"pageCount:undefined",
-		);
+		expect(
+			screen.getAllByRole("button", { name: "mediaItemDetails.edit" }),
+		).toHaveLength(2);
 	});
 
-	it("passes pageCount through to the editor for an existing entry", () => {
+	it("calls onEdit with the clicked row's instance id", () => {
+		const onEdit = vi.fn();
 		render(
 			<InstanceList
 				mediaItemDetails={buildMediaItemDetails({
-					metadata: { pageCount: 320 },
-					instances: [
-						{
-							id: 1,
-							rating: 0,
-							fictionRating: null,
-							seasonReviews: null,
-							consumptionInfo: null,
-							reviewText: null,
-							progressPercent: null,
-							startedAt: null,
-							completedAt: null,
-						},
-					],
+					instances: [buildInstance({ id: 5 })],
 				})}
-				idBeingEdited={1}
-				setIdBeingEdited={vi.fn()}
-				startEditing={vi.fn()}
-				editorRef={{ current: null }}
-				onSeriesCompletionNeeded={vi.fn()}
+				onEdit={onEdit}
 			/>,
 		);
 
-		expect(screen.getByTestId("editor")).toHaveTextContent("pageCount:320");
-	});
-
-	it("passes the item's status and statusChangedAt through to the editor", () => {
-		render(
-			<InstanceList
-				mediaItemDetails={buildMediaItemDetails({
-					status: MediaItemStatus.ON_HOLD,
-					statusChangedAt: "2024-02-10",
-				})}
-				idBeingEdited="new"
-				setIdBeingEdited={vi.fn()}
-				startEditing={vi.fn()}
-				editorRef={{ current: null }}
-				onSeriesCompletionNeeded={vi.fn()}
-			/>,
+		fireEvent.click(
+			screen.getByRole("button", { name: "mediaItemDetails.edit" }),
 		);
 
-		expect(screen.getByTestId("editor")).toHaveTextContent("status:on_hold");
-		expect(screen.getByTestId("editor")).toHaveTextContent(
-			"statusChangedAt:2024-02-10",
-		);
+		expect(onEdit).toHaveBeenCalledWith(5);
 	});
 });

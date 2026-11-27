@@ -10,7 +10,7 @@ export function MediaItemDetailsHeaderBackdrop(
 	const { children } = props;
 
 	return (
-		<div className="rounded-lg border border-border bg-card p-4 md:p-8">
+		<div className="rounded-xl border border-border bg-muted/60 shadow-sm overflow-hidden p-4 md:p-5">
 			{children}
 		</div>
 	);

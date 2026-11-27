@@ -13,7 +13,6 @@ vi.mock("#/components/hooks/useToast", () => ({
 
 const navigate = vi.fn();
 const invalidate = vi.fn();
-let searchParams: { tab?: string } = {};
 let locationState: { genreSuggestions?: string[] } | undefined;
 let loaderData: {
 	id: number;
@@ -30,7 +29,6 @@ let loaderData: {
 vi.mock("@tanstack/react-router", () => ({
 	getRouteApi: () => ({
 		useLoaderData: () => loaderData,
-		useSearch: () => searchParams,
 	}),
 	useNavigate: () => navigate,
 	useBlocker: () => ({ status: "idle" }),
@@ -51,18 +49,27 @@ vi.mock(
 );
 
 vi.mock("#/features/navigation/topBar/TopBar", () => ({
-	TopBar: (props: { right?: React.ReactNode }) => <div>{props.right}</div>,
+	TopBar: (props: { right?: React.ReactNode }) => (
+		<div data-testid="top-bar-right">{props.right}</div>
+	),
 }));
 
 vi.mock(
 	"#/features/screens/mediaItemDetails/components/header/MediaItemDetailsHeader",
 	() => ({
 		MediaItemDetailsHeader: (props: {
-			onUpdateProgress: (instanceId: number) => void;
+			onRequestDelete: () => void;
+			isDeleting: boolean;
 		}) => (
-			<button type="button" onClick={() => props.onUpdateProgress(42)}>
-				updateProgress
-			</button>
+			<div data-testid="header">
+				<button
+					type="button"
+					onClick={props.onRequestDelete}
+					disabled={props.isDeleting}
+				>
+					mediaItemDetails.removeFromLibrary
+				</button>
+			</div>
 		),
 	}),
 );
@@ -84,13 +91,7 @@ vi.mock(
 vi.mock(
 	"#/features/screens/mediaItemDetails/components/history/History",
 	() => ({
-		History: (props: {
-			editingState: { idBeingEdited: number | "new" | null };
-		}) => (
-			<div data-testid="history">
-				{String(props.editingState.idBeingEdited)}
-			</div>
-		),
+		History: () => <div data-testid="history" />,
 	}),
 );
 
@@ -113,7 +114,6 @@ function cancelDelete() {
 afterEach(cleanup);
 beforeEach(() => {
 	vi.clearAllMocks();
-	searchParams = {};
 	locationState = undefined;
 	loaderData = { id: 7, title: "Test Item", instances: [], genreId: null };
 });
@@ -142,65 +142,22 @@ describe("MediaItemDetailsScreen", () => {
 		expect(screen.queryByTestId("set-genre-dialog")).not.toBeInTheDocument();
 	});
 
-	it("defaults to the overview tab when no tab is in the URL", () => {
+	it("shows Overview, History, and Related content all at once, with no tab gating", () => {
 		render(<MediaItemDetailsScreen />);
 
 		expect(screen.getByTestId("overview-tab")).toBeInTheDocument();
-		expect(screen.queryByTestId("history")).not.toBeInTheDocument();
-		expect(screen.queryByTestId("related-items")).not.toBeInTheDocument();
-	});
-
-	it("shows the history panel when tab=history is in the URL", () => {
-		searchParams = { tab: "history" };
-		render(<MediaItemDetailsScreen />);
-
 		expect(screen.getByTestId("history")).toBeInTheDocument();
-		expect(screen.queryByTestId("overview-tab")).not.toBeInTheDocument();
-	});
-
-	it("shows the related panel when tab=related is in the URL", () => {
-		searchParams = { tab: "related" };
-		render(<MediaItemDetailsScreen />);
-
 		expect(screen.getByTestId("related-items")).toBeInTheDocument();
+		expect(screen.queryByRole("tabpanel")).not.toBeInTheDocument();
 	});
 
-	it("keeps the scroll position when switching tabs", () => {
+	it("renders the navigation TopBar with no right-side content, and wires the delete action through the header", () => {
 		render(<MediaItemDetailsScreen />);
 
-		fireEvent.click(screen.getByText("mediaItemDetails.history"));
-
-		expect(navigate).toHaveBeenCalledWith({
-			to: "/mediaItemDetails/$mediaItemId",
-			params: { mediaItemId: "7" },
-			search: { tab: "history" },
-			resetScroll: false,
-			replace: true,
-		});
-	});
-
-	it("navigates to the history tab and opens the given instance when progress is updated", () => {
-		render(<MediaItemDetailsScreen />);
-
-		fireEvent.click(screen.getByText("updateProgress"));
-
-		expect(navigate).toHaveBeenCalledWith({
-			to: "/mediaItemDetails/$mediaItemId",
-			params: { mediaItemId: "7" },
-			search: { tab: "history" },
-			resetScroll: false,
-			replace: true,
-		});
-	});
-
-	it("opens the given instance without an extra navigation when already on the history tab", () => {
-		searchParams = { tab: "history" };
-		render(<MediaItemDetailsScreen />);
-
-		fireEvent.click(screen.getByText("updateProgress"));
-
-		expect(navigate).not.toHaveBeenCalled();
-		expect(screen.getByTestId("history")).toHaveTextContent("42");
+		expect(screen.getByTestId("top-bar-right")).toBeEmptyDOMElement();
+		expect(
+			screen.getByText("mediaItemDetails.removeFromLibrary"),
+		).toBeInTheDocument();
 	});
 
 	it("opens the confirmation dialog without deleting immediately", async () => {
