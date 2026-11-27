@@ -33,14 +33,16 @@ export function resolveDrillDownTypeFilter(
 }
 
 /**
- * Falls back to year-to-date only when the caller didn't supply an explicit
- * range, e.g. a drilldown link created before date-range support existed.
+ * Falls back to the given range only when the caller didn't supply an
+ * explicit one, e.g. a drilldown link created before date-range support
+ * existed.
  */
 export function resolveDrillDownDateRange(
-	startDate?: string,
-	endDate?: string,
+	startDate: string | undefined,
+	endDate: string | undefined,
+	fallbackRange: { startDate: string; endDate: string },
 ): { startDate: string; endDate: string } {
-	return startDate && endDate ? { startDate, endDate } : getYearToDateRange();
+	return startDate && endDate ? { startDate, endDate } : fallbackRange;
 }
 
 export const getDrillDownItems = createServerFn({ method: "GET" })
@@ -70,6 +72,7 @@ export const getDrillDownItems = createServerFn({ method: "GET" })
 			const { startDate, endDate } = resolveDrillDownDateRange(
 				data.startDate,
 				data.endDate,
+				getYearToDateRange(),
 			);
 			const genreNames =
 				data.genres && data.genres.length > 0 ? data.genres : [data.key];

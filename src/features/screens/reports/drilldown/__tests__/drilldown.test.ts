@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { MediaItemType } from "#/lib/enums";
-import { getYearToDateRange } from "../../utils.server";
 import {
 	resolveDrillDownDateRange,
 	resolveDrillDownTypeFilter,
@@ -37,26 +36,29 @@ describe("resolveDrillDownTypeFilter", () => {
 });
 
 describe("resolveDrillDownDateRange", () => {
+	const fallbackRange = { startDate: "2024-01-01", endDate: "2024-06-30" };
+
 	it("uses the supplied range when both startDate and endDate are given", () => {
-		expect(resolveDrillDownDateRange("2024-01-01", "2024-03-15")).toEqual({
-			startDate: "2024-01-01",
-			endDate: "2024-03-15",
-		});
+		expect(
+			resolveDrillDownDateRange("2024-02-01", "2024-02-15", fallbackRange),
+		).toEqual({ startDate: "2024-02-01", endDate: "2024-02-15" });
 	});
 
-	it("falls back to year-to-date when no range is given", () => {
-		expect(resolveDrillDownDateRange()).toEqual(getYearToDateRange());
+	it("falls back to the given range when no range is supplied", () => {
+		expect(
+			resolveDrillDownDateRange(undefined, undefined, fallbackRange),
+		).toEqual(fallbackRange);
 	});
 
-	it("falls back to year-to-date when only startDate is given", () => {
-		expect(resolveDrillDownDateRange("2024-01-01", undefined)).toEqual(
-			getYearToDateRange(),
-		);
+	it("falls back to the given range when only startDate is supplied", () => {
+		expect(
+			resolveDrillDownDateRange("2024-02-01", undefined, fallbackRange),
+		).toEqual(fallbackRange);
 	});
 
-	it("falls back to year-to-date when only endDate is given", () => {
-		expect(resolveDrillDownDateRange(undefined, "2024-03-15")).toEqual(
-			getYearToDateRange(),
-		);
+	it("falls back to the given range when only endDate is supplied", () => {
+		expect(
+			resolveDrillDownDateRange(undefined, "2024-02-15", fallbackRange),
+		).toEqual(fallbackRange);
 	});
 });
