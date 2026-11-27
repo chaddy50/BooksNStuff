@@ -14,7 +14,9 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("#/features/screens/mediaItemDetails/mediaItemDetails", () => ({
-	setMediaItemExpectedReleaseDate: vi.fn().mockResolvedValue(undefined),
+	setMediaItemExpectedReleaseDate: vi
+		.fn<() => Promise<void>>()
+		.mockResolvedValue(),
 }));
 
 const toast = vi.fn();
