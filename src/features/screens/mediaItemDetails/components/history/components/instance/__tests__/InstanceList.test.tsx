@@ -70,6 +70,21 @@ describe("InstanceList", () => {
 		).toHaveLength(2);
 	});
 
+	it("separates entries with a hairline divider instead of per-row cards", () => {
+		const { container } = render(
+			<InstanceList
+				mediaItemDetails={buildMediaItemDetails({
+					instances: [buildInstance({ id: 1 }), buildInstance({ id: 2 })],
+				})}
+				onEdit={vi.fn()}
+			/>,
+		);
+
+		expect(container.querySelector(".divide-y.divide-border")).toBeTruthy();
+		expect(container.querySelector(".rounded-lg")).not.toBeInTheDocument();
+		expect(container.querySelector(".bg-card")).not.toBeInTheDocument();
+	});
+
 	it("calls onEdit with the clicked row's instance id", () => {
 		const onEdit = vi.fn();
 		render(

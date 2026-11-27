@@ -79,7 +79,7 @@ export function MediaItemDetailsScreen() {
 
 			<div
 				key={mediaItemDetails.id}
-				className="px-4 md:px-6 py-8 max-w-5xl mx-auto flex flex-col gap-6"
+				className="px-4 md:px-6 py-8 max-w-5xl mx-auto flex flex-col gap-8 md:gap-10"
 			>
 				<MediaItemDetailsHeader
 					mediaItemDetails={mediaItemDetails}

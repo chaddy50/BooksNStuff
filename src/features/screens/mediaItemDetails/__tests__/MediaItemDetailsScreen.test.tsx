@@ -151,6 +151,15 @@ describe("MediaItemDetailsScreen", () => {
 		expect(screen.queryByRole("tabpanel")).not.toBeInTheDocument();
 	});
 
+	it("uses a wider gap between the header, Overview, History, and Related blocks than within one of them", () => {
+		render(<MediaItemDetailsScreen />);
+
+		const container = screen.getByTestId("header").parentElement;
+
+		expect(container).toHaveClass("gap-8", "md:gap-10");
+		expect(container).not.toHaveClass("gap-6");
+	});
+
 	it("renders the navigation TopBar with no right-side content, and wires the delete action through the header", () => {
 		render(<MediaItemDetailsScreen />);
 

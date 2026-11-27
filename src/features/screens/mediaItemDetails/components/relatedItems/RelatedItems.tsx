@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { MediaItemCard } from "#/components/MediaItemCard";
 import { Button } from "#/components/ui/button";
+import { SectionLabel } from "#/features/screens/mediaItemDetails/components/SectionLabel";
 import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/mediaItemDetails";
 import { removeRelatedMediaItem } from "#/features/screens/mediaItemDetails/relatedItems";
 import { AddRelatedItemDialog } from "./AddRelatedItemDialog";
@@ -33,8 +34,8 @@ export function RelatedItems({ mediaItemDetails }: RelatedItemsProps) {
 
 	return (
 		<div>
-			<div className="flex items-center justify-between mb-4">
-				<h2 className="text-lg font-semibold">{t("relatedItems.title")}</h2>
+			<div className="flex items-center justify-between mb-3">
+				<SectionLabel>{t("relatedItems.title")}</SectionLabel>
 				<Button
 					variant="outline"
 					size="sm"

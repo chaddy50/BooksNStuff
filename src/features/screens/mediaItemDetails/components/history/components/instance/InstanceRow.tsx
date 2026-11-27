@@ -39,15 +39,6 @@ export function InstanceRow({
 
 	const summaryContent = (
 		<Fragment>
-			{hasExpandableContent && (
-				<ChevronDown
-					aria-hidden="true"
-					className={cn(
-						"size-4 text-muted-foreground shrink-0 transition-transform",
-						isExpanded && "rotate-180",
-					)}
-				/>
-			)}
 			<span className="text-sm font-medium text-muted-foreground">
 				#{index}
 			</span>
@@ -68,16 +59,26 @@ export function InstanceRow({
 	);
 
 	return (
-		<div className="flex flex-col gap-1.5 p-4 rounded-lg border border-border bg-card">
+		<div className="flex flex-col gap-1.5 py-4">
 			<div className="flex items-start justify-between gap-2">
 				{hasExpandableContent ? (
 					<button
 						type="button"
 						data-testid="instance-row-summary-toggle"
 						onClick={() => setIsExpanded((wasExpanded) => !wasExpanded)}
-						className="flex items-center gap-3 flex-wrap min-w-0 text-left"
+						className="flex flex-1 items-center justify-between gap-3 min-w-0 text-left"
 					>
-						{summaryContent}
+						<span className="flex items-center gap-3 flex-wrap min-w-0">
+							{summaryContent}
+						</span>
+						<ChevronDown
+							aria-hidden="true"
+							data-testid="instance-row-expand-indicator"
+							className={cn(
+								"size-4 text-muted-foreground shrink-0 transition-transform ml-2",
+								isExpanded && "rotate-180",
+							)}
+						/>
 					</button>
 				) : (
 					<div className="flex items-center gap-3 flex-wrap min-w-0">
@@ -89,7 +90,7 @@ export function InstanceRow({
 					size="icon-sm"
 					onClick={onEdit}
 					aria-label={t("mediaItemDetails.edit")}
-					className="text-muted-foreground shrink-0 -mt-1 -mr-2"
+					className="text-muted-foreground shrink-0 -mt-1"
 				>
 					<Pencil />
 				</Button>

@@ -178,6 +178,18 @@ describe("InstanceRow collapse/expand", () => {
 });
 
 describe("InstanceRow", () => {
+	it("renders the expand indicator after the index, not before it, so the row's left content doesn't shift based on whether it has a review", () => {
+		renderInstanceRow({ reviewText: "Loved it." });
+
+		const index = screen.getByText("#1");
+		const expandIndicator = screen.getByTestId("instance-row-expand-indicator");
+
+		expect(
+			index.compareDocumentPosition(expandIndicator) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
+	});
+
 	it("does not show season reviews, and isn't expandable, when seasonReviews is null", () => {
 		renderInstanceRow({ seasonReviews: null });
 		expect(

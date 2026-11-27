@@ -49,6 +49,16 @@ function renderRelatedItems(relatedItems: MediaItemDetails["relatedItems"]) {
 }
 
 describe("RelatedItems", () => {
+	it("renders a de-emphasized 'Related' heading", () => {
+		renderRelatedItems([]);
+
+		const heading = screen.getByRole("heading", {
+			name: "relatedItems.title",
+		});
+
+		expect(heading).not.toHaveClass("text-lg", "font-semibold");
+	});
+
 	it("shows the empty message when there are no related items", () => {
 		renderRelatedItems([]);
 
