@@ -5,16 +5,12 @@ import type { MediaItemDetails } from "#/features/screens/mediaItemDetails/media
 import { InstanceSeasonReviews } from "./InstanceSeasonReviews";
 
 interface InstanceRowExpandedContentProps {
-	isExpanded: boolean;
 	instance: MediaItemDetails["instances"][number];
 }
 
 export function InstanceRowExpandedContent({
-	isExpanded,
 	instance,
 }: InstanceRowExpandedContentProps) {
-	if (!isExpanded) return null;
-
 	return (
 		<Fragment>
 			{instance.reviewText && (

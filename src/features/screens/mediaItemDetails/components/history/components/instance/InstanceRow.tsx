@@ -91,7 +91,7 @@ export function InstanceRow({
 					<Pencil />
 				</Button>
 			</div>
-			<InstanceRowExpandedContent isExpanded={isExpanded} instance={instance} />
+			{isExpanded && <InstanceRowExpandedContent instance={instance} />}
 		</div>
 	);
 }
