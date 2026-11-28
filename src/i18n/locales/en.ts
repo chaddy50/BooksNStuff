@@ -86,6 +86,7 @@ export const en = {
 	},
 	mediaItemDetails: {
 		back: "Back",
+		details: "Details",
 		history: "History",
 		addInstance: "+ Add Entry",
 		noInstances: "No history yet.",

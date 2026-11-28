@@ -60,4 +60,18 @@ describe("OverviewTab", () => {
 			).toBeTruthy();
 		}
 	});
+
+	it("renders a 'Details' heading before the description and metadata content", () => {
+		render(<OverviewTab mediaItemDetails={mediaItemDetails} />);
+
+		const heading = screen.getByRole("heading", {
+			name: "mediaItemDetails.details",
+		});
+		const description = screen.getByTestId("description");
+
+		expect(
+			heading.compareDocumentPosition(description) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
+	});
 });

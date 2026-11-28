@@ -2,6 +2,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { UnsavedChangesDialog } from "#/components/UnsavedChangesDialog";
 import { EditEntryModal } from "#/features/screens/mediaItemDetails/components/EditEntryModal";
+import { SectionLabel } from "#/features/screens/mediaItemDetails/components/SectionLabel";
 import type { InstanceEditorState } from "#/features/screens/mediaItemDetails/components/useInstanceEditorState";
 import type {
 	MediaItemDetails,
@@ -43,14 +44,14 @@ export function History(props: HistoryProps) {
 
 	return (
 		<div>
-			<h2 className="text-lg font-semibold mb-4">
-				{t("mediaItemDetails.history")}
-			</h2>
+			<SectionLabel>{t("mediaItemDetails.history")}</SectionLabel>
 
-			<InstanceList
-				mediaItemDetails={mediaItemDetails}
-				onEdit={openEditInstance}
-			/>
+			<div className="mt-3">
+				<InstanceList
+					mediaItemDetails={mediaItemDetails}
+					onEdit={openEditInstance}
+				/>
+			</div>
 
 			{editingInstance && (
 				<EditEntryModal
