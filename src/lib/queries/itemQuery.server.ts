@@ -467,9 +467,9 @@ export async function transitionReleasedItems(userId: string) {
 				.filter((id): id is number => id !== null),
 		),
 	];
-	for (const seriesId of affectedSeriesIds) {
-		await syncSeriesStatus(seriesId, userId);
-	}
+	await Promise.all(
+		affectedSeriesIds.map((seriesId) => syncSeriesStatus(seriesId, userId)),
+	);
 }
 
 // ---------------------------------------------------------------------------
