@@ -145,6 +145,24 @@ describe("EditEntryModal", () => {
 		await vi.waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
 	});
 
+	it("shows a destructive toast and keeps the modal open when removing the entry fails", async () => {
+		const { deleteInstance } = await import(
+			"#/features/screens/mediaItemDetails/mediaItemDetails"
+		);
+		vi.mocked(deleteInstance).mockRejectedValueOnce(new Error("network down"));
+		const onClose = vi.fn();
+
+		render(<EditEntryModal {...baseProps} onClose={onClose} />);
+		fireEvent.click(screen.getByText("mediaItemDetails.removeEntry"));
+
+		await vi.waitFor(() =>
+			expect(toast).toHaveBeenCalledWith("mediaItemDetails.removeEntryFailed", {
+				variant: "destructive",
+			}),
+		);
+		expect(onClose).not.toHaveBeenCalled();
+	});
+
 	it("shows the current page number (not raw percent) for a page-tracked physical book", () => {
 		render(
 			<EditEntryModal

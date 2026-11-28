@@ -213,6 +213,10 @@ export function EditEntryModal({
 				onSeriesCompletionNeeded(confirmation);
 			}
 			onClose();
+		} catch {
+			toast(t("mediaItemDetails.removeEntryFailed"), {
+				variant: "destructive",
+			});
 		} finally {
 			setSaving(false);
 		}

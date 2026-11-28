@@ -111,6 +111,7 @@ export const en = {
 			'Remove "{{title}}" from your library? This can\'t be undone.',
 		deleteFailed: "Couldn't remove this item. Please try again.",
 		saveFailed: "Couldn't save your changes. Please try again.",
+		removeEntryFailed: "Couldn't remove this entry. Please try again.",
 		overview: "Overview",
 		startReading: "Start Reading",
 		startWatching: "Start Watching",
